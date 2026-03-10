@@ -1,0 +1,135 @@
+{
+  "schemaVersion": "1.0.0",
+  "indexerVersion": "0.1.0-SNAPSHOT",
+  "runMetadata": {
+    "startedAt": "2026-03-10T12:00:00Z",
+    "completedAt": "2026-03-10T12:00:01Z",
+    "outcome": "SUCCESS",
+    "detectedTechnologies": [
+      "java"
+    ],
+    "metadata": {
+      "fixture": "minimal-success"
+    }
+  },
+  "source": {
+    "repositoryId": "fixture-java-backend",
+    "acquisitionType": "local-path",
+    "path": "/fixtures/java-backend",
+    "remoteUrl": null,
+    "branch": "main",
+    "revision": "abc123",
+    "acquiredAt": "2026-03-10T12:00:00Z",
+    "metadata": {}
+  },
+  "scopes": [
+    {
+      "id": "scope:repo",
+      "kind": "REPOSITORY",
+      "name": "fixture-java-backend",
+      "displayName": "fixture-java-backend",
+      "parentScopeId": null,
+      "sourceRefs": [
+        {
+          "path": "src/main/java/com/example/DemoController.java",
+          "startLine": 1,
+          "endLine": 20,
+          "snippet": "class DemoController",
+          "metadata": {}
+        }
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "scope:package:com.example",
+      "kind": "PACKAGE",
+      "name": "com.example",
+      "displayName": "com.example",
+      "parentScopeId": "scope:repo",
+      "sourceRefs": [
+        {
+          "path": "src/main/java/com/example/DemoController.java",
+          "startLine": 1,
+          "endLine": 20,
+          "snippet": "package com.example;",
+          "metadata": {}
+        }
+      ],
+      "metadata": {
+        "language": "java"
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "entity:class:demo-controller",
+      "kind": "CLASS",
+      "origin": "OBSERVED",
+      "name": "DemoController",
+      "displayName": "com.example.DemoController",
+      "scopeId": "scope:package:com.example",
+      "sourceRefs": [
+        {
+          "path": "src/main/java/com/example/DemoController.java",
+          "startLine": 3,
+          "endLine": 18,
+          "snippet": "public class DemoController",
+          "metadata": {}
+        }
+      ],
+      "metadata": {
+        "language": "java"
+      }
+    },
+    {
+      "id": "entity:endpoint:demo",
+      "kind": "ENDPOINT",
+      "origin": "INFERRED",
+      "name": "Demo endpoint",
+      "displayName": "GET /demo",
+      "scopeId": "scope:package:com.example",
+      "sourceRefs": [
+        {
+          "path": "src/main/java/com/example/DemoController.java",
+          "startLine": 8,
+          "endLine": 12,
+          "snippet": "@GetMapping(\"/demo\")",
+          "metadata": {}
+        }
+      ],
+      "metadata": {
+        "httpMethod": "GET",
+        "path": "/demo"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "rel:controller:exposes:endpoint",
+      "kind": "EXPOSES",
+      "fromEntityId": "entity:class:demo-controller",
+      "toEntityId": "entity:endpoint:demo",
+      "label": "controller exposes endpoint",
+      "sourceRefs": [
+        {
+          "path": "src/main/java/com/example/DemoController.java",
+          "startLine": 8,
+          "endLine": 12,
+          "snippet": "@GetMapping(\"/demo\")",
+          "metadata": {}
+        }
+      ],
+      "metadata": {}
+    }
+  ],
+  "diagnostics": [],
+  "completeness": {
+    "status": "COMPLETE",
+    "indexedFileCount": 4,
+    "totalFileCount": 4,
+    "degradedFileCount": 0,
+    "omittedPaths": [],
+    "notes": []
+  },
+  "metadata": {}
+}

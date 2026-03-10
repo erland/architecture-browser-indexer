@@ -1,58 +1,44 @@
 # architecture-browser-indexer
 
-Deterministic architecture indexer for the Architecture Browser MVP.
+Deterministic architecture indexer for the Architecture Browser product.
 
-## Step 1 scope
+## Current status
 
-This repository baseline provides:
-- Maven build and test setup
-- Java package baseline rooted at `info.isaksson.erland`
-- CLI shell with help and version support
-- placeholder package structure for later pipeline steps
-- initial README and copied planning documents under `docs/`
+This repository currently contains:
+- Step 1 baseline CLI shell
+- Step 2 versioned architecture IR model
+- diagnostics and completeness metadata model
+- JSON serializer/deserializer
+- golden IR fixtures and round-trip tests
 
-This step does **not** implement indexing yet. The CLI currently validates and echoes invocation parameters so later steps can add the real acquisition and indexing pipeline behind a stable entry point.
+## Package root
 
-## Requirements
-
-- Java 21+
-- Maven 3.9+
+`info.isaksson.erland.architecturebrowser.indexer`
 
 ## Build
 
 ```bash
-mvn clean test
+mvn test
 ```
 
-## Run help
+## CLI usage
+
+Show help:
 
 ```bash
-mvn -q -DskipTests exec:java -Dexec.mainClass=info.isaksson.erland.architecturebrowser.indexer.cli.ArchitectureBrowserIndexerCli -- --help
+mvn -q exec:java -Dexec.mainClass=info.isaksson.erland.architecturebrowser.indexer.cli.IndexerCli -- --help
 ```
 
-## Run version
+Show version:
 
 ```bash
-mvn -q -DskipTests exec:java -Dexec.mainClass=info.isaksson.erland.architecturebrowser.indexer.cli.ArchitectureBrowserIndexerCli -- --version
+mvn -q exec:java -Dexec.mainClass=info.isaksson.erland.architecturebrowser.indexer.cli.IndexerCli -- --version
 ```
 
-## Run placeholder index command
+Write a placeholder IR payload:
 
 ```bash
-mvn -q -DskipTests exec:java -Dexec.mainClass=info.isaksson.erland.architecturebrowser.indexer.cli.ArchitectureBrowserIndexerCli -- \
-  --source /path/to/repository \
-  --output /tmp/index-result.json
+mvn -q exec:java -Dexec.mainClass=info.isaksson.erland.architecturebrowser.indexer.cli.IndexerCli --   --source /path/to/repository   --output /tmp/index-result.json
 ```
 
-## Current CLI behavior
-
-The current command:
-- accepts `--source` and `--output`
-- resolves paths to absolute normalized paths
-- validates that the source path exists
-- prints a placeholder run summary
-- exits successfully without producing an IR yet
-
-## Planned next step
-
-Step 2 should define the versioned architecture IR, diagnostics model, and serialization contract so the CLI can emit a real placeholder payload instead of only console output.
+At this stage the CLI still emits a placeholder payload built from the Step 2 IR contract. Real acquisition and scanning start in Step 3.
