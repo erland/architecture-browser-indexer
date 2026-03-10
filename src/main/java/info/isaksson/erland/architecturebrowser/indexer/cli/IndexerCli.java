@@ -7,6 +7,10 @@ import info.isaksson.erland.architecturebrowser.indexer.ir.ArchitectureIrFactory
 import info.isaksson.erland.architecturebrowser.indexer.ir.ArchitectureIrValidator;
 import info.isaksson.erland.architecturebrowser.indexer.ir.json.ArchitectureIrJson;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureIndexDocument;
+import info.isaksson.erland.architecturebrowser.indexer.parse.ParseBatchResult;
+import info.isaksson.erland.architecturebrowser.indexer.parse.TreeSitterParserRegistryFactory;
+import info.isaksson.erland.architecturebrowser.indexer.parse.TreeSitterParsingService;
+import info.isaksson.erland.architecturebrowser.indexer.parse.TreeSitterRuntimeDetector;
 import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventory;
 import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventoryScanner;
 
@@ -41,6 +45,7 @@ public final class IndexerCli {
 
         SourceAcquisitionService acquisitionService = new SourceAcquisitionService();
         FileInventoryScanner scanner = new FileInventoryScanner();
+        TreeSitterParsingService parsingService = new TreeSitterParsingService(TreeSitterParserRegistryFactory.createDefaultRegistry());
 
         AcquisitionRequest request = new AcquisitionRequest(
             arguments.repositoryId(),
@@ -51,12 +56,14 @@ public final class IndexerCli {
         );
         AcquisitionResult acquisitionResult = acquisitionService.acquire(request);
         FileInventory inventory = scanner.scan(acquisitionResult.acquiredRoot());
+        ParseBatchResult parseBatchResult = parsingService.parseInventory(acquisitionResult.acquiredRoot(), inventory);
 
         ArchitectureIndexDocument document = ArchitectureIrFactory.createInventoryDocument(
             acquisitionResult.repositorySource(),
             APPLICATION_VERSION,
             inventory,
-            acquisitionResult.diagnostics()
+            acquisitionResult.diagnostics(),
+            parseBatchResult
         );
 
         ArchitectureIrValidator.ValidationResult validation = ArchitectureIrValidator.validate(document);
@@ -79,6 +86,8 @@ public final class IndexerCli {
         summary.put("ignoredFiles", inventory.ignoredFiles());
         summary.put("detectedLanguages", inventory.detectedLanguages());
         summary.put("detectedTechnologyMarkers", inventory.detectedTechnologyMarkers());
+        summary.put("treeSitterRuntime", TreeSitterRuntimeDetector.detect().detail());
+        summary.put("parseSummary", TreeSitterParsingService.summarize(parseBatchResult));
         System.out.println(ArchitectureIrJson.toPrettyJson(summary));
 
         if (acquisitionResult.temporaryWorkspace()) {

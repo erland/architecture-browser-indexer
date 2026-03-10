@@ -8,6 +8,7 @@ This repository currently contains:
 - Step 1 baseline CLI shell
 - Step 2 versioned architecture IR model
 - Step 3 acquisition and file inventory
+- Step 4 Tree-sitter parsing foundation (registry, parse result abstraction, graceful diagnostics)
 - diagnostics and completeness metadata model
 - JSON serializer/deserializer
 - golden IR fixtures and regression tests
@@ -53,4 +54,4 @@ mvn -q exec:java -Dexec.mainClass=info.isaksson.erland.architecturebrowser.index
   --output /tmp/index-result.json
 ```
 
-At this stage the CLI performs acquisition and deterministic file inventory, then emits an inventory-oriented IR payload. Structural extraction starts in Step 4.
+At this stage the CLI performs acquisition, deterministic file inventory, and a Tree-sitter parsing pass through a Java-17-safe abstraction layer. The default registry reports backend-unavailable diagnostics unless a compatible Tree-sitter runtime is added later. Structural extraction starts in Step 5.

@@ -17,6 +17,9 @@ import info.isaksson.erland.architecturebrowser.indexer.ir.model.RunMetadata;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.RunOutcome;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ScopeKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
+import info.isaksson.erland.architecturebrowser.indexer.parse.ParseBatchResult;
+import info.isaksson.erland.architecturebrowser.indexer.parse.ParseDiagnostics;
+import info.isaksson.erland.architecturebrowser.indexer.parse.TreeSitterParsingService;
 import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventory;
 import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventoryEntry;
 
@@ -34,6 +37,16 @@ public final class ArchitectureIrFactory {
         String indexerVersion,
         FileInventory inventory,
         List<Diagnostic> acquisitionDiagnostics
+    ) {
+        return createInventoryDocument(source, indexerVersion, inventory, acquisitionDiagnostics, null);
+    }
+
+    public static ArchitectureIndexDocument createInventoryDocument(
+        RepositorySource source,
+        String indexerVersion,
+        FileInventory inventory,
+        List<Diagnostic> acquisitionDiagnostics,
+        ParseBatchResult parseBatchResult
     ) {
         Instant generatedAt = Instant.now();
 
@@ -79,8 +92,9 @@ public final class ArchitectureIrFactory {
             Map.of("placeholder", true)
         );
 
-        List<Diagnostic> diagnostics = acquisitionDiagnostics == null || acquisitionDiagnostics.isEmpty()
-            ? List.of(new Diagnostic(
+        List<Diagnostic> diagnostics = new java.util.ArrayList<>();
+        if (acquisitionDiagnostics == null || acquisitionDiagnostics.isEmpty()) {
+            diagnostics.add(new Diagnostic(
                 "diag:inventory:scan-complete",
                 DiagnosticSeverity.INFO,
                 DiagnosticPhase.ACQUISITION,
@@ -92,8 +106,13 @@ public final class ArchitectureIrFactory {
                 inventoryEntity.id(),
                 inventoryEntity.sourceRefs(),
                 Map.of("totalFiles", inventory.totalFiles(), "ignoredFiles", inventory.ignoredFiles())
-            ))
-            : List.copyOf(acquisitionDiagnostics);
+            ));
+        } else {
+            diagnostics.addAll(acquisitionDiagnostics);
+        }
+        if (parseBatchResult != null) {
+            diagnostics.addAll(ParseDiagnostics.toDiagnostics(parseBatchResult));
+        }
 
         CompletenessMetadata completeness = new CompletenessMetadata(
             CompletenessStatus.COMPLETE,
@@ -113,6 +132,9 @@ public final class ArchitectureIrFactory {
             "detectedLanguages", inventory.detectedLanguages(),
             "detectedTechnologyMarkers", inventory.detectedTechnologyMarkers()
         ));
+        if (parseBatchResult != null) {
+            documentMetadata.put("parseSummary", TreeSitterParsingService.summarize(parseBatchResult));
+        }
 
         RunMetadata runMetadata = new RunMetadata(
             generatedAt,
