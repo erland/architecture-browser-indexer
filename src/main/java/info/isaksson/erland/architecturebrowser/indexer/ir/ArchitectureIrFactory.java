@@ -17,8 +17,11 @@ import info.isaksson.erland.architecturebrowser.indexer.ir.model.RunMetadata;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.RunOutcome;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ScopeKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
+import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventory;
+import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventoryEntry;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -26,15 +29,13 @@ public final class ArchitectureIrFactory {
     private ArchitectureIrFactory() {
     }
 
-    public static ArchitectureIndexDocument createPlaceholderDocument(RepositorySource source, String indexerVersion) {
+    public static ArchitectureIndexDocument createInventoryDocument(
+        RepositorySource source,
+        String indexerVersion,
+        FileInventory inventory,
+        List<Diagnostic> acquisitionDiagnostics
+    ) {
         Instant generatedAt = Instant.now();
-        SourceReference controllerSource = new SourceReference(
-            source.path() == null ? "src/main/java/com/example/DemoController.java" : "src/main/java/com/example/DemoController.java",
-            1,
-            42,
-            "class DemoController",
-            Map.of("symbolKind", "class")
-        );
 
         LogicalScope repositoryScope = new LogicalScope(
             "scope:repo",
@@ -42,79 +43,83 @@ public final class ArchitectureIrFactory {
             source.repositoryId(),
             source.repositoryId(),
             null,
-            List.of(controllerSource),
-            Map.of()
-        );
-        LogicalScope packageScope = new LogicalScope(
-            "scope:package:com.example",
-            ScopeKind.PACKAGE,
-            "com.example",
-            "com.example",
-            repositoryScope.id(),
-            List.of(controllerSource),
-            Map.of("language", "java")
+            List.of(),
+            Map.of("acquisitionType", source.acquisitionType())
         );
 
-        ArchitectureEntity observedClass = new ArchitectureEntity(
-            "entity:class:demo-controller",
-            EntityKind.CLASS,
-            EntityOrigin.OBSERVED,
-            "DemoController",
-            "com.example.DemoController",
-            packageScope.id(),
-            List.of(controllerSource),
-            Map.of("language", "java")
-        );
-        ArchitectureEntity inferredEndpoint = new ArchitectureEntity(
-            "entity:endpoint:demo-controller",
-            EntityKind.ENDPOINT,
+        SourceReference firstSource = inventory.entries().stream()
+            .filter(entry -> !entry.ignored())
+            .findFirst()
+            .map(entry -> new SourceReference(entry.relativePath(), null, null, null, Map.of("type", entry.type())))
+            .orElse(null);
+
+        ArchitectureEntity inventoryEntity = new ArchitectureEntity(
+            "entity:inventory:root",
+            EntityKind.MODULE,
             EntityOrigin.INFERRED,
-            "Demo endpoint",
-            "GET /demo",
-            packageScope.id(),
-            List.of(controllerSource),
-            Map.of("httpMethod", "GET", "path", "/demo")
+            "Repository inventory",
+            source.repositoryId() + ":inventory",
+            repositoryScope.id(),
+            firstSource == null ? List.of() : List.of(firstSource),
+            Map.of(
+                "indexedFileCount", inventory.indexedFiles(),
+                "totalFileCount", inventory.totalFiles(),
+                "detectedLanguages", inventory.detectedLanguages(),
+                "detectedTechnologyMarkers", inventory.detectedTechnologyMarkers()
+            )
         );
 
-        ArchitectureRelationship exposing = new ArchitectureRelationship(
-            "rel:demo-controller:exposes:endpoint",
-            RelationshipKind.EXPOSES,
-            observedClass.id(),
-            inferredEndpoint.id(),
-            "controller exposes endpoint",
-            List.of(controllerSource),
-            Map.of()
+        ArchitectureRelationship containsRelationship = new ArchitectureRelationship(
+            "rel:repo:contains:inventory",
+            RelationshipKind.CONTAINS,
+            inventoryEntity.id(),
+            inventoryEntity.id(),
+            "placeholder relationship retained until structural extraction exists",
+            inventoryEntity.sourceRefs(),
+            Map.of("placeholder", true)
         );
 
-        Diagnostic diagnostic = new Diagnostic(
-            "diag:step2-placeholder",
-            DiagnosticSeverity.INFO,
-            DiagnosticPhase.PUBLICATION,
-            "placeholder.ir",
-            "Placeholder IR emitted by Step 2 baseline",
-            false,
-            controllerSource.path(),
-            packageScope.id(),
-            observedClass.id(),
-            List.of(controllerSource),
-            Map.of()
-        );
+        List<Diagnostic> diagnostics = acquisitionDiagnostics == null || acquisitionDiagnostics.isEmpty()
+            ? List.of(new Diagnostic(
+                "diag:inventory:scan-complete",
+                DiagnosticSeverity.INFO,
+                DiagnosticPhase.ACQUISITION,
+                "inventory.scan.complete",
+                "Acquisition and file inventory completed",
+                false,
+                null,
+                repositoryScope.id(),
+                inventoryEntity.id(),
+                inventoryEntity.sourceRefs(),
+                Map.of("totalFiles", inventory.totalFiles(), "ignoredFiles", inventory.ignoredFiles())
+            ))
+            : List.copyOf(acquisitionDiagnostics);
 
         CompletenessMetadata completeness = new CompletenessMetadata(
             CompletenessStatus.COMPLETE,
+            inventory.indexedFiles(),
+            inventory.totalFiles(),
             0,
-            0,
-            0,
-            List.of(),
-            List.of("Placeholder payload produced before acquisition and scanning are implemented")
+            inventory.entries().stream().filter(FileInventoryEntry::ignored).map(FileInventoryEntry::relativePath).toList(),
+            List.of("Inventory-only payload produced before structural extraction is implemented")
         );
+
+        Map<String, Object> documentMetadata = new LinkedHashMap<>();
+        documentMetadata.put("inventoryEntries", inventory.entries());
+        documentMetadata.put("inventorySummary", Map.of(
+            "totalFiles", inventory.totalFiles(),
+            "indexedFiles", inventory.indexedFiles(),
+            "ignoredFiles", inventory.ignoredFiles(),
+            "detectedLanguages", inventory.detectedLanguages(),
+            "detectedTechnologyMarkers", inventory.detectedTechnologyMarkers()
+        ));
 
         RunMetadata runMetadata = new RunMetadata(
             generatedAt,
             generatedAt,
             RunOutcome.SUCCESS,
-            List.of("java"),
-            Map.of("mode", "cli-placeholder")
+            inventory.detectedTechnologyMarkers().stream().sorted().toList(),
+            Map.of("mode", "cli-inventory", "inventoryOnly", true)
         );
 
         return new ArchitectureIndexDocument(
@@ -122,12 +127,21 @@ public final class ArchitectureIrFactory {
             indexerVersion,
             runMetadata,
             source,
-            List.of(repositoryScope, packageScope),
-            List.of(observedClass, inferredEndpoint),
-            List.of(exposing),
-            List.of(diagnostic),
+            List.of(repositoryScope),
+            List.of(inventoryEntity),
+            List.of(),
+            diagnostics,
             completeness,
-            Map.of()
+            Map.copyOf(documentMetadata)
+        );
+    }
+
+    public static ArchitectureIndexDocument createPlaceholderDocument(RepositorySource source, String indexerVersion) {
+        return createInventoryDocument(
+            source,
+            indexerVersion,
+            new FileInventory(List.of(), 0, 0, 0, java.util.Set.of(), java.util.Set.of()),
+            List.of()
         );
     }
 }

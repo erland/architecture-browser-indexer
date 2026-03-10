@@ -1,15 +1,18 @@
 package info.isaksson.erland.architecturebrowser.indexer.cli;
 
+import info.isaksson.erland.architecturebrowser.indexer.acquisition.AcquisitionRequest;
+import info.isaksson.erland.architecturebrowser.indexer.acquisition.AcquisitionResult;
+import info.isaksson.erland.architecturebrowser.indexer.acquisition.SourceAcquisitionService;
 import info.isaksson.erland.architecturebrowser.indexer.ir.ArchitectureIrFactory;
 import info.isaksson.erland.architecturebrowser.indexer.ir.ArchitectureIrValidator;
 import info.isaksson.erland.architecturebrowser.indexer.ir.json.ArchitectureIrJson;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureIndexDocument;
-import info.isaksson.erland.architecturebrowser.indexer.ir.model.RepositorySource;
+import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventory;
+import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventoryScanner;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -29,23 +32,31 @@ public final class IndexerCli {
             System.out.println(APPLICATION_VERSION);
             return;
         }
-        if (arguments.sourcePath() == null || arguments.outputPath() == null) {
-            System.err.println("Missing required arguments: --source <path> and --output <path>");
+        if (!arguments.hasInput() || arguments.outputPath() == null) {
+            System.err.println("Missing required arguments: provide exactly one of --source <path> or --git-url <url>, and --output <path>");
             printHelp();
             System.exit(2);
             return;
         }
 
-        Path source = arguments.sourcePath().toAbsolutePath().normalize();
-        Path output = arguments.outputPath().toAbsolutePath().normalize();
+        SourceAcquisitionService acquisitionService = new SourceAcquisitionService();
+        FileInventoryScanner scanner = new FileInventoryScanner();
 
-        ArchitectureIndexDocument document = ArchitectureIrFactory.createPlaceholderDocument(
-            RepositorySource.localPath(
-                source.getFileName() != null ? source.getFileName().toString() : source.toString(),
-                source.toString(),
-                Instant.now()
-            ),
-            APPLICATION_VERSION
+        AcquisitionRequest request = new AcquisitionRequest(
+            arguments.repositoryId(),
+            arguments.sourcePath(),
+            arguments.gitUrl(),
+            arguments.gitRef(),
+            arguments.workingDirectory()
+        );
+        AcquisitionResult acquisitionResult = acquisitionService.acquire(request);
+        FileInventory inventory = scanner.scan(acquisitionResult.acquiredRoot());
+
+        ArchitectureIndexDocument document = ArchitectureIrFactory.createInventoryDocument(
+            acquisitionResult.repositorySource(),
+            APPLICATION_VERSION,
+            inventory,
+            acquisitionResult.diagnostics()
         );
 
         ArchitectureIrValidator.ValidationResult validation = ArchitectureIrValidator.validate(document);
@@ -53,18 +64,43 @@ public final class IndexerCli {
             throw new IllegalStateException("Invalid IR document: " + String.join("; ", validation.messages()));
         }
 
+        Path output = arguments.outputPath().toAbsolutePath().normalize();
         Files.createDirectories(output.getParent() == null ? Path.of(".") : output.getParent());
         ArchitectureIrJson.write(document, output);
 
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("status", "ok");
-        summary.put("source", source.toString());
+        summary.put("repositoryId", document.source().repositoryId());
+        summary.put("acquisitionType", document.source().acquisitionType());
+        summary.put("sourcePath", acquisitionResult.acquiredRoot().toString());
         summary.put("output", output.toString());
         summary.put("schemaVersion", document.schemaVersion());
-        summary.put("entities", document.entities().size());
-        summary.put("relationships", document.relationships().size());
-        summary.put("diagnostics", document.diagnostics().size());
+        summary.put("indexedFiles", inventory.indexedFiles());
+        summary.put("ignoredFiles", inventory.ignoredFiles());
+        summary.put("detectedLanguages", inventory.detectedLanguages());
+        summary.put("detectedTechnologyMarkers", inventory.detectedTechnologyMarkers());
         System.out.println(ArchitectureIrJson.toPrettyJson(summary));
+
+        if (acquisitionResult.temporaryWorkspace()) {
+            deleteRecursively(acquisitionResult.acquiredRoot().getParent());
+        }
+    }
+
+    private static void deleteRecursively(Path path) {
+        if (path == null || !Files.exists(path)) {
+            return;
+        }
+        try (var stream = Files.walk(path)) {
+            stream.sorted(java.util.Comparator.reverseOrder()).forEach(candidate -> {
+                try {
+                    Files.deleteIfExists(candidate);
+                } catch (IOException ignored) {
+                    // Best-effort cleanup for temp Git workspaces.
+                }
+            });
+        } catch (IOException ignored) {
+            // Best-effort cleanup for temp Git workspaces.
+        }
     }
 
     private static void printHelp() {
@@ -72,18 +108,39 @@ public final class IndexerCli {
             architecture-browser-indexer
 
             Usage:
-              --help                     Show help
-              --version                  Show version
-              --source <path>            Source repository path
-              --output <path>            Output JSON file
+              --help                           Show help
+              --version                        Show version
+              --source <path>                  Source repository path
+              --git-url <url-or-path>          Git repository URL or local Git path
+              --git-ref <branch-or-tag>        Optional Git branch/reference
+              --repository-id <id>             Optional repository identity override
+              --working-dir <path>             Optional workspace parent for Git acquisition
+              --output <path>                  Output JSON file
             """);
     }
 
-    public record CliArguments(boolean showHelp, boolean showVersion, Path sourcePath, Path outputPath) {
+    public record CliArguments(
+        boolean showHelp,
+        boolean showVersion,
+        Path sourcePath,
+        String gitUrl,
+        String gitRef,
+        String repositoryId,
+        Path workingDirectory,
+        Path outputPath
+    ) {
+        boolean hasInput() {
+            return (sourcePath != null) ^ (gitUrl != null && !gitUrl.isBlank());
+        }
+
         static CliArguments parse(String[] args) {
             boolean help = false;
             boolean version = false;
             Path source = null;
+            String gitUrl = null;
+            String gitRef = null;
+            String repositoryId = null;
+            Path workingDirectory = null;
             Path output = null;
 
             for (int i = 0; i < args.length; i++) {
@@ -95,6 +152,22 @@ public final class IndexerCli {
                         i = requireValue(args, i, arg);
                         source = Path.of(args[i]);
                     }
+                    case "--git-url" -> {
+                        i = requireValue(args, i, arg);
+                        gitUrl = args[i];
+                    }
+                    case "--git-ref" -> {
+                        i = requireValue(args, i, arg);
+                        gitRef = args[i];
+                    }
+                    case "--repository-id" -> {
+                        i = requireValue(args, i, arg);
+                        repositoryId = args[i];
+                    }
+                    case "--working-dir" -> {
+                        i = requireValue(args, i, arg);
+                        workingDirectory = Path.of(args[i]);
+                    }
                     case "--output" -> {
                         i = requireValue(args, i, arg);
                         output = Path.of(args[i]);
@@ -102,7 +175,7 @@ public final class IndexerCli {
                     default -> throw new IllegalArgumentException("Unknown argument: " + arg);
                 }
             }
-            return new CliArguments(help, version, source, output);
+            return new CliArguments(help, version, source, gitUrl, gitRef, repositoryId, workingDirectory, output);
         }
 
         private static int requireValue(String[] args, int index, String option) {
