@@ -1,5 +1,8 @@
 package info.isaksson.erland.architecturebrowser.indexer.ir;
 
+import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedEntityFact;
+import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedRelationshipFact;
+import info.isaksson.erland.architecturebrowser.indexer.extract.model.StructuralExtractionResult;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureEntity;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureIndexDocument;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureRelationship;
@@ -24,6 +27,7 @@ import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventory;
 import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventoryEntry;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +51,17 @@ public final class ArchitectureIrFactory {
         FileInventory inventory,
         List<Diagnostic> acquisitionDiagnostics,
         ParseBatchResult parseBatchResult
+    ) {
+        return createInventoryDocument(source, indexerVersion, inventory, acquisitionDiagnostics, parseBatchResult, null);
+    }
+
+    public static ArchitectureIndexDocument createInventoryDocument(
+        RepositorySource source,
+        String indexerVersion,
+        FileInventory inventory,
+        List<Diagnostic> acquisitionDiagnostics,
+        ParseBatchResult parseBatchResult,
+        StructuralExtractionResult extractionResult
     ) {
         Instant generatedAt = Instant.now();
 
@@ -82,17 +97,7 @@ public final class ArchitectureIrFactory {
             )
         );
 
-        ArchitectureRelationship containsRelationship = new ArchitectureRelationship(
-            "rel:repo:contains:inventory",
-            RelationshipKind.CONTAINS,
-            inventoryEntity.id(),
-            inventoryEntity.id(),
-            "placeholder relationship retained until structural extraction exists",
-            inventoryEntity.sourceRefs(),
-            Map.of("placeholder", true)
-        );
-
-        List<Diagnostic> diagnostics = new java.util.ArrayList<>();
+        List<Diagnostic> diagnostics = new ArrayList<>();
         if (acquisitionDiagnostics == null || acquisitionDiagnostics.isEmpty()) {
             diagnostics.add(new Diagnostic(
                 "diag:inventory:scan-complete",
@@ -113,14 +118,51 @@ public final class ArchitectureIrFactory {
         if (parseBatchResult != null) {
             diagnostics.addAll(ParseDiagnostics.toDiagnostics(parseBatchResult));
         }
+        if (extractionResult != null) {
+            diagnostics.addAll(extractionResult.diagnostics());
+        }
+
+        List<LogicalScope> scopes = new ArrayList<>();
+        scopes.add(repositoryScope);
+        if (extractionResult != null) {
+            scopes.addAll(extractionResult.scopes());
+        }
+
+        List<ArchitectureEntity> entities = new ArrayList<>();
+        entities.add(inventoryEntity);
+        if (extractionResult != null) {
+            for (ExtractedEntityFact entity : extractionResult.entities()) {
+                entities.add(new ArchitectureEntity(
+                    entity.id(), entity.kind(), entity.origin(), entity.name(), entity.displayName(), entity.scopeId(), entity.sourceRefs(), entity.metadata()
+                ));
+            }
+        }
+
+        List<ArchitectureRelationship> relationships = new ArrayList<>();
+        if (extractionResult != null) {
+            for (ExtractedRelationshipFact relationship : extractionResult.relationships()) {
+                relationships.add(new ArchitectureRelationship(
+                    relationship.id(), relationship.kind(), relationship.fromEntityId(), relationship.toEntityId(), relationship.label(), relationship.sourceRefs(), relationship.metadata()
+                ));
+            }
+        }
+
+        int degradedFileCount = parseBatchResult == null ? 0 : (int) parseBatchResult.results().stream().filter(result -> !result.successful()).count();
+        CompletenessStatus completenessStatus = degradedFileCount > 0 ? CompletenessStatus.PARTIAL : CompletenessStatus.COMPLETE;
+        List<String> completenessNotes = new ArrayList<>();
+        if (extractionResult == null) {
+            completenessNotes.add("Inventory-only payload produced before structural extraction is implemented");
+        } else {
+            completenessNotes.add("Structural extraction included conservative Java and TypeScript text-pattern extraction via parser abstraction");
+        }
 
         CompletenessMetadata completeness = new CompletenessMetadata(
-            CompletenessStatus.COMPLETE,
+            completenessStatus,
             inventory.indexedFiles(),
             inventory.totalFiles(),
-            0,
+            degradedFileCount,
             inventory.entries().stream().filter(FileInventoryEntry::ignored).map(FileInventoryEntry::relativePath).toList(),
-            List.of("Inventory-only payload produced before structural extraction is implemented")
+            List.copyOf(completenessNotes)
         );
 
         Map<String, Object> documentMetadata = new LinkedHashMap<>();
@@ -135,13 +177,20 @@ public final class ArchitectureIrFactory {
         if (parseBatchResult != null) {
             documentMetadata.put("parseSummary", TreeSitterParsingService.summarize(parseBatchResult));
         }
+        if (extractionResult != null) {
+            documentMetadata.put("extractionSummary", extractionResult.summary());
+        }
 
         RunMetadata runMetadata = new RunMetadata(
             generatedAt,
             generatedAt,
-            RunOutcome.SUCCESS,
+            degradedFileCount > 0 ? RunOutcome.PARTIAL : RunOutcome.SUCCESS,
             inventory.detectedTechnologyMarkers().stream().sorted().toList(),
-            Map.of("mode", "cli-inventory", "inventoryOnly", true)
+            Map.of(
+                "mode", extractionResult == null ? "cli-inventory" : "cli-structural-extraction",
+                "inventoryOnly", extractionResult == null,
+                "structuralExtraction", extractionResult != null
+            )
         );
 
         return new ArchitectureIndexDocument(
@@ -149,9 +198,9 @@ public final class ArchitectureIrFactory {
             indexerVersion,
             runMetadata,
             source,
-            List.of(repositoryScope),
-            List.of(inventoryEntity),
-            List.of(),
+            List.copyOf(scopes),
+            List.copyOf(entities),
+            List.copyOf(relationships),
             diagnostics,
             completeness,
             Map.copyOf(documentMetadata)

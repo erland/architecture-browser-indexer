@@ -1,19 +1,8 @@
-# Build output
 /target/
-
-# IDE files
 /.idea/
+/.vscode/
 *.iml
-/.project
-/.classpath
-/.settings/
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-
-# Root packaged deliverables
+.classpath
+.project
+.settings/
 /*.zip
