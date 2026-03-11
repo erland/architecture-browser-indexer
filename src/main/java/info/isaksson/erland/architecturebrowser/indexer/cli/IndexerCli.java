@@ -112,6 +112,8 @@ public final class IndexerCli {
         summary.put("extractionSummary", document.metadata().get("extractionSummary"));
         summary.put("interpretationSummary", document.metadata().get("interpretationSummary"));
         summary.put("topologySummary", document.metadata().get("topologySummary"));
+        summary.put("diagnosticSummary", document.metadata().get("diagnosticSummary"));
+        summary.put("partialResult", document.metadata().get("partialResult"));
         System.out.println(ArchitectureIrJson.toPrettyJson(summary));
 
         if (acquisitionResult.temporaryWorkspace()) {

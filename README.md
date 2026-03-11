@@ -125,3 +125,6 @@ Step 7 adds a first-pass interpretation layer that infers higher-level architect
 
 
 Step 8 adds logical scoping and relationship inference, including directory and source-root module scopes, internal Java/TypeScript dependency resolution, and rolled-up package/module relationships.
+
+
+Step 9 adds explicit diagnostic summaries, degraded-path reporting, and more consistent completeness/partial-result assessment in the generated IR.

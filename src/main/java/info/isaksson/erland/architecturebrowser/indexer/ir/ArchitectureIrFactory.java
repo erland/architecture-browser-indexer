@@ -205,8 +205,6 @@ public final class ArchitectureIrFactory {
             relationships.addAll(topologyResult.relationships());
         }
 
-        int degradedFileCount = parseBatchResult == null ? 0 : (int) parseBatchResult.results().stream().filter(result -> !result.successful()).count();
-        CompletenessStatus completenessStatus = degradedFileCount > 0 ? CompletenessStatus.PARTIAL : CompletenessStatus.COMPLETE;
         List<String> completenessNotes = new ArrayList<>();
         if (extractionResult == null) {
             completenessNotes.add("Inventory-only payload produced before structural extraction is implemented");
@@ -218,14 +216,8 @@ public final class ArchitectureIrFactory {
             completenessNotes.add("Structural extraction, interpretation, logical scoping, and relationship inference were included");
         }
 
-        CompletenessMetadata completeness = new CompletenessMetadata(
-            completenessStatus,
-            inventory.indexedFiles(),
-            inventory.totalFiles(),
-            degradedFileCount,
-            inventory.entries().stream().filter(FileInventoryEntry::ignored).map(FileInventoryEntry::relativePath).toList(),
-            List.copyOf(completenessNotes)
-        );
+        RunAssessment assessment = RunAssessment.assess(inventory, parseBatchResult, diagnostics, completenessNotes);
+        CompletenessMetadata completeness = assessment.completeness();
 
         Map<String, Object> documentMetadata = new LinkedHashMap<>();
         documentMetadata.put("inventoryEntries", inventory.entries());
@@ -248,18 +240,21 @@ public final class ArchitectureIrFactory {
         if (topologyResult != null) {
             documentMetadata.put("topologySummary", topologyResult.summary());
         }
+        documentMetadata.put("diagnosticSummary", assessment.diagnosticSummary());
+        documentMetadata.put("partialResult", assessment.partialResult());
 
         RunMetadata runMetadata = new RunMetadata(
             generatedAt,
             generatedAt,
-            degradedFileCount > 0 ? RunOutcome.PARTIAL : RunOutcome.SUCCESS,
+            assessment.outcome(),
             inventory.detectedTechnologyMarkers().stream().sorted().toList(),
             Map.of(
                 "mode", topologyResult != null ? "cli-topology" : (interpretationResult != null ? "cli-interpretation" : (extractionResult == null ? "cli-inventory" : "cli-structural-extraction")),
                 "inventoryOnly", extractionResult == null,
                 "structuralExtraction", extractionResult != null,
                 "interpretation", interpretationResult != null,
-                "topology", topologyResult != null
+                "topology", topologyResult != null,
+                "degradedPaths", assessment.degradedPaths()
             )
         );
 
