@@ -26,7 +26,7 @@ final class FileClassifier {
     private static String classifyType(String filename, String extension) {
         if ("pom.xml".equals(filename) || "package.json".equals(filename) || filename.startsWith("build.gradle")
             || filename.endsWith(".properties") || filename.endsWith(".yaml") || filename.endsWith(".yml")
-            || filename.endsWith(".json")) {
+            || filename.endsWith(".json") || filename.endsWith(".xml")) {
             return "config";
         }
         if ("sql".equals(extension)) {
@@ -50,6 +50,7 @@ final class FileClassifier {
             case "json" -> "json";
             case "yaml", "yml" -> "yaml";
             case "properties" -> "properties";
+            case "xml" -> "xml";
             default -> {
                 if ("pom.xml".equals(filename)) {
                     yield "xml";
@@ -107,7 +108,8 @@ final class FileClassifier {
 
     private static boolean shouldInspectContent(String filename) {
         return filename.equals("pom.xml") || filename.equals("package.json") || filename.startsWith("build.gradle")
-            || filename.endsWith(".properties") || filename.endsWith(".yaml") || filename.endsWith(".yml");
+            || filename.endsWith(".properties") || filename.endsWith(".yaml") || filename.endsWith(".yml")
+            || filename.endsWith(".xml") || filename.endsWith(".json");
     }
 
     private static String extensionOf(String filename) {

@@ -27,7 +27,12 @@ public final class StructuralExtractorRegistry {
     public static StructuralExtractorRegistry defaultRegistry() {
         return new StructuralExtractorRegistry(List.of(
             new JavaStructuralExtractor(),
-            new TypeScriptStructuralExtractor()
+            new TypeScriptStructuralExtractor(),
+            new SqlStructuralExtractor(),
+            new ConfigStructuralExtractor(ParseLanguage.JSON),
+            new ConfigStructuralExtractor(ParseLanguage.YAML),
+            new ConfigStructuralExtractor(ParseLanguage.PROPERTIES),
+            new ConfigStructuralExtractor(ParseLanguage.XML)
         ));
     }
 }

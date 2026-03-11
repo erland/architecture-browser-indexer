@@ -9,16 +9,16 @@ import java.util.Objects;
 public final class TreeSitterParserRegistryFactory {
     private static final List<TreeSitterLanguageDescriptor> ACTIVE_DEFAULT_LANGUAGES = List.of(
         new TreeSitterLanguageDescriptor(ParseLanguage.JAVA, "java", "tree-sitter-java", "tree_sitter_java", List.of(".java"), true),
-        new TreeSitterLanguageDescriptor(ParseLanguage.TYPESCRIPT, "typescript", "tree-sitter-typescript", "tree_sitter_typescript", List.of(".ts", ".tsx"), true)
+        new TreeSitterLanguageDescriptor(ParseLanguage.TYPESCRIPT, "typescript", "tree-sitter-typescript", "tree_sitter_typescript", List.of(".ts", ".tsx"), true),
+        new TreeSitterLanguageDescriptor(ParseLanguage.JSON, "json", "tree-sitter-json", "tree_sitter_json", List.of(".json"), true),
+        new TreeSitterLanguageDescriptor(ParseLanguage.YAML, "yaml", "tree-sitter-yaml", "tree_sitter_yaml", List.of(".yaml", ".yml"), true),
+        new TreeSitterLanguageDescriptor(ParseLanguage.SQL, "sql", "tree-sitter-sql", "tree_sitter_sql", List.of(".sql"), true),
+        new TreeSitterLanguageDescriptor(ParseLanguage.PROPERTIES, "properties", "tree-sitter-properties", "tree_sitter_properties", List.of(".properties"), true),
+        new TreeSitterLanguageDescriptor(ParseLanguage.XML, "xml", "tree-sitter-xml", "tree_sitter_xml", List.of(".xml"), true)
     );
 
     private static final List<TreeSitterLanguageDescriptor> KNOWN_FUTURE_LANGUAGES = List.of(
-        new TreeSitterLanguageDescriptor(ParseLanguage.JAVASCRIPT, "javascript", "tree-sitter-javascript", "tree_sitter_javascript", List.of(".js", ".jsx"), false),
-        new TreeSitterLanguageDescriptor(ParseLanguage.JSON, "json", "tree-sitter-json", "tree_sitter_json", List.of(".json"), false),
-        new TreeSitterLanguageDescriptor(ParseLanguage.YAML, "yaml", "tree-sitter-yaml", "tree_sitter_yaml", List.of(".yaml", ".yml"), false),
-        new TreeSitterLanguageDescriptor(ParseLanguage.SQL, "sql", "tree-sitter-sql", "tree_sitter_sql", List.of(".sql"), false),
-        new TreeSitterLanguageDescriptor(ParseLanguage.PROPERTIES, "properties", "tree-sitter-properties", "tree_sitter_properties", List.of(".properties"), false),
-        new TreeSitterLanguageDescriptor(ParseLanguage.XML, "xml", "tree-sitter-xml", "tree_sitter_xml", List.of(".xml"), false)
+        new TreeSitterLanguageDescriptor(ParseLanguage.JAVASCRIPT, "javascript", "tree-sitter-javascript", "tree_sitter_javascript", List.of(".js", ".jsx"), false)
     );
 
     private TreeSitterParserRegistryFactory() {

@@ -82,3 +82,8 @@ Expected examples:
 ## Native grammar build notes
 
 The bundled macOS setup script now pins grammar revisions by default instead of cloning repository HEAD. Default pins are `tree-sitter-java v0.23.5` and `tree-sitter-typescript v0.23.2`, which makes local native library builds deterministic. The script can still be overridden with `TREE_SITTER_JAVA_REF` and `TREE_SITTER_TYPESCRIPT_REF`.
+
+
+## Step 6: SQL and config grammars
+
+The default Tree-sitter registry now also attempts to load grammars for JSON, YAML, SQL, Properties, and XML when the corresponding shared libraries are present under `lib/<platform>/`.

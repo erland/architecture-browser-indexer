@@ -4,28 +4,39 @@ set -euo pipefail
 # Builds bundled Tree-sitter native libraries for macOS Apple Silicon and copies them into:
 #   lib/macos-aarch64/
 #
-# Default pinned grammar revisions:
-#   tree-sitter-java:        v0.23.5
-#   tree-sitter-typescript:  v0.23.2
+# Languages built by default:
+#   - Java
+#   - TypeScript
+#   - JSON
+#   - YAML
+#   - SQL
+#   - Properties
+#   - XML
 #
-# These can be overridden via:
-#   TREE_SITTER_JAVA_REF=...
-#   TREE_SITTER_TYPESCRIPT_REF=...
+# Notes:
+# - Homebrew `tree-sitter` provides the shared runtime `libtree-sitter.dylib`.
+# - `tree-sitter-sql` keeps generated parser files on the `gh-pages` branch.
 #
-# Requirements:
-#   - macOS arm64
-#   - Apple clang / Xcode Command Line Tools
-#   - Homebrew
-#   - git
-#
-# Usage:
-#   ./scripts/setup-treesitter-macos-aarch64.sh
+# Ref overrides:
+#   TREE_SITTER_JAVA_REF
+#   TREE_SITTER_TYPESCRIPT_REF
+#   TREE_SITTER_JSON_REF
+#   TREE_SITTER_YAML_REF
+#   TREE_SITTER_SQL_REF
+#   TREE_SITTER_PROPERTIES_REF
+#   TREE_SITTER_XML_REF
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIB_DIR="${ROOT_DIR}/lib/macos-aarch64"
 WORK_DIR="${TREE_SITTER_ROOT:-${ROOT_DIR}/.tmp/tree-sitter-build}"
+
 JAVA_REF="${TREE_SITTER_JAVA_REF:-v0.23.5}"
 TYPESCRIPT_REF="${TREE_SITTER_TYPESCRIPT_REF:-v0.23.2}"
+JSON_REF="${TREE_SITTER_JSON_REF:-v0.24.8}"
+YAML_REF="${TREE_SITTER_YAML_REF:-master}"
+SQL_REF="${TREE_SITTER_SQL_REF:-gh-pages}"
+PROPERTIES_REF="${TREE_SITTER_PROPERTIES_REF:-master}"
+XML_REF="${TREE_SITTER_XML_REF:-master}"
 
 mkdir -p "${LIB_DIR}"
 mkdir -p "${WORK_DIR}"
@@ -78,31 +89,59 @@ clone_or_update() {
   git -C "${WORK_DIR}/${dir_name}" reset --hard "${ref}"
 }
 
-build_java_grammar() {
-  local repo_dir="${WORK_DIR}/tree-sitter-java"
-  local out="${LIB_DIR}/libtree-sitter-java.dylib"
+build_grammar() {
+  local dir_name="$1"
+  local src_subdir="$2"
+  local output_name="$3"
 
-  echo "==> Building Java grammar from ${JAVA_REF}"
-  clang     -dynamiclib     -O2     -fPIC     -I "${repo_dir}/src"     "${repo_dir}/src/parser.c"     -o "${out}"
+  local repo_dir="${WORK_DIR}/${dir_name}"
+  local src_dir="${repo_dir}/${src_subdir}"
+  local parser_c="${src_dir}/parser.c"
+  local scanner_c="${src_dir}/scanner.c"
+  local scanner_cc="${src_dir}/scanner.cc"
+  local out="${LIB_DIR}/${output_name}"
 
-  echo "Built ${out}"
-}
+  if [[ ! -f "${parser_c}" ]]; then
+    echo "Expected parser source not found: ${parser_c}" >&2
+    exit 1
+  fi
 
-build_typescript_grammar() {
-  local repo_dir="${WORK_DIR}/tree-sitter-typescript"
-  local out="${LIB_DIR}/libtree-sitter-typescript.dylib"
+  local compiler="clang"
+  local -a sources=("${parser_c}")
+  if [[ -f "${scanner_cc}" ]]; then
+    compiler="clang++"
+    sources+=("${scanner_cc}")
+  elif [[ -f "${scanner_c}" ]]; then
+    sources+=("${scanner_c}")
+  fi
 
-  echo "==> Building TypeScript grammar from ${TYPESCRIPT_REF}"
-  clang     -dynamiclib     -O2     -fPIC     -I "${repo_dir}/typescript/src"     "${repo_dir}/typescript/src/parser.c"     "${repo_dir}/typescript/src/scanner.c"     -o "${out}"
+  echo "==> Building ${output_name} from ${dir_name}/${src_subdir}"
+  "${compiler}" \
+    -dynamiclib \
+    -O2 \
+    -fPIC \
+    -I "${src_dir}" \
+    "${sources[@]}" \
+    -o "${out}"
 
   echo "Built ${out}"
 }
 
 clone_or_update "https://github.com/tree-sitter/tree-sitter-java.git" "tree-sitter-java" "${JAVA_REF}"
 clone_or_update "https://github.com/tree-sitter/tree-sitter-typescript.git" "tree-sitter-typescript" "${TYPESCRIPT_REF}"
+clone_or_update "https://github.com/tree-sitter/tree-sitter-json.git" "tree-sitter-json" "${JSON_REF}"
+clone_or_update "https://github.com/tree-sitter-grammars/tree-sitter-yaml.git" "tree-sitter-yaml" "${YAML_REF}"
+clone_or_update "https://github.com/DerekStride/tree-sitter-sql.git" "tree-sitter-sql" "${SQL_REF}"
+clone_or_update "https://github.com/tree-sitter-grammars/tree-sitter-properties.git" "tree-sitter-properties" "${PROPERTIES_REF}"
+clone_or_update "https://github.com/tree-sitter-grammars/tree-sitter-xml.git" "tree-sitter-xml" "${XML_REF}"
 
-build_java_grammar
-build_typescript_grammar
+build_grammar "tree-sitter-java" "src" "libtree-sitter-java.dylib"
+build_grammar "tree-sitter-typescript" "typescript/src" "libtree-sitter-typescript.dylib"
+build_grammar "tree-sitter-json" "src" "libtree-sitter-json.dylib"
+build_grammar "tree-sitter-yaml" "src" "libtree-sitter-yaml.dylib"
+build_grammar "tree-sitter-sql" "src" "libtree-sitter-sql.dylib"
+build_grammar "tree-sitter-properties" "src" "libtree-sitter-properties.dylib"
+build_grammar "tree-sitter-xml" "xml/src" "libtree-sitter-xml.dylib"
 
 echo
 echo "Done. Files available in:"

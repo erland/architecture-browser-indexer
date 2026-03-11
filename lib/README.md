@@ -24,3 +24,10 @@ Search order:
 2. `./lib/<detected-os-arch>/`
 3. `./lib/`
 4. system library lookup
+
+Additional Step 6 libraries expected for SQL/config extraction:
+- libtree-sitter-json.dylib
+- libtree-sitter-yaml.dylib
+- libtree-sitter-sql.dylib
+- libtree-sitter-properties.dylib
+- libtree-sitter-xml.dylib
