@@ -2,6 +2,7 @@ package info.isaksson.erland.architecturebrowser.indexer.extract;
 
 import info.isaksson.erland.architecturebrowser.indexer.parse.ParseLanguage;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,8 +21,24 @@ public final class StructuralExtractorRegistry {
         this.extractorsByLanguage = Map.copyOf(map);
     }
 
+    public List<StructuralExtractor> extractors() {
+        return List.copyOf(extractorsByLanguage.values());
+    }
+
     public Optional<StructuralExtractor> find(ParseLanguage language) {
         return Optional.ofNullable(extractorsByLanguage.get(language));
+    }
+
+    public Optional<StructuralExtractor> extractorFor(ParseLanguage language) {
+        return find(language);
+    }
+
+    public StructuralExtractorRegistry withAdditionalExtractors(List<StructuralExtractor> additionalExtractors) {
+        ArrayList<StructuralExtractor> merged = new ArrayList<>(extractors());
+        if (additionalExtractors != null) {
+            merged.addAll(additionalExtractors);
+        }
+        return new StructuralExtractorRegistry(List.copyOf(merged));
     }
 
     public static StructuralExtractorRegistry defaultRegistry() {

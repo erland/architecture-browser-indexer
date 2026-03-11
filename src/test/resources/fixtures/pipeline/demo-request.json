@@ -1,0 +1,7 @@
+{
+  "jobId": "job-demo-001",
+  "repositoryId": "demo-repo",
+  "sourcePath": "/workspace/demo",
+  "outputPath": "/workspace/out/index.json",
+  "snapshotOut": "/workspace/out/snapshot.json"
+}

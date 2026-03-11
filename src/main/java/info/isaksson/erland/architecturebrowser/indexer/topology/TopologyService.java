@@ -30,6 +30,15 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public final class TopologyService {
+    private final TopologyRelationshipResolver relationshipResolver;
+
+    public TopologyService() {
+        this(new DefaultTopologyRelationshipResolver());
+    }
+
+    public TopologyService(TopologyRelationshipResolver relationshipResolver) {
+        this.relationshipResolver = relationshipResolver;
+    }
 
     public TopologyResult infer(FileInventory inventory, StructuralExtractionResult extractionResult, InterpretationResult interpretationResult) {
         Map<String, LogicalScope> inferredScopes = new LinkedHashMap<>();
@@ -127,7 +136,7 @@ public final class TopologyService {
 
         // Resolve TypeScript relative imports to file modules.
         Map<String, ExtractedEntityFact> fileModulesByPath = fileModuleEntities(extractionResult.entities()).stream()
-            .collect(Collectors.toMap(entity -> entity.name(), entity -> entity, (left, right) -> left, LinkedHashMap::new));
+            .collect(Collectors.toMap(ExtractedEntityFact::name, entity -> entity, (left, right) -> left, LinkedHashMap::new));
 
         // Roll-up package/package and module/module relationships.
         Set<String> seenPackageUses = new LinkedHashSet<>();
@@ -146,7 +155,7 @@ public final class TopologyService {
                 continue;
             }
 
-            Optional<ExtractedEntityFact> resolvedTarget = resolveInternalTarget(relationship.label(), fromPath, javaTypesByQualifiedName, fileModulesByPath);
+            Optional<ExtractedEntityFact> resolvedTarget = relationshipResolver.resolveInternalTarget(relationship, fromPath, javaTypesByQualifiedName, fileModulesByPath);
             if (resolvedTarget.isEmpty()) {
                 continue;
             }
@@ -225,82 +234,46 @@ public final class TopologyService {
         }
     }
 
-    private static Optional<ExtractedEntityFact> resolveInternalTarget(
-        String label,
-        String fromPath,
-        Map<String, ExtractedEntityFact> javaTypesByQualifiedName,
-        Map<String, ExtractedEntityFact> fileModulesByPath
-    ) {
-        if (label == null || label.isBlank()) {
-            return Optional.empty();
-        }
-        if (javaTypesByQualifiedName.containsKey(label)) {
-            return Optional.of(javaTypesByQualifiedName.get(label));
-        }
-        if (label.startsWith("./") || label.startsWith("../")) {
-            String resolved = resolveRelativePath(fromPath, label);
-            if (resolved != null) {
-                for (String candidate : List.of(resolved, resolved + ".ts", resolved + ".tsx", resolved + "/index.ts", resolved + "/index.tsx")) {
-                    if (fileModulesByPath.containsKey(candidate)) {
-                        return Optional.of(fileModulesByPath.get(candidate));
-                    }
-                }
-            }
-        }
-        return Optional.empty();
-    }
-
-    private static List<ExtractedEntityFact> fileModuleEntities(List<ExtractedEntityFact> entities) {
-        return entities.stream().filter(entity -> entity.kind() == EntityKind.MODULE).toList();
-    }
-
-    private static String packageScopeIdForFile(ExtractedEntityFact fileEntity, List<LogicalScope> scopes) {
-        String filePath = TopologySupport.primaryPath(fileEntity);
-        if (filePath == null) {
-            return null;
-        }
-        return scopes.stream()
-            .filter(scope -> scope.kind() == ScopeKind.PACKAGE)
-            .filter(scope -> scope.sourceRefs().stream().anyMatch(ref -> filePath.equals(ref.path())))
-            .map(LogicalScope::id)
-            .findFirst()
-            .orElse(null);
-    }
-
-    private static String sourceRootEntityId(String filePath) {
-        String moduleRoot = moduleRoot(filePath);
-        return moduleRoot == null ? null : IdUtils.externalEntityId("logical-module", moduleRoot);
-    }
-
-    private static String moduleRoot(String relativePath) {
-        if (relativePath == null || relativePath.isBlank()) {
-            return null;
-        }
-        String[] parts = relativePath.split("/");
-        if (parts.length >= 3 && "src".equals(parts[0]) && ("main".equals(parts[1]) || "test".equals(parts[1]))) {
-            return parts[0] + "/" + parts[1] + "/" + parts[2];
-        }
-        return parts.length > 0 ? parts[0] : null;
-    }
-
-    private static String resolveRelativePath(String fromPath, String importLabel) {
-        try {
-            Path base = Path.of(fromPath).getParent();
-            if (base == null) {
-                return null;
-            }
-            return base.resolve(importLabel).normalize().toString().replace("\\", "/");
-        } catch (Exception ex) {
-            return null;
-        }
-    }
-
     private static String parentPath(String path) {
         if (path == null || path.isBlank() || !path.contains("/")) {
             return null;
         }
         return path.substring(0, path.lastIndexOf('/'));
     }
+
+
+private static java.util.List<ExtractedEntityFact> fileModuleEntities(java.util.List<ExtractedEntityFact> entities) {
+    return entities.stream().filter(entity -> entity.kind() == EntityKind.MODULE).toList();
+}
+
+private static String packageScopeIdForFile(ExtractedEntityFact fileEntity, java.util.List<LogicalScope> scopes) {
+    String filePath = TopologySupport.primaryPath(fileEntity);
+    if (filePath == null) {
+        return null;
+    }
+    return scopes.stream()
+        .filter(scope -> scope.kind() == ScopeKind.PACKAGE)
+        .filter(scope -> scope.sourceRefs().stream().anyMatch(ref -> filePath.equals(ref.path())))
+        .map(LogicalScope::id)
+        .findFirst()
+        .orElse(null);
+}
+
+private static String sourceRootEntityId(String filePath) {
+    String root = moduleRoot(filePath);
+    return root == null ? null : IdUtils.externalEntityId("logical-module", root);
+}
+
+private static String moduleRoot(String relativePath) {
+    if (relativePath == null || relativePath.isBlank()) {
+        return null;
+    }
+    String[] parts = relativePath.split("/");
+    if (parts.length >= 3 && "src".equals(parts[0]) && ("main".equals(parts[1]) || "test".equals(parts[1]))) {
+        return parts[0] + "/" + parts[1] + "/" + parts[2];
+    }
+    return parts.length > 0 ? parts[0] : null;
+}
 
     private static <T, K extends Enum<K>> Map<String, Integer> countsByKind(Collection<T> values, java.util.function.Function<T, K> classifier) {
         Map<String, Integer> counts = new LinkedHashMap<>();

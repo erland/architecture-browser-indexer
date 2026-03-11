@@ -13,6 +13,14 @@ public final class InterpretationRegistry {
         return rules;
     }
 
+    public InterpretationRegistry withAdditionalRules(List<InterpretationRule> additionalRules) {
+        java.util.ArrayList<InterpretationRule> merged = new java.util.ArrayList<>(rules);
+        if (additionalRules != null) {
+            merged.addAll(additionalRules);
+        }
+        return new InterpretationRegistry(java.util.List.copyOf(merged));
+    }
+
     public static InterpretationRegistry defaultRegistry() {
         return new InterpretationRegistry(List.of(
             new JavaBackendInterpretationRule(),

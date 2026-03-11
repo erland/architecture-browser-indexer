@@ -137,3 +137,6 @@ Step 11 adds incremental reindex foundations: file fingerprints, snapshot JSON, 
 
 
 Step 12 adds worker mode and container deployment assets. The CLI can now run from a worker request JSON, and the repo includes Docker/GHCR packaging files for deployment.
+
+
+Step 13 expands the regression suite and hardens extension seams so extractors, interpretation rules, topology resolution, and export targets can be extended with less core-code churn.
