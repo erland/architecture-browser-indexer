@@ -6,10 +6,12 @@ public record ExtractionSummary(
     int filesVisited,
     int filesExtracted,
     Map<String, Integer> extractedByLanguage,
+    Map<String, Integer> extractedByMode,
     int entityCount,
     int relationshipCount
 ) {
     public ExtractionSummary {
         extractedByLanguage = extractedByLanguage == null ? Map.of() : Map.copyOf(extractedByLanguage);
+        extractedByMode = extractedByMode == null ? Map.of() : Map.copyOf(extractedByMode);
     }
 }

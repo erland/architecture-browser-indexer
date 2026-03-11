@@ -5,6 +5,8 @@ import java.util.List;
 public record TreeSitterLanguageDescriptor(
     ParseLanguage language,
     String grammarName,
+    String sharedLibraryBaseName,
+    String languageSymbol,
     List<String> fileExtensions,
     boolean enabledByDefault
 ) {

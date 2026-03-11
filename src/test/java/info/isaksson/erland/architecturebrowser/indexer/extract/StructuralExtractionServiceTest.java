@@ -8,6 +8,8 @@ import info.isaksson.erland.architecturebrowser.indexer.parse.ParseLanguage;
 import info.isaksson.erland.architecturebrowser.indexer.parse.ParseStatus;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SourceParseRequest;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SourceParseResult;
+import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxNode;
+import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxTree;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -19,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StructuralExtractionServiceTest {
     @Test
-    void extractsJavaStructuralFactsFromSourceTextEvenWithoutBackendSyntaxTree() {
+    void emitsDiagnosticInsteadOfRegexFallbackForJavaWhenSyntaxTreeIsUnavailable() {
         String source = """
             package com.example.demo;
             import org.springframework.web.bind.annotation.GetMapping;
@@ -44,28 +46,16 @@ class StructuralExtractionServiceTest {
         StructuralExtractionResult result = new StructuralExtractionService(StructuralExtractorRegistry.defaultRegistry())
             .extract(new ParseBatchResult(List.of(parseResult), Map.of(ParseLanguage.JAVA, 1), Map.of(ParseStatus.BACKEND_UNAVAILABLE, 1)));
 
-        assertTrue(result.scopes().stream().anyMatch(scope -> "com.example.demo".equals(scope.name())));
-        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.CLASS && "DemoController".equals(entity.name())));
-        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.FUNCTION && "getDemo".equals(entity.name())));
-        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON && "org.springframework.web.bind.annotation.GetMapping".equals(rel.label())));
-        assertEquals(1, result.summary().extractedByLanguage().get("java"));
+        assertEquals(0, result.summary().extractedByLanguage().getOrDefault("java", 0));
+        assertEquals(0, result.summary().extractedByMode().getOrDefault("SOURCE_TEXT_FALLBACK", 0));
+        assertTrue(result.diagnostics().stream().anyMatch(d -> "extract.java.syntax-tree-required".equals(d.code())));
     }
 
     @Test
-    void extractsTypescriptClassesFunctionsImportsAndDecorators() {
+    void emitsDiagnosticInsteadOfRegexFallbackForTypescriptWhenSyntaxTreeIsUnavailable() {
         String source = """
             import { Injectable } from '@nestjs/common';
-            import { HttpClient } from './http-client';
-
-            @Injectable()
             export class ApiService {}
-
-            export function loadData() {
-                return 1;
-            }
-
-            @Component
-            export const App = () => null;
             """;
         SourceParseResult parseResult = new SourceParseResult(
             new SourceParseRequest(Path.of("src/app/api-service.ts"), "src/app/api-service.ts", ParseLanguage.TYPESCRIPT, source),
@@ -78,11 +68,51 @@ class StructuralExtractionServiceTest {
         StructuralExtractionResult result = new StructuralExtractionService(StructuralExtractorRegistry.defaultRegistry())
             .extract(new ParseBatchResult(List.of(parseResult), Map.of(ParseLanguage.TYPESCRIPT, 1), Map.of(ParseStatus.BACKEND_UNAVAILABLE, 1)));
 
-        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.CLASS && "ApiService".equals(entity.name())));
-        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.FUNCTION && "loadData".equals(entity.name())));
-        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.FUNCTION && "App".equals(entity.name())
-            && ((List<?>) entity.metadata().get("decorators")).contains("Component")));
-        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON && "@nestjs/common".equals(rel.label())));
-        assertEquals(1, result.summary().extractedByLanguage().get("typescript"));
+        assertEquals(0, result.summary().extractedByLanguage().getOrDefault("typescript", 0));
+        assertEquals(0, result.summary().extractedByMode().getOrDefault("SOURCE_TEXT_FALLBACK", 0));
+        assertTrue(result.diagnostics().stream().anyMatch(d -> "extract.typescript.syntax-tree-required".equals(d.code())));
+    }
+
+    @Test
+    void prefersSyntaxTreeModeWhenRealSyntaxTreeIsAvailable() {
+        String source = """
+            package com.example.demo;
+            import java.util.List;
+            public class DemoController {
+                public String hello() { return "hi"; }
+            }
+            """;
+
+        SyntaxNode root = new SyntaxNode("program", true, 0, source.length(), 0, 0, 4, 0, false, false, source, List.of(
+            new SyntaxNode("package_declaration", true, 0, 25, 0, 0, 0, 25, false, false, "package com.example.demo;", List.of(
+                new SyntaxNode("scoped_identifier", true, 8, 24, 0, 8, 0, 24, false, false, "com.example.demo", List.of())
+            )),
+            new SyntaxNode("import_declaration", true, 26, 48, 1, 0, 1, 22, false, false, "import java.util.List;", List.of()),
+            new SyntaxNode("class_declaration", true, 49, source.length(), 2, 0, 4, 1, false, false,
+                "public class DemoController { public String hello() { return \"hi\"; } }", List.of(
+                    new SyntaxNode("identifier", true, 62, 76, 2, 13, 2, 27, false, false, "DemoController", List.of()),
+                    new SyntaxNode("method_declaration", true, 81, 118, 3, 4, 3, 41, false, false,
+                        "public String hello() { return \"hi\"; }", List.of(
+                            new SyntaxNode("identifier", true, 95, 100, 3, 18, 3, 23, false, false, "hello", List.of()),
+                            new SyntaxNode("formal_parameters", true, 100, 102, 3, 23, 3, 25, false, false, "()", List.of())
+                        ))
+                ))
+        ));
+
+        SourceParseResult parseResult = new SourceParseResult(
+            new SourceParseRequest(Path.of("src/main/java/com/example/demo/DemoController.java"), "src/main/java/com/example/demo/DemoController.java", ParseLanguage.JAVA, source),
+            ParseStatus.SUCCESS,
+            new SyntaxTree(ParseLanguage.JAVA, "tree-sitter-jtreesitter", root, false, root.nodeCount()),
+            List.of(),
+            Map.of("parserBackend", "tree-sitter-jtreesitter")
+        );
+
+        StructuralExtractionResult result = new StructuralExtractionService(StructuralExtractorRegistry.defaultRegistry())
+            .extract(new ParseBatchResult(List.of(parseResult), Map.of(ParseLanguage.JAVA, 1), Map.of(ParseStatus.SUCCESS, 1)));
+
+        assertEquals(1, result.summary().extractedByMode().get("SYNTAX_TREE"));
+        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.CLASS && "DemoController".equals(entity.name())));
+        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.FUNCTION && "hello".equals(entity.name())));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON && "java.util.List".equals(rel.label())));
     }
 }

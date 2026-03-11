@@ -58,18 +58,28 @@ class TreeSitterParsingServiceTest {
     }
 
     @Test
-    void defaultRegistryGracefullyReportsBackendUnavailable() throws Exception {
+    void defaultRegistryGracefullyReportsBackendUnavailableWhenDisabledByConfiguration() throws Exception {
         Files.createDirectories(tempDir.resolve("src"));
         Files.writeString(tempDir.resolve("src/Demo.java"), "class Demo {}\n");
 
-        FileInventory inventory = new FileInventoryScanner().scan(tempDir);
-        ParseBatchResult batchResult = new TreeSitterParsingService(
-            TreeSitterParserRegistryFactory.createDefaultRegistry()).parseInventory(tempDir, inventory);
+        String previous = System.getProperty("archbrowser.treesitter.enabled");
+        System.setProperty("archbrowser.treesitter.enabled", "false");
+        try {
+            FileInventory inventory = new FileInventoryScanner().scan(tempDir);
+            ParseBatchResult batchResult = new TreeSitterParsingService(
+                TreeSitterParserRegistryFactory.createDefaultRegistry(TreeSitterConfiguration.fromEnvironment())).parseInventory(tempDir, inventory);
 
-        assertEquals(1, batchResult.results().size());
-        SourceParseResult result = batchResult.results().get(0);
-        assertEquals(ParseStatus.BACKEND_UNAVAILABLE, result.status());
-        assertTrue(result.issues().get(0).message().contains("Tree-sitter Java runtime"));
+            assertEquals(1, batchResult.results().size());
+            SourceParseResult result = batchResult.results().get(0);
+            assertEquals(ParseStatus.BACKEND_UNAVAILABLE, result.status());
+            assertTrue(result.issues().get(0).message().contains("disabled by configuration"));
+        } finally {
+            if (previous == null) {
+                System.clearProperty("archbrowser.treesitter.enabled");
+            } else {
+                System.setProperty("archbrowser.treesitter.enabled", previous);
+            }
+        }
     }
 
     private static final class FakeSuccessParser implements SourceParser {
@@ -93,7 +103,7 @@ class TreeSitterParsingServiceTest {
                 ParseStatus.SUCCESS,
                 new SyntaxTree(language, "fake-tree-sitter", root, false, root.nodeCount()),
                 List.of(),
-                Map.of("parser", "fake-tree-sitter")
+                Map.of("parserBackend", "fake-tree-sitter")
             );
         }
     }

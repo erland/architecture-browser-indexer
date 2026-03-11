@@ -29,6 +29,7 @@ public final class StructuralExtractionService {
                 accumulator.filesVisited(),
                 accumulator.filesExtracted(),
                 accumulator.extractedByLanguage(),
+                accumulator.extractedByMode(),
                 accumulator.entities().size(),
                 accumulator.relationships().size()
             )

@@ -11,6 +11,8 @@ import info.isaksson.erland.architecturebrowser.indexer.parse.ParseLanguage;
 import info.isaksson.erland.architecturebrowser.indexer.parse.ParseStatus;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SourceParseRequest;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SourceParseResult;
+import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxNode;
+import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxTree;
 import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventory;
 import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventoryEntry;
 import org.junit.jupiter.api.Test;
@@ -32,15 +34,24 @@ class ArchitectureIrFactoryStructuralExtractionTest {
             1, 1, 0, Set.of("typescript"), Set.of("typescript")
         );
         String source = "import { x } from './lib';\nexport function run() { return x; }\n";
+
+        SyntaxNode root = new SyntaxNode("program", true, 0, source.length(), 0, 0, 1, 35, false, false, source, List.of(
+            new SyntaxNode("import_statement", true, 0, 26, 0, 0, 0, 26, false, false, "import { x } from './lib';", List.of()),
+            new SyntaxNode("function_declaration", true, 27, source.length(), 1, 0, 1, 35, false, false,
+                "export function run() { return x; }", List.of(
+                    new SyntaxNode("identifier", true, 43, 46, 1, 16, 1, 19, false, false, "run", List.of())
+                ))
+        ));
+
         ParseBatchResult parseBatchResult = new ParseBatchResult(
             List.of(new SourceParseResult(
                 new SourceParseRequest(Path.of("src/app.ts"), "src/app.ts", ParseLanguage.TYPESCRIPT, source),
-                ParseStatus.BACKEND_UNAVAILABLE,
-                null,
+                ParseStatus.SUCCESS,
+                new SyntaxTree(ParseLanguage.TYPESCRIPT, "tree-sitter-jtreesitter", root, false, root.nodeCount()),
                 List.of(),
-                Map.of())),
+                Map.of("parserBackend", "tree-sitter-jtreesitter"))),
             Map.of(ParseLanguage.TYPESCRIPT, 1),
-            Map.of(ParseStatus.BACKEND_UNAVAILABLE, 1)
+            Map.of(ParseStatus.SUCCESS, 1)
         );
         StructuralExtractionResult extractionResult = new StructuralExtractionService(StructuralExtractorRegistry.defaultRegistry())
             .extract(parseBatchResult);
@@ -56,7 +67,7 @@ class ArchitectureIrFactoryStructuralExtractionTest {
 
         assertTrue(document.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.FUNCTION && "run".equals(entity.name())));
         assertTrue(document.relationships().stream().anyMatch(relationship -> "./lib".equals(relationship.label())));
-        assertEquals("PARTIAL", document.runMetadata().outcome().name());
+        assertEquals("SUCCESS", document.runMetadata().outcome().name());
         assertTrue(document.metadata().containsKey("extractionSummary"));
     }
 }

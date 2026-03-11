@@ -1,25 +1,23 @@
 package info.isaksson.erland.architecturebrowser.indexer.extract;
 
 import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedEntityFact;
+import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractionMode;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityOrigin;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
 import info.isaksson.erland.architecturebrowser.indexer.parse.ParseLanguage;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SourceParseResult;
+import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxNode;
+import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxTree;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 final class TypeScriptStructuralExtractor implements StructuralExtractor {
-    private static final Pattern IMPORT_PATTERN = Pattern.compile("(?m)^\\s*import\\s+(?:type\\s+)?(?:.+?)\\s+from\\s+['\"]([^'\"]+)['\"]\\s*;?");
-    private static final Pattern CLASS_PATTERN = Pattern.compile("(?m)^\\s*(?:export\\s+)?(?:abstract\\s+)?class\\s+([A-Za-z_][A-Za-z0-9_]*)");
-    private static final Pattern INTERFACE_PATTERN = Pattern.compile("(?m)^\\s*(?:export\\s+)?interface\\s+([A-Za-z_][A-Za-z0-9_]*)");
-    private static final Pattern FUNCTION_PATTERN = Pattern.compile("(?m)^\\s*(?:export\\s+)?function\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(");
-    private static final Pattern CONST_FUNCTION_PATTERN = Pattern.compile("(?m)^\\s*(?:export\\s+)?const\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*(?:async\\s*)?(?:\\([^)]*\\)|[A-Za-z_][A-Za-z0-9_]*)\\s*=>");
-    private static final Pattern DECORATOR_PATTERN = Pattern.compile("(?m)^\\s*@([A-Za-z_][A-Za-z0-9_]*)");
+    private static final Pattern IMPORT_FROM_SNIPPET = Pattern.compile("from\\s+['\\\"]([^'\\\"]+)['\\\"]");
 
     @Override
     public ParseLanguage language() {
@@ -29,13 +27,25 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
     @Override
     public ExtractionAccumulator extract(SourceParseResult parseResult, ExtractionAccumulator accumulator) {
         accumulator.incrementFilesVisited();
-        String relativePath = parseResult.request().relativePath();
-        String source = parseResult.request().sourceText();
-        if (source == null) {
-            accumulator.addDiagnostic(ExtractionSupport.extractionWarning(parseResult, "extract.typescript.missing-source", "TypeScript source text was not available for extraction"));
+        if (!parseResult.successful() || parseResult.syntaxTree() == null) {
+            accumulator.addDiagnostic(ExtractionSupport.extractionWarning(
+                parseResult,
+                "extract.typescript.syntax-tree-required",
+                "TypeScript structural extraction requires a successful Tree-sitter syntax tree; no regex fallback is used."
+            ));
             return accumulator;
         }
-        accumulator.incrementFilesExtracted("typescript");
+        return extractFromSyntaxTree(parseResult, accumulator, parseResult.request().relativePath(), parseResult.syntaxTree());
+    }
+
+    private ExtractionAccumulator extractFromSyntaxTree(
+        SourceParseResult parseResult,
+        ExtractionAccumulator accumulator,
+        String relativePath,
+        SyntaxTree syntaxTree
+    ) {
+        ExtractionMode extractionMode = ExtractionMode.SYNTAX_TREE;
+        accumulator.incrementFilesExtracted("typescript", extractionMode);
 
         String repositoryScopeId = "scope:repo";
         var fileScope = ExtractionSupport.fileScope(repositoryScopeId, relativePath);
@@ -43,73 +53,84 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
         var fileEntity = ExtractionSupport.fileModuleEntity(fileScope.id(), relativePath, "typescript");
         accumulator.addEntity(fileEntity);
 
-        Matcher importMatcher = IMPORT_PATTERN.matcher(source);
-        while (importMatcher.find()) {
-            String imported = importMatcher.group(1);
-            int line = lineOf(source, importMatcher.start(1));
+        SyntaxNode root = syntaxTree.root();
+
+        for (SyntaxNode importNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("import_statement"))) {
+            String imported = importFromSnippet(importNode.textSnippet());
+            if (imported == null || imported.isBlank()) {
+                continue;
+            }
+            int line = SyntaxTreeExtractionSupport.oneBasedLine(importNode);
             var external = ExtractionSupport.externalDependencyEntity("typescript", imported, relativePath, line);
             accumulator.addEntity(external);
             accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
                 fileEntity.id(), external.id(), imported,
-                ExtractionSupport.sourceRef(relativePath, line, importMatcher.group().trim(), Map.of("language", "typescript", "kind", "import")),
+                ExtractionSupport.sourceRef(relativePath, line, importNode.textSnippet(), Map.of("language", "typescript", "kind", "import")),
                 "typescript"
             ));
         }
 
-        extractNamedEntities(source, relativePath, parseResult, accumulator, fileEntity.id(), CLASS_PATTERN, EntityKind.CLASS, "class");
-        extractNamedEntities(source, relativePath, parseResult, accumulator, fileEntity.id(), INTERFACE_PATTERN, EntityKind.INTERFACE, "interface");
-        extractNamedEntities(source, relativePath, parseResult, accumulator, fileEntity.id(), FUNCTION_PATTERN, EntityKind.FUNCTION, "function");
-        extractNamedEntities(source, relativePath, parseResult, accumulator, fileEntity.id(), CONST_FUNCTION_PATTERN, EntityKind.FUNCTION, "arrow-function");
+        for (SyntaxNode classNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("class_declaration"))) {
+            addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, classNode, EntityKind.CLASS, "class_declaration", extractionMode);
+        }
+        for (SyntaxNode interfaceNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("interface_declaration"))) {
+            addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, interfaceNode, EntityKind.INTERFACE, "interface_declaration", extractionMode);
+        }
+        for (SyntaxNode functionNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("function_declaration"))) {
+            addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, functionNode, EntityKind.FUNCTION, "function_declaration", extractionMode);
+        }
+        for (SyntaxNode variableDeclarator : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("variable_declarator"))) {
+            if (SyntaxTreeExtractionSupport.containsDescendantType(variableDeclarator, "arrow_function")) {
+                addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, variableDeclarator, EntityKind.FUNCTION, "arrow_function", extractionMode);
+            }
+        }
         return accumulator;
     }
 
-    private static void extractNamedEntities(
-        String source,
-        String relativePath,
+    private static void addNamedEntityFromNode(
         SourceParseResult parseResult,
         ExtractionAccumulator accumulator,
         String fileEntityId,
-        Pattern pattern,
+        String relativePath,
+        SyntaxNode node,
         EntityKind kind,
-        String matchedKind
+        String matchedKind,
+        ExtractionMode extractionMode
     ) {
-        Matcher matcher = pattern.matcher(source);
-        while (matcher.find()) {
-            String name = matcher.group(1);
-            int line = lineOf(source, matcher.start(1));
-            SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, matcher.group().trim(), Map.of("language", "typescript", "kind", matchedKind));
-            ExtractedEntityFact entity = new ExtractedEntityFact(
-                IdUtils.scopedEntityId("typescript", relativePath, name, line),
-                kind,
-                EntityOrigin.OBSERVED,
-                name,
-                relativePath + "#" + name,
-                IdUtils.scopeId("file", relativePath),
-                List.of(ref),
-                Map.of(
-                    "language", "typescript",
-                    "decorators", decoratorsNearLine(source, line),
-                    "parseStatus", parseResult.status().name()
-                )
-            );
-            accumulator.addEntity(entity);
-            accumulator.addRelationship(ExtractionSupport.containsRelationship(fileEntityId, entity.id(), ref));
+        String name = SyntaxTreeExtractionSupport.declarationName(node);
+        if (name == null || name.isBlank()) {
+            return;
         }
+        int line = SyntaxTreeExtractionSupport.oneBasedLine(node);
+        SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, node.textSnippet(), Map.of("language", "typescript", "kind", matchedKind));
+        List<String> decorators = SyntaxTreeExtractionSupport.descendantsByType(node, Set.of("decorator")).stream()
+            .flatMap(candidate -> SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(candidate.textSnippet()).stream())
+            .distinct()
+            .toList();
+        ExtractedEntityFact entity = new ExtractedEntityFact(
+            IdUtils.scopedEntityId("typescript", relativePath, name, line),
+            kind,
+            EntityOrigin.OBSERVED,
+            name,
+            relativePath + "#" + name,
+            IdUtils.scopeId("file", relativePath),
+            List.of(ref),
+            Map.of(
+                "language", "typescript",
+                "decorators", decorators,
+                "parseStatus", parseResult.status().name(),
+                "extractionMode", extractionMode.name()
+            )
+        );
+        accumulator.addEntity(entity);
+        accumulator.addRelationship(ExtractionSupport.containsRelationship(fileEntityId, entity.id(), ref));
     }
 
-    private static int lineOf(String source, int index) {
-        return 1 + (int) source.substring(0, Math.max(0, index)).chars().filter(ch -> ch == '\n').count();
-    }
-
-    private static List<String> decoratorsNearLine(String source, int line) {
-        String[] lines = source.split("\\R");
-        List<String> result = new ArrayList<>();
-        for (int i = Math.max(0, line - 3); i < Math.min(lines.length, line); i++) {
-            Matcher matcher = DECORATOR_PATTERN.matcher(lines[i]);
-            while (matcher.find()) {
-                result.add(matcher.group(1));
-            }
+    private static String importFromSnippet(String snippet) {
+        if (snippet == null) {
+            return null;
         }
-        return List.copyOf(result);
+        Matcher matcher = IMPORT_FROM_SNIPPET.matcher(snippet);
+        return matcher.find() ? matcher.group(1) : null;
     }
 }

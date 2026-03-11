@@ -1,15 +1,16 @@
 package info.isaksson.erland.architecturebrowser.indexer.parse;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-final class TreeSitterUnavailableParser implements SourceParser {
+final class UnavailableSourceParser implements SourceParser {
     private final ParseLanguage language;
-    private final TreeSitterRuntimeStatus runtimeStatus;
+    private final TreeSitterLanguageAvailability availability;
 
-    TreeSitterUnavailableParser(ParseLanguage language, TreeSitterRuntimeStatus runtimeStatus) {
+    UnavailableSourceParser(ParseLanguage language, TreeSitterLanguageAvailability availability) {
         this.language = language;
-        this.runtimeStatus = runtimeStatus;
+        this.availability = availability;
     }
 
     @Override
@@ -19,18 +20,21 @@ final class TreeSitterUnavailableParser implements SourceParser {
 
     @Override
     public SourceParseResult parse(SourceParseRequest request) {
+        Map<String, Object> metadata = new LinkedHashMap<>(availability.metadata());
+        metadata.put("runtimeAvailable", metadata.getOrDefault("runtimeAvailable", availability.available()));
+        metadata.put("language", language.inventoryKey());
         return new SourceParseResult(
             request,
             ParseStatus.BACKEND_UNAVAILABLE,
             null,
             List.of(new ParseIssue(
                 "parse.backend.unavailable",
-                runtimeStatus.detail(),
+                availability.detail(),
                 null,
                 null,
                 false
             )),
-            Map.of("runtimeAvailable", runtimeStatus.available(), "language", language.inventoryKey())
+            metadata
         );
     }
 }

@@ -2,6 +2,7 @@ package info.isaksson.erland.architecturebrowser.indexer.extract;
 
 import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedEntityFact;
 import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedRelationshipFact;
+import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractionMode;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.Diagnostic;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.LogicalScope;
 
@@ -16,6 +17,7 @@ public final class ExtractionAccumulator {
     private final Map<String, ExtractedRelationshipFact> relationshipsById = new LinkedHashMap<>();
     private final List<Diagnostic> diagnostics = new ArrayList<>();
     private final Map<String, Integer> extractedByLanguage = new LinkedHashMap<>();
+    private final Map<String, Integer> extractedByMode = new LinkedHashMap<>();
     private int filesVisited;
     private int filesExtracted;
 
@@ -23,9 +25,12 @@ public final class ExtractionAccumulator {
         filesVisited++;
     }
 
-    public void incrementFilesExtracted(String languageKey) {
+    public void incrementFilesExtracted(String languageKey, ExtractionMode extractionMode) {
         filesExtracted++;
         extractedByLanguage.merge(languageKey, 1, Integer::sum);
+        if (extractionMode != null) {
+            extractedByMode.merge(extractionMode.name(), 1, Integer::sum);
+        }
     }
 
     public void addScope(LogicalScope scope) {
@@ -57,6 +62,7 @@ public final class ExtractionAccumulator {
     public List<ExtractedRelationshipFact> relationships() { return List.copyOf(relationshipsById.values()); }
     public List<Diagnostic> diagnostics() { return List.copyOf(diagnostics); }
     public Map<String, Integer> extractedByLanguage() { return Map.copyOf(extractedByLanguage); }
+    public Map<String, Integer> extractedByMode() { return Map.copyOf(extractedByMode); }
     public int filesVisited() { return filesVisited; }
     public int filesExtracted() { return filesExtracted; }
 }

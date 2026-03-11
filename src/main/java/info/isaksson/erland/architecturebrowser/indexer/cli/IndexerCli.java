@@ -11,6 +11,7 @@ import info.isaksson.erland.architecturebrowser.indexer.ir.ArchitectureIrValidat
 import info.isaksson.erland.architecturebrowser.indexer.ir.json.ArchitectureIrJson;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureIndexDocument;
 import info.isaksson.erland.architecturebrowser.indexer.parse.ParseBatchResult;
+import info.isaksson.erland.architecturebrowser.indexer.parse.TreeSitterConfiguration;
 import info.isaksson.erland.architecturebrowser.indexer.parse.TreeSitterParserRegistryFactory;
 import info.isaksson.erland.architecturebrowser.indexer.parse.TreeSitterParsingService;
 import info.isaksson.erland.architecturebrowser.indexer.parse.TreeSitterRuntimeDetector;
@@ -48,7 +49,10 @@ public final class IndexerCli {
 
         SourceAcquisitionService acquisitionService = new SourceAcquisitionService();
         FileInventoryScanner scanner = new FileInventoryScanner();
-        TreeSitterParsingService parsingService = new TreeSitterParsingService(TreeSitterParserRegistryFactory.createDefaultRegistry());
+        TreeSitterConfiguration treeSitterConfiguration = TreeSitterConfiguration.fromEnvironment();
+        var treeSitterRuntimeStatus = TreeSitterRuntimeDetector.detect(treeSitterConfiguration);
+        TreeSitterParsingService parsingService = new TreeSitterParsingService(
+            TreeSitterParserRegistryFactory.createDefaultRegistry(treeSitterConfiguration));
 
         AcquisitionRequest request = new AcquisitionRequest(
             arguments.repositoryId(),
@@ -92,7 +96,7 @@ public final class IndexerCli {
         summary.put("ignoredFiles", inventory.ignoredFiles());
         summary.put("detectedLanguages", inventory.detectedLanguages());
         summary.put("detectedTechnologyMarkers", inventory.detectedTechnologyMarkers());
-        summary.put("treeSitterRuntime", TreeSitterRuntimeDetector.detect().detail());
+        summary.put("treeSitterRuntime", treeSitterRuntimeStatus.detail());
         summary.put("parseSummary", TreeSitterParsingService.summarize(parseBatchResult));
         summary.put("extractionSummary", document.metadata().get("extractionSummary"));
         System.out.println(ArchitectureIrJson.toPrettyJson(summary));
