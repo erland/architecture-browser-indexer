@@ -119,3 +119,6 @@ The script pins the grammar repos to `tree-sitter-java v0.23.5` and `tree-sitter
 ## Tree-sitter native library path during tests
 
 The Maven Surefire configuration sets `java.library.path` to `lib/macos-aarch64` so `jtreesitter` can find `libtree-sitter.dylib` during test runs on Apple Silicon macOS. The official Java Tree-sitter docs state that the libraries can be installed in the OS-specific library search path or in `java.library.path`.
+
+
+Step 7 adds a first-pass interpretation layer that infers higher-level architecture concepts such as endpoints, services, persistence adapters, UI modules, and startup points from extracted structural facts.

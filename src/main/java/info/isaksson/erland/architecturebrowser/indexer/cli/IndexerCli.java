@@ -7,6 +7,9 @@ import info.isaksson.erland.architecturebrowser.indexer.extract.StructuralExtrac
 import info.isaksson.erland.architecturebrowser.indexer.extract.StructuralExtractorRegistry;
 import info.isaksson.erland.architecturebrowser.indexer.extract.model.StructuralExtractionResult;
 import info.isaksson.erland.architecturebrowser.indexer.ir.ArchitectureIrFactory;
+import info.isaksson.erland.architecturebrowser.indexer.interpret.InterpretationRegistry;
+import info.isaksson.erland.architecturebrowser.indexer.interpret.InterpretationService;
+import info.isaksson.erland.architecturebrowser.indexer.interpret.model.InterpretationResult;
 import info.isaksson.erland.architecturebrowser.indexer.ir.ArchitectureIrValidator;
 import info.isaksson.erland.architecturebrowser.indexer.ir.json.ArchitectureIrJson;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureIndexDocument;
@@ -66,6 +69,8 @@ public final class IndexerCli {
         ParseBatchResult parseBatchResult = parsingService.parseInventory(acquisitionResult.acquiredRoot(), inventory);
         StructuralExtractionResult extractionResult = new StructuralExtractionService(StructuralExtractorRegistry.defaultRegistry())
             .extract(parseBatchResult);
+        InterpretationResult interpretationResult = new InterpretationService(InterpretationRegistry.defaultRegistry())
+            .interpret(extractionResult);
 
         ArchitectureIndexDocument document = ArchitectureIrFactory.createInventoryDocument(
             acquisitionResult.repositorySource(),
@@ -73,7 +78,8 @@ public final class IndexerCli {
             inventory,
             acquisitionResult.diagnostics(),
             parseBatchResult,
-            extractionResult
+            extractionResult,
+            interpretationResult
         );
 
         ArchitectureIrValidator.ValidationResult validation = ArchitectureIrValidator.validate(document);
@@ -99,6 +105,7 @@ public final class IndexerCli {
         summary.put("treeSitterRuntime", treeSitterRuntimeStatus.detail());
         summary.put("parseSummary", TreeSitterParsingService.summarize(parseBatchResult));
         summary.put("extractionSummary", document.metadata().get("extractionSummary"));
+        summary.put("interpretationSummary", document.metadata().get("interpretationSummary"));
         System.out.println(ArchitectureIrJson.toPrettyJson(summary));
 
         if (acquisitionResult.temporaryWorkspace()) {

@@ -1,0 +1,24 @@
+package info.isaksson.erland.architecturebrowser.indexer.interpret.model;
+
+import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityKind;
+import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityOrigin;
+import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
+
+import java.util.List;
+import java.util.Map;
+
+public record InterpretedEntityFact(
+    String id,
+    EntityKind kind,
+    EntityOrigin origin,
+    String name,
+    String displayName,
+    String scopeId,
+    List<SourceReference> sourceRefs,
+    Map<String, Object> metadata
+) {
+    public InterpretedEntityFact {
+        sourceRefs = sourceRefs == null ? List.of() : List.copyOf(sourceRefs);
+        metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
+    }
+}

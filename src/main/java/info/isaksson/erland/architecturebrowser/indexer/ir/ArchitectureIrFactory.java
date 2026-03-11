@@ -3,6 +3,9 @@ package info.isaksson.erland.architecturebrowser.indexer.ir;
 import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedEntityFact;
 import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedRelationshipFact;
 import info.isaksson.erland.architecturebrowser.indexer.extract.model.StructuralExtractionResult;
+import info.isaksson.erland.architecturebrowser.indexer.interpret.model.InterpretationResult;
+import info.isaksson.erland.architecturebrowser.indexer.interpret.model.InterpretedEntityFact;
+import info.isaksson.erland.architecturebrowser.indexer.interpret.model.InterpretedRelationshipFact;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureEntity;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureIndexDocument;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureRelationship;
@@ -63,6 +66,18 @@ public final class ArchitectureIrFactory {
         ParseBatchResult parseBatchResult,
         StructuralExtractionResult extractionResult
     ) {
+        return createInventoryDocument(source, indexerVersion, inventory, acquisitionDiagnostics, parseBatchResult, extractionResult, null);
+    }
+
+    public static ArchitectureIndexDocument createInventoryDocument(
+        RepositorySource source,
+        String indexerVersion,
+        FileInventory inventory,
+        List<Diagnostic> acquisitionDiagnostics,
+        ParseBatchResult parseBatchResult,
+        StructuralExtractionResult extractionResult,
+        InterpretationResult interpretationResult
+    ) {
         Instant generatedAt = Instant.now();
 
         LogicalScope repositoryScope = new LogicalScope(
@@ -121,6 +136,9 @@ public final class ArchitectureIrFactory {
         if (extractionResult != null) {
             diagnostics.addAll(extractionResult.diagnostics());
         }
+        if (interpretationResult != null) {
+            diagnostics.addAll(interpretationResult.diagnostics());
+        }
 
         List<LogicalScope> scopes = new ArrayList<>();
         scopes.add(repositoryScope);
@@ -137,10 +155,24 @@ public final class ArchitectureIrFactory {
                 ));
             }
         }
+        if (interpretationResult != null) {
+            for (InterpretedEntityFact entity : interpretationResult.entities()) {
+                entities.add(new ArchitectureEntity(
+                    entity.id(), entity.kind(), entity.origin(), entity.name(), entity.displayName(), entity.scopeId(), entity.sourceRefs(), entity.metadata()
+                ));
+            }
+        }
 
         List<ArchitectureRelationship> relationships = new ArrayList<>();
         if (extractionResult != null) {
             for (ExtractedRelationshipFact relationship : extractionResult.relationships()) {
+                relationships.add(new ArchitectureRelationship(
+                    relationship.id(), relationship.kind(), relationship.fromEntityId(), relationship.toEntityId(), relationship.label(), relationship.sourceRefs(), relationship.metadata()
+                ));
+            }
+        }
+        if (interpretationResult != null) {
+            for (InterpretedRelationshipFact relationship : interpretationResult.relationships()) {
                 relationships.add(new ArchitectureRelationship(
                     relationship.id(), relationship.kind(), relationship.fromEntityId(), relationship.toEntityId(), relationship.label(), relationship.sourceRefs(), relationship.metadata()
                 ));
@@ -152,8 +184,10 @@ public final class ArchitectureIrFactory {
         List<String> completenessNotes = new ArrayList<>();
         if (extractionResult == null) {
             completenessNotes.add("Inventory-only payload produced before structural extraction is implemented");
+        } else if (interpretationResult == null) {
+            completenessNotes.add("Structural extraction included syntax-tree-based extraction without interpretation");
         } else {
-            completenessNotes.add("Structural extraction included conservative Java and TypeScript text-pattern extraction via parser abstraction");
+            completenessNotes.add("Structural extraction and first-pass interpretation rules were included");
         }
 
         CompletenessMetadata completeness = new CompletenessMetadata(
@@ -180,6 +214,9 @@ public final class ArchitectureIrFactory {
         if (extractionResult != null) {
             documentMetadata.put("extractionSummary", extractionResult.summary());
         }
+        if (interpretationResult != null) {
+            documentMetadata.put("interpretationSummary", interpretationResult.summary());
+        }
 
         RunMetadata runMetadata = new RunMetadata(
             generatedAt,
@@ -187,9 +224,10 @@ public final class ArchitectureIrFactory {
             degradedFileCount > 0 ? RunOutcome.PARTIAL : RunOutcome.SUCCESS,
             inventory.detectedTechnologyMarkers().stream().sorted().toList(),
             Map.of(
-                "mode", extractionResult == null ? "cli-inventory" : "cli-structural-extraction",
+                "mode", interpretationResult != null ? "cli-interpretation" : (extractionResult == null ? "cli-inventory" : "cli-structural-extraction"),
                 "inventoryOnly", extractionResult == null,
-                "structuralExtraction", extractionResult != null
+                "structuralExtraction", extractionResult != null,
+                "interpretation", interpretationResult != null
             )
         );
 
