@@ -19,6 +19,7 @@ import info.isaksson.erland.architecturebrowser.indexer.incremental.model.Increm
 import info.isaksson.erland.architecturebrowser.indexer.incremental.model.IncrementalSnapshot;
 import info.isaksson.erland.architecturebrowser.indexer.topology.TopologyService;
 import info.isaksson.erland.architecturebrowser.indexer.topology.model.TopologyResult;
+import info.isaksson.erland.architecturebrowser.indexer.worker.WorkerModeService;
 import info.isaksson.erland.architecturebrowser.indexer.ir.ArchitectureIrValidator;
 import info.isaksson.erland.architecturebrowser.indexer.ir.json.ArchitectureIrJson;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureIndexDocument;
@@ -52,6 +53,13 @@ public final class IndexerCli {
         }
         if (arguments.showVersion()) {
             System.out.println(APPLICATION_VERSION);
+            return;
+        }
+        if (arguments.workerRequestPath() != null) {
+            if (arguments.workerResultPath() == null) {
+                throw new IllegalArgumentException("--worker-result is required when --worker-request is used");
+            }
+            new WorkerModeService().runJob(arguments.workerRequestPath(), arguments.workerResultPath());
             return;
         }
         if (!arguments.hasInput() || arguments.outputPath() == null) {
@@ -188,6 +196,8 @@ public final class IndexerCli {
               --output <path>                  Output JSON file
               --snapshot-in <path>             Optional prior incremental snapshot JSON
               --snapshot-out <path>            Optional path to write current incremental snapshot JSON
+              --worker-request <path>          Run as worker using request JSON
+              --worker-result <path>           Write worker result JSON
             """);
     }
 
@@ -201,7 +211,9 @@ public final class IndexerCli {
         Path workingDirectory,
         Path outputPath,
         String snapshotIn,
-        String snapshotOut
+        String snapshotOut,
+        Path workerRequestPath,
+        Path workerResultPath
     ) {
         boolean hasInput() {
             return (sourcePath != null) ^ (gitUrl != null && !gitUrl.isBlank());
@@ -218,6 +230,8 @@ public final class IndexerCli {
             Path output = null;
             String snapshotIn = null;
             String snapshotOut = null;
+            Path workerRequest = null;
+            Path workerResult = null;
 
             for (int i = 0; i < args.length; i++) {
                 String arg = args[i];
@@ -256,10 +270,18 @@ public final class IndexerCli {
                         i = requireValue(args, i, arg);
                         snapshotOut = args[i];
                     }
+                    case "--worker-request" -> {
+                        i = requireValue(args, i, arg);
+                        workerRequest = Path.of(args[i]);
+                    }
+                    case "--worker-result" -> {
+                        i = requireValue(args, i, arg);
+                        workerResult = Path.of(args[i]);
+                    }
                     default -> throw new IllegalArgumentException("Unknown argument: " + arg);
                 }
             }
-            return new CliArguments(help, version, source, gitUrl, gitRef, repositoryId, workingDirectory, output, snapshotIn, snapshotOut);
+            return new CliArguments(help, version, source, gitUrl, gitRef, repositoryId, workingDirectory, output, snapshotIn, snapshotOut, workerRequest, workerResult);
         }
 
         private static int requireValue(String[] args, int index, String option) {

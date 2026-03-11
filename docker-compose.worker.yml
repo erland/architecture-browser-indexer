@@ -1,0 +1,17 @@
+services:
+  architecture-browser-indexer-worker:
+    image: ghcr.io/erland/architecture-browser-indexer:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./workspace:/workspace
+      - ./jobs:/jobs
+      - ./lib:/app/lib
+    environment:
+      ARCH_BROWSER_TREE_SITTER_LIB_DIR: /app/lib/macos-aarch64
+    command:
+      - --worker-request
+      - /jobs/request.json
+      - --worker-result
+      - /jobs/result.json

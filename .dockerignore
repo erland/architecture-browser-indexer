@@ -1,0 +1,7 @@
+target
+.git
+.github
+.tmp
+*.zip
+jobs/result.json
+workspace/output

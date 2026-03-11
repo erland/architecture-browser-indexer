@@ -134,3 +134,6 @@ Step 10 adds a publication/export contract. CLI output now writes both the paylo
 
 
 Step 11 adds incremental reindex foundations: file fingerprints, snapshot JSON, changed-file detection, and a minimal reprocessing plan for added/changed files.
+
+
+Step 12 adds worker mode and container deployment assets. The CLI can now run from a worker request JSON, and the repo includes Docker/GHCR packaging files for deployment.
