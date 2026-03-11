@@ -140,3 +140,38 @@ Step 12 adds worker mode and container deployment assets. The CLI can now run fr
 
 
 Step 13 expands the regression suite and hardens extension seams so extractors, interpretation rules, topology resolution, and export targets can be extended with less core-code churn.
+
+
+## HTTP worker service
+
+Step 14 adds a thin HTTP worker wrapper around the existing worker-mode pipeline.
+
+Start it from Maven:
+
+```bash
+mvn -q exec:java -Dexec.mainClass=info.isaksson.erland.architecturebrowser.indexer.cli.IndexerCli -- \
+  --serve-http \
+  --http-host 0.0.0.0 \
+  --http-port 8080 \
+  --http-workspace-dir ./build/http-worker
+```
+
+Health check:
+
+```bash
+curl http://localhost:8080/health
+```
+
+Run an index job over HTTP:
+
+```bash
+curl -X POST http://localhost:8080/api/index-jobs/run \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "jobId": "demo-job-001",
+    "repositoryId": "demo-repo",
+    "sourcePath": "/workspace/demo"
+  }'
+```
+
+When `outputPath` is omitted, the HTTP worker allocates a temporary output file under the configured worker workspace and returns the generated IR document inline together with the execution summary and manifest preview.

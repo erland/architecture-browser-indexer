@@ -10,8 +10,13 @@ services:
       - ./lib:/app/lib
     environment:
       ARCH_BROWSER_TREE_SITTER_LIB_DIR: /app/lib/macos-aarch64
+    ports:
+      - "8080:8080"
     command:
-      - --worker-request
-      - /jobs/request.json
-      - --worker-result
-      - /jobs/result.json
+      - --serve-http
+      - --http-host
+      - 0.0.0.0
+      - --http-port
+      - "8080"
+      - --http-workspace-dir
+      - /workspace/http-worker

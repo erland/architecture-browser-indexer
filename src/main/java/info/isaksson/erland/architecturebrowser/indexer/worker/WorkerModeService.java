@@ -11,10 +11,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public final class WorkerModeService {
+public class WorkerModeService {
 
     public WorkerJobResult runJob(Path requestPath, Path resultPath) throws Exception {
         WorkerJobRequest request = WorkerJobJson.readRequest(requestPath);
+        return runJob(request, resultPath);
+    }
+
+    public WorkerJobResult runJob(WorkerJobRequest request, Path resultPath) throws Exception {
         Instant startedAt = Instant.now();
 
         List<String> args = new ArrayList<>();
@@ -68,7 +72,9 @@ public final class WorkerModeService {
                 request.outputPath(),
                 Map.copyOf(summary)
             );
-            WorkerJobJson.writeResult(resultPath, result);
+            if (resultPath != null) {
+                WorkerJobJson.writeResult(resultPath, result);
+            }
             throw ex;
         }
 
@@ -80,7 +86,9 @@ public final class WorkerModeService {
             request.outputPath(),
             Map.copyOf(summary)
         );
-        WorkerJobJson.writeResult(resultPath, result);
+        if (resultPath != null) {
+            WorkerJobJson.writeResult(resultPath, result);
+        }
         return result;
     }
 }

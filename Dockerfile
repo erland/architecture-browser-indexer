@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM maven:3.9.13-eclipse-temurin-25 AS build
+FROM maven:3.9.9-eclipse-temurin-25 AS build
 WORKDIR /workspace
 COPY pom.xml ./
 COPY src ./src
@@ -17,4 +17,5 @@ COPY lib /app/lib
 COPY docker/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["--help"]
+EXPOSE 8080
+CMD ["--serve-http", "--http-host", "0.0.0.0", "--http-port", "8080", "--http-workspace-dir", "/workspace/http-worker"]

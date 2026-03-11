@@ -31,4 +31,19 @@ class CliArgumentsWorkerModeTest {
         assertEquals("/workspace/incremental-prev.json", arguments.snapshotIn());
         assertEquals("/workspace/incremental-next.json", arguments.snapshotOut());
     }
+    @Test
+    void parsesHttpWorkerArguments() {
+        IndexerCli.CliArguments arguments = IndexerCli.CliArguments.parse(new String[] {
+            "--serve-http",
+            "--http-host", "127.0.0.1",
+            "--http-port", "9090",
+            "--http-workspace-dir", "/tmp/ab-indexer-http"
+        });
+
+        assertEquals(true, arguments.serveHttp());
+        assertEquals("127.0.0.1", arguments.httpHost());
+        assertEquals(9090, arguments.httpPort());
+        assertEquals(Path.of("/tmp/ab-indexer-http"), arguments.httpWorkspaceDir());
+    }
+
 }

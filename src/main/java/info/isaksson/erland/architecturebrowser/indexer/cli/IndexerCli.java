@@ -20,6 +20,7 @@ import info.isaksson.erland.architecturebrowser.indexer.incremental.model.Increm
 import info.isaksson.erland.architecturebrowser.indexer.topology.TopologyService;
 import info.isaksson.erland.architecturebrowser.indexer.topology.model.TopologyResult;
 import info.isaksson.erland.architecturebrowser.indexer.worker.WorkerModeService;
+import info.isaksson.erland.architecturebrowser.indexer.worker.http.IndexerWorkerHttpServer;
 import info.isaksson.erland.architecturebrowser.indexer.ir.ArchitectureIrValidator;
 import info.isaksson.erland.architecturebrowser.indexer.ir.json.ArchitectureIrJson;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureIndexDocument;
@@ -53,6 +54,15 @@ public final class IndexerCli {
         }
         if (arguments.showVersion()) {
             System.out.println(APPLICATION_VERSION);
+            return;
+        }
+        if (arguments.serveHttp()) {
+            String host = arguments.httpHost() == null || arguments.httpHost().isBlank() ? "0.0.0.0" : arguments.httpHost();
+            int port = arguments.httpPort() == null ? 8080 : arguments.httpPort();
+            Path workspaceDir = arguments.httpWorkspaceDir() == null
+                ? Path.of("./build/http-worker")
+                : arguments.httpWorkspaceDir();
+            new IndexerWorkerHttpServer(workspaceDir).start(host, port);
             return;
         }
         if (arguments.workerRequestPath() != null) {
@@ -198,6 +208,10 @@ public final class IndexerCli {
               --snapshot-out <path>            Optional path to write current incremental snapshot JSON
               --worker-request <path>          Run as worker using request JSON
               --worker-result <path>           Write worker result JSON
+              --serve-http                     Run long-lived HTTP worker server
+              --http-host <host>               HTTP bind host (default 0.0.0.0)
+              --http-port <port>               HTTP bind port (default 8080)
+              --http-workspace-dir <path>      Workspace for temporary HTTP job files
             """);
     }
 
@@ -213,13 +227,17 @@ public final class IndexerCli {
         String snapshotIn,
         String snapshotOut,
         Path workerRequestPath,
-        Path workerResultPath
+        Path workerResultPath,
+        boolean serveHttp,
+        String httpHost,
+        Integer httpPort,
+        Path httpWorkspaceDir
     ) {
         boolean hasInput() {
             return (sourcePath != null) ^ (gitUrl != null && !gitUrl.isBlank());
         }
 
-        static CliArguments parse(String[] args) {
+        public static CliArguments parse(String[] args) {
             boolean help = false;
             boolean version = false;
             Path source = null;
@@ -232,6 +250,10 @@ public final class IndexerCli {
             String snapshotOut = null;
             Path workerRequest = null;
             Path workerResult = null;
+            boolean serveHttp = false;
+            String httpHost = null;
+            Integer httpPort = null;
+            Path httpWorkspaceDir = null;
 
             for (int i = 0; i < args.length; i++) {
                 String arg = args[i];
@@ -278,10 +300,23 @@ public final class IndexerCli {
                         i = requireValue(args, i, arg);
                         workerResult = Path.of(args[i]);
                     }
+                    case "--serve-http" -> serveHttp = true;
+                    case "--http-host" -> {
+                        i = requireValue(args, i, arg);
+                        httpHost = args[i];
+                    }
+                    case "--http-port" -> {
+                        i = requireValue(args, i, arg);
+                        httpPort = Integer.parseInt(args[i]);
+                    }
+                    case "--http-workspace-dir" -> {
+                        i = requireValue(args, i, arg);
+                        httpWorkspaceDir = Path.of(args[i]);
+                    }
                     default -> throw new IllegalArgumentException("Unknown argument: " + arg);
                 }
             }
-            return new CliArguments(help, version, source, gitUrl, gitRef, repositoryId, workingDirectory, output, snapshotIn, snapshotOut, workerRequest, workerResult);
+            return new CliArguments(help, version, source, gitUrl, gitRef, repositoryId, workingDirectory, output, snapshotIn, snapshotOut, workerRequest, workerResult, serveHttp, httpHost, httpPort, httpWorkspaceDir);
         }
 
         private static int requireValue(String[] args, int index, String option) {
