@@ -131,3 +131,6 @@ Step 9 adds explicit diagnostic summaries, degraded-path reporting, and more con
 
 
 Step 10 adds a publication/export contract. CLI output now writes both the payload JSON and a sibling `.manifest.json` file with contract, checksum, and compatibility metadata.
+
+
+Step 11 adds incremental reindex foundations: file fingerprints, snapshot JSON, changed-file detection, and a minimal reprocessing plan for added/changed files.

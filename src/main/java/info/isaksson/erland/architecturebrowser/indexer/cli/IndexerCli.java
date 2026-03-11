@@ -10,6 +10,13 @@ import info.isaksson.erland.architecturebrowser.indexer.ir.ArchitectureIrFactory
 import info.isaksson.erland.architecturebrowser.indexer.interpret.InterpretationRegistry;
 import info.isaksson.erland.architecturebrowser.indexer.interpret.InterpretationService;
 import info.isaksson.erland.architecturebrowser.indexer.interpret.model.InterpretationResult;
+import info.isaksson.erland.architecturebrowser.indexer.incremental.FileFingerprintService;
+import info.isaksson.erland.architecturebrowser.indexer.incremental.IncrementalDiffService;
+import info.isaksson.erland.architecturebrowser.indexer.incremental.IncrementalPlanner;
+import info.isaksson.erland.architecturebrowser.indexer.incremental.IncrementalSnapshotJson;
+import info.isaksson.erland.architecturebrowser.indexer.incremental.model.IncrementalDiff;
+import info.isaksson.erland.architecturebrowser.indexer.incremental.model.IncrementalPlan;
+import info.isaksson.erland.architecturebrowser.indexer.incremental.model.IncrementalSnapshot;
 import info.isaksson.erland.architecturebrowser.indexer.topology.TopologyService;
 import info.isaksson.erland.architecturebrowser.indexer.topology.model.TopologyResult;
 import info.isaksson.erland.architecturebrowser.indexer.ir.ArchitectureIrValidator;
@@ -70,6 +77,20 @@ public final class IndexerCli {
         );
         AcquisitionResult acquisitionResult = acquisitionService.acquire(request);
         FileInventory inventory = scanner.scan(acquisitionResult.acquiredRoot());
+        String snapshotInArg = arguments.snapshotIn();
+        String snapshotOutArg = arguments.snapshotOut();
+        FileFingerprintService fingerprintService = new FileFingerprintService();
+        IncrementalSnapshot currentSnapshot = fingerprintService.createSnapshot(inventory);
+        IncrementalSnapshot previousSnapshot = null;
+        if (snapshotInArg != null && !snapshotInArg.isBlank()) {
+            try {
+                previousSnapshot = IncrementalSnapshotJson.read(Path.of(snapshotInArg));
+            } catch (Exception ex) {
+                System.err.println("Warning: failed to read incremental snapshot from " + snapshotInArg + ": " + ex.getMessage());
+            }
+        }
+        IncrementalDiff incrementalDiff = new IncrementalDiffService().diff(previousSnapshot, currentSnapshot);
+        IncrementalPlan incrementalPlan = new IncrementalPlanner().plan(incrementalDiff);
         ParseBatchResult parseBatchResult = parsingService.parseInventory(acquisitionResult.acquiredRoot(), inventory);
         StructuralExtractionResult extractionResult = new StructuralExtractionService(StructuralExtractorRegistry.defaultRegistry())
             .extract(parseBatchResult);
@@ -120,7 +141,14 @@ public final class IndexerCli {
         summary.put("topologySummary", document.metadata().get("topologySummary"));
         summary.put("diagnosticSummary", document.metadata().get("diagnosticSummary"));
         summary.put("partialResult", document.metadata().get("partialResult"));
+        summary.put("incrementalPlan", incrementalPlan.metadata());
+        summary.put("incrementalPaths", incrementalPlan.parsePaths());
         summary.put("exportManifestPreview", exportBundle.manifest());
+
+        if (snapshotOutArg != null && !snapshotOutArg.isBlank()) {
+            IncrementalSnapshotJson.write(Path.of(snapshotOutArg), currentSnapshot);
+        }
+
         System.out.println(ArchitectureIrJson.toPrettyJson(summary));
 
         if (acquisitionResult.temporaryWorkspace()) {
@@ -158,6 +186,8 @@ public final class IndexerCli {
               --repository-id <id>             Optional repository identity override
               --working-dir <path>             Optional workspace parent for Git acquisition
               --output <path>                  Output JSON file
+              --snapshot-in <path>             Optional prior incremental snapshot JSON
+              --snapshot-out <path>            Optional path to write current incremental snapshot JSON
             """);
     }
 
@@ -169,7 +199,9 @@ public final class IndexerCli {
         String gitRef,
         String repositoryId,
         Path workingDirectory,
-        Path outputPath
+        Path outputPath,
+        String snapshotIn,
+        String snapshotOut
     ) {
         boolean hasInput() {
             return (sourcePath != null) ^ (gitUrl != null && !gitUrl.isBlank());
@@ -184,6 +216,8 @@ public final class IndexerCli {
             String repositoryId = null;
             Path workingDirectory = null;
             Path output = null;
+            String snapshotIn = null;
+            String snapshotOut = null;
 
             for (int i = 0; i < args.length; i++) {
                 String arg = args[i];
@@ -214,10 +248,18 @@ public final class IndexerCli {
                         i = requireValue(args, i, arg);
                         output = Path.of(args[i]);
                     }
+                    case "--snapshot-in" -> {
+                        i = requireValue(args, i, arg);
+                        snapshotIn = args[i];
+                    }
+                    case "--snapshot-out" -> {
+                        i = requireValue(args, i, arg);
+                        snapshotOut = args[i];
+                    }
                     default -> throw new IllegalArgumentException("Unknown argument: " + arg);
                 }
             }
-            return new CliArguments(help, version, source, gitUrl, gitRef, repositoryId, workingDirectory, output);
+            return new CliArguments(help, version, source, gitUrl, gitRef, repositoryId, workingDirectory, output, snapshotIn, snapshotOut);
         }
 
         private static int requireValue(String[] args, int index, String option) {
