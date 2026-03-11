@@ -1,0 +1,9 @@
+{
+  "contractVersion": "1.0",
+  "payloadType": "architecture-index-document",
+  "payloadContentType": "application/json",
+  "acceptedTargets": [
+    "FILE",
+    "HTTP_IMPORT"
+  ]
+}

@@ -128,3 +128,6 @@ Step 8 adds logical scoping and relationship inference, including directory and 
 
 
 Step 9 adds explicit diagnostic summaries, degraded-path reporting, and more consistent completeness/partial-result assessment in the generated IR.
+
+
+Step 10 adds a publication/export contract. CLI output now writes both the payload JSON and a sibling `.manifest.json` file with contract, checksum, and compatibility metadata.

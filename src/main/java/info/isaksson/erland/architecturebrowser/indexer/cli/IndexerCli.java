@@ -15,6 +15,8 @@ import info.isaksson.erland.architecturebrowser.indexer.topology.model.TopologyR
 import info.isaksson.erland.architecturebrowser.indexer.ir.ArchitectureIrValidator;
 import info.isaksson.erland.architecturebrowser.indexer.ir.json.ArchitectureIrJson;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureIndexDocument;
+import info.isaksson.erland.architecturebrowser.indexer.publish.ExportBundleWriter;
+import info.isaksson.erland.architecturebrowser.indexer.publish.model.ExportBundle;
 import info.isaksson.erland.architecturebrowser.indexer.parse.ParseBatchResult;
 import info.isaksson.erland.architecturebrowser.indexer.parse.TreeSitterConfiguration;
 import info.isaksson.erland.architecturebrowser.indexer.parse.TreeSitterParserRegistryFactory;
@@ -96,6 +98,10 @@ public final class IndexerCli {
         Files.createDirectories(output.getParent() == null ? Path.of(".") : output.getParent());
         ArchitectureIrJson.write(document, output);
 
+        ExportBundleWriter exportBundleWriter = new ExportBundleWriter();
+        ExportBundle exportBundle = exportBundleWriter.createBundle(document, APPLICATION_VERSION, output.getFileName().toString());
+        exportBundleWriter.writeBundle(output, exportBundle);
+
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("status", "ok");
         summary.put("repositoryId", document.source().repositoryId());
@@ -114,6 +120,7 @@ public final class IndexerCli {
         summary.put("topologySummary", document.metadata().get("topologySummary"));
         summary.put("diagnosticSummary", document.metadata().get("diagnosticSummary"));
         summary.put("partialResult", document.metadata().get("partialResult"));
+        summary.put("exportManifestPreview", exportBundle.manifest());
         System.out.println(ArchitectureIrJson.toPrettyJson(summary));
 
         if (acquisitionResult.temporaryWorkspace()) {

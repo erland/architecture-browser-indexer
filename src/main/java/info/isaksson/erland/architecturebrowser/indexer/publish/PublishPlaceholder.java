@@ -1,7 +1,8 @@
 package info.isaksson.erland.architecturebrowser.indexer.publish;
 
 /**
- * Placeholder for future Step 3+ implementation work.
+ * Step 10 introduces a real publication/export contract.
+ * This class remains as a stable package marker only.
  */
 public final class PublishPlaceholder {
     private PublishPlaceholder() {
