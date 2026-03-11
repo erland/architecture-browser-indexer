@@ -10,6 +10,8 @@ import info.isaksson.erland.architecturebrowser.indexer.ir.ArchitectureIrFactory
 import info.isaksson.erland.architecturebrowser.indexer.interpret.InterpretationRegistry;
 import info.isaksson.erland.architecturebrowser.indexer.interpret.InterpretationService;
 import info.isaksson.erland.architecturebrowser.indexer.interpret.model.InterpretationResult;
+import info.isaksson.erland.architecturebrowser.indexer.topology.TopologyService;
+import info.isaksson.erland.architecturebrowser.indexer.topology.model.TopologyResult;
 import info.isaksson.erland.architecturebrowser.indexer.ir.ArchitectureIrValidator;
 import info.isaksson.erland.architecturebrowser.indexer.ir.json.ArchitectureIrJson;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureIndexDocument;
@@ -71,6 +73,8 @@ public final class IndexerCli {
             .extract(parseBatchResult);
         InterpretationResult interpretationResult = new InterpretationService(InterpretationRegistry.defaultRegistry())
             .interpret(extractionResult);
+        TopologyResult topologyResult = new TopologyService()
+            .infer(inventory, extractionResult, interpretationResult);
 
         ArchitectureIndexDocument document = ArchitectureIrFactory.createInventoryDocument(
             acquisitionResult.repositorySource(),
@@ -79,7 +83,8 @@ public final class IndexerCli {
             acquisitionResult.diagnostics(),
             parseBatchResult,
             extractionResult,
-            interpretationResult
+            interpretationResult,
+            topologyResult
         );
 
         ArchitectureIrValidator.ValidationResult validation = ArchitectureIrValidator.validate(document);
@@ -106,6 +111,7 @@ public final class IndexerCli {
         summary.put("parseSummary", TreeSitterParsingService.summarize(parseBatchResult));
         summary.put("extractionSummary", document.metadata().get("extractionSummary"));
         summary.put("interpretationSummary", document.metadata().get("interpretationSummary"));
+        summary.put("topologySummary", document.metadata().get("topologySummary"));
         System.out.println(ArchitectureIrJson.toPrettyJson(summary));
 
         if (acquisitionResult.temporaryWorkspace()) {

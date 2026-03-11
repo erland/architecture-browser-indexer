@@ -6,6 +6,7 @@ import info.isaksson.erland.architecturebrowser.indexer.extract.model.Structural
 import info.isaksson.erland.architecturebrowser.indexer.interpret.model.InterpretationResult;
 import info.isaksson.erland.architecturebrowser.indexer.interpret.model.InterpretedEntityFact;
 import info.isaksson.erland.architecturebrowser.indexer.interpret.model.InterpretedRelationshipFact;
+import info.isaksson.erland.architecturebrowser.indexer.topology.model.TopologyResult;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureEntity;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureIndexDocument;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureRelationship;
@@ -78,6 +79,19 @@ public final class ArchitectureIrFactory {
         StructuralExtractionResult extractionResult,
         InterpretationResult interpretationResult
     ) {
+        return createInventoryDocument(source, indexerVersion, inventory, acquisitionDiagnostics, parseBatchResult, extractionResult, interpretationResult, null);
+    }
+
+    public static ArchitectureIndexDocument createInventoryDocument(
+        RepositorySource source,
+        String indexerVersion,
+        FileInventory inventory,
+        List<Diagnostic> acquisitionDiagnostics,
+        ParseBatchResult parseBatchResult,
+        StructuralExtractionResult extractionResult,
+        InterpretationResult interpretationResult,
+        TopologyResult topologyResult
+    ) {
         Instant generatedAt = Instant.now();
 
         LogicalScope repositoryScope = new LogicalScope(
@@ -139,11 +153,17 @@ public final class ArchitectureIrFactory {
         if (interpretationResult != null) {
             diagnostics.addAll(interpretationResult.diagnostics());
         }
+        if (topologyResult != null) {
+            diagnostics.addAll(topologyResult.diagnostics());
+        }
 
         List<LogicalScope> scopes = new ArrayList<>();
         scopes.add(repositoryScope);
         if (extractionResult != null) {
             scopes.addAll(extractionResult.scopes());
+        }
+        if (topologyResult != null) {
+            scopes.addAll(topologyResult.scopes());
         }
 
         List<ArchitectureEntity> entities = new ArrayList<>();
@@ -162,6 +182,9 @@ public final class ArchitectureIrFactory {
                 ));
             }
         }
+        if (topologyResult != null) {
+            entities.addAll(topologyResult.entities());
+        }
 
         List<ArchitectureRelationship> relationships = new ArrayList<>();
         if (extractionResult != null) {
@@ -178,6 +201,9 @@ public final class ArchitectureIrFactory {
                 ));
             }
         }
+        if (topologyResult != null) {
+            relationships.addAll(topologyResult.relationships());
+        }
 
         int degradedFileCount = parseBatchResult == null ? 0 : (int) parseBatchResult.results().stream().filter(result -> !result.successful()).count();
         CompletenessStatus completenessStatus = degradedFileCount > 0 ? CompletenessStatus.PARTIAL : CompletenessStatus.COMPLETE;
@@ -186,8 +212,10 @@ public final class ArchitectureIrFactory {
             completenessNotes.add("Inventory-only payload produced before structural extraction is implemented");
         } else if (interpretationResult == null) {
             completenessNotes.add("Structural extraction included syntax-tree-based extraction without interpretation");
-        } else {
+        } else if (topologyResult == null) {
             completenessNotes.add("Structural extraction and first-pass interpretation rules were included");
+        } else {
+            completenessNotes.add("Structural extraction, interpretation, logical scoping, and relationship inference were included");
         }
 
         CompletenessMetadata completeness = new CompletenessMetadata(
@@ -217,6 +245,9 @@ public final class ArchitectureIrFactory {
         if (interpretationResult != null) {
             documentMetadata.put("interpretationSummary", interpretationResult.summary());
         }
+        if (topologyResult != null) {
+            documentMetadata.put("topologySummary", topologyResult.summary());
+        }
 
         RunMetadata runMetadata = new RunMetadata(
             generatedAt,
@@ -224,10 +255,11 @@ public final class ArchitectureIrFactory {
             degradedFileCount > 0 ? RunOutcome.PARTIAL : RunOutcome.SUCCESS,
             inventory.detectedTechnologyMarkers().stream().sorted().toList(),
             Map.of(
-                "mode", interpretationResult != null ? "cli-interpretation" : (extractionResult == null ? "cli-inventory" : "cli-structural-extraction"),
+                "mode", topologyResult != null ? "cli-topology" : (interpretationResult != null ? "cli-interpretation" : (extractionResult == null ? "cli-inventory" : "cli-structural-extraction")),
                 "inventoryOnly", extractionResult == null,
                 "structuralExtraction", extractionResult != null,
-                "interpretation", interpretationResult != null
+                "interpretation", interpretationResult != null,
+                "topology", topologyResult != null
             )
         );
 

@@ -122,3 +122,6 @@ The Maven Surefire configuration sets `java.library.path` to `lib/macos-aarch64`
 
 
 Step 7 adds a first-pass interpretation layer that infers higher-level architecture concepts such as endpoints, services, persistence adapters, UI modules, and startup points from extracted structural facts.
+
+
+Step 8 adds logical scoping and relationship inference, including directory and source-root module scopes, internal Java/TypeScript dependency resolution, and rolled-up package/module relationships.
