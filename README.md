@@ -175,3 +175,8 @@ curl -X POST http://localhost:8080/api/index-jobs/run \
 ```
 
 When `outputPath` is omitted, the HTTP worker allocates a temporary output file under the configured worker workspace and returns the generated IR document inline together with the execution summary and manifest preview.
+
+
+## Packaging
+
+The Maven `package` build now produces a runnable shaded jar with `IndexerCli` as the main class so the Docker image can start the HTTP worker with `java -jar`.
