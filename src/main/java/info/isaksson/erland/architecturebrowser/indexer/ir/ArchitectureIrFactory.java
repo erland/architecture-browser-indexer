@@ -171,14 +171,14 @@ public final class ArchitectureIrFactory {
         if (extractionResult != null) {
             for (ExtractedEntityFact entity : extractionResult.entities()) {
                 entities.add(new ArchitectureEntity(
-                    entity.id(), entity.kind(), entity.origin(), entity.name(), entity.displayName(), entity.scopeId(), entity.sourceRefs(), entity.metadata()
+                    entity.id(), entity.kind(), entity.origin(), entity.name(), entity.displayName(), normalizeScopeId(entity.scopeId(), repositoryScope.id()), entity.sourceRefs(), entity.metadata()
                 ));
             }
         }
         if (interpretationResult != null) {
             for (InterpretedEntityFact entity : interpretationResult.entities()) {
                 entities.add(new ArchitectureEntity(
-                    entity.id(), entity.kind(), entity.origin(), entity.name(), entity.displayName(), entity.scopeId(), entity.sourceRefs(), entity.metadata()
+                    entity.id(), entity.kind(), entity.origin(), entity.name(), entity.displayName(), normalizeScopeId(entity.scopeId(), repositoryScope.id()), entity.sourceRefs(), entity.metadata()
                 ));
             }
         }
@@ -279,5 +279,12 @@ public final class ArchitectureIrFactory {
             new FileInventory(List.of(), 0, 0, 0, java.util.Set.of(), java.util.Set.of()),
             List.of()
         );
+    }
+
+    private static String normalizeScopeId(String scopeId, String repositoryScopeId) {
+        if (scopeId == null || scopeId.isBlank()) {
+            return repositoryScopeId;
+        }
+        return scopeId;
     }
 }

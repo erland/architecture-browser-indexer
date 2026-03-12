@@ -180,3 +180,10 @@ When `outputPath` is omitted, the HTTP worker allocates a temporary output file 
 ## Packaging
 
 The Maven `package` build now produces a runnable shaded jar with `IndexerCli` as the main class so the Docker image can start the HTTP worker with `java -jar`.
+
+
+## Worker diagnostics
+
+- The HTTP worker now logs request start/success/failure details and full stack traces for both `Exception` and `Error` failures.
+- For containerized runs on Apple Silicon, the default native library directory is `lib/linux-aarch64`, matching the Linux arm64 runtime used by Docker.
+- If a worker request fails, inspect the `indexer` container logs to see the full stack trace and root-cause details.

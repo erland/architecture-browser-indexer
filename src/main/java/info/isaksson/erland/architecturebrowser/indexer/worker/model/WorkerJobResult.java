@@ -1,6 +1,7 @@
 package info.isaksson.erland.architecturebrowser.indexer.worker.model;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public record WorkerJobResult(
@@ -12,6 +13,20 @@ public record WorkerJobResult(
     Map<String, Object> summary
 ) {
     public WorkerJobResult {
-        summary = summary == null ? Map.of() : Map.copyOf(summary);
+        summary = summary == null ? Map.of() : sanitize(summary);
+    }
+
+    private static Map<String, Object> sanitize(Map<String, Object> input) {
+        if (input == null || input.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> sanitized = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : input.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null) {
+                continue;
+            }
+            sanitized.put(entry.getKey(), entry.getValue());
+        }
+        return Map.copyOf(sanitized);
     }
 }

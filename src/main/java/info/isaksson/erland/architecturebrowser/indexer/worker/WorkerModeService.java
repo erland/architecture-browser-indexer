@@ -5,13 +5,18 @@ import info.isaksson.erland.architecturebrowser.indexer.worker.model.WorkerJobRe
 import info.isaksson.erland.architecturebrowser.indexer.worker.model.WorkerJobResult;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class WorkerModeService {
+    private static final Logger LOG = Logger.getLogger(WorkerModeService.class.getName());
+
 
     public WorkerJobResult runJob(Path requestPath, Path resultPath) throws Exception {
         WorkerJobRequest request = WorkerJobJson.readRequest(requestPath);
@@ -56,26 +61,60 @@ public class WorkerModeService {
 
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("arguments", List.copyOf(args));
+        summary.put("repositoryId", request.repositoryId());
+        summary.put("sourcePath", request.sourcePath());
+        summary.put("gitUrl", request.gitUrl());
+        summary.put("gitRef", request.gitRef());
+        summary.put("outputPath", request.outputPath());
+        summary.put("snapshotIn", request.snapshotIn());
+        summary.put("snapshotOut", request.snapshotOut());
         String status = "SUCCESS";
+        LOG.info(() -> "Starting worker job: jobId=" + safe(request.jobId())
+            + ", repositoryId=" + safe(request.repositoryId())
+            + ", gitUrl=" + safe(request.gitUrl())
+            + ", gitRef=" + safe(request.gitRef())
+            + ", sourcePath=" + safe(request.sourcePath())
+            + ", outputPath=" + safe(request.outputPath()));
         try {
             IndexerCli.main(args.toArray(String[]::new));
             summary.put("message", "Worker job completed");
-        } catch (Exception ex) {
+            summary.put("elapsedMs", Duration.between(startedAt, Instant.now()).toMillis());
+            LOG.info(() -> "Completed worker job: jobId=" + safe(request.jobId())
+                + ", outputPath=" + safe(request.outputPath())
+                + ", elapsedMs=" + summary.get("elapsedMs"));
+        } catch (Throwable ex) {
             status = "FAILED";
             summary.put("message", ex.getMessage());
             summary.put("exceptionType", ex.getClass().getName());
+            Throwable rootCause = rootCauseOf(ex);
+            if (rootCause != ex) {
+                summary.put("rootCauseType", rootCause.getClass().getName());
+                summary.put("rootCauseMessage", rootCause.getMessage());
+            }
+            summary.put("elapsedMs", Duration.between(startedAt, Instant.now()).toMillis());
+            LOG.log(Level.SEVERE, "Worker job failed: jobId=" + safe(request.jobId())
+                + ", repositoryId=" + safe(request.repositoryId())
+                + ", gitUrl=" + safe(request.gitUrl())
+                + ", gitRef=" + safe(request.gitRef())
+                + ", sourcePath=" + safe(request.sourcePath()), ex);
             WorkerJobResult result = new WorkerJobResult(
                 request.jobId(),
                 status,
                 startedAt,
                 Instant.now(),
                 request.outputPath(),
-                Map.copyOf(summary)
+                summary
             );
             if (resultPath != null) {
                 WorkerJobJson.writeResult(resultPath, result);
             }
-            throw ex;
+            if (ex instanceof Exception exception) {
+                throw exception;
+            }
+            if (ex instanceof Error error) {
+                throw error;
+            }
+            throw new RuntimeException(ex);
         }
 
         WorkerJobResult result = new WorkerJobResult(
@@ -84,11 +123,23 @@ public class WorkerModeService {
             startedAt,
             Instant.now(),
             request.outputPath(),
-            Map.copyOf(summary)
+            summary
         );
         if (resultPath != null) {
             WorkerJobJson.writeResult(resultPath, result);
         }
         return result;
+    }
+
+    private static Throwable rootCauseOf(Throwable throwable) {
+        Throwable current = throwable;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current;
+    }
+
+    private static String safe(String value) {
+        return value == null || value.isBlank() ? "<none>" : value;
     }
 }

@@ -1,5 +1,6 @@
 package info.isaksson.erland.architecturebrowser.indexer.parse;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public record TreeSitterRuntimeStatus(
@@ -8,7 +9,7 @@ public record TreeSitterRuntimeStatus(
     Map<String, Object> metadata
 ) {
     public TreeSitterRuntimeStatus {
-        metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
+        metadata = sanitizeMetadata(metadata);
     }
 
     public static TreeSitterRuntimeStatus available(String detail) {
@@ -39,8 +40,39 @@ public record TreeSitterRuntimeStatus(
         if (extraMetadata == null || extraMetadata.isEmpty()) {
             return metadata;
         }
-        java.util.LinkedHashMap<String, Object> merged = new java.util.LinkedHashMap<>(metadata);
+        LinkedHashMap<String, Object> merged = new LinkedHashMap<>(metadata);
         merged.putAll(extraMetadata);
-        return Map.copyOf(merged);
+        return sanitizeMetadata(merged);
+    }
+
+    private static Map<String, Object> sanitizeMetadata(Map<String, Object> input) {
+        if (input == null || input.isEmpty()) {
+            return Map.of();
+        }
+        LinkedHashMap<String, Object> sanitized = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : input.entrySet()) {
+            if (entry.getKey() == null) {
+                continue;
+            }
+            sanitized.put(entry.getKey(), sanitizeValue(entry.getValue()));
+        }
+        return Map.copyOf(sanitized);
+    }
+
+    private static Object sanitizeValue(Object value) {
+        if (value == null) {
+            return "";
+        }
+        if (value instanceof Map<?, ?> nestedMap) {
+            LinkedHashMap<String, Object> sanitizedNested = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> nestedEntry : nestedMap.entrySet()) {
+                if (nestedEntry.getKey() == null) {
+                    continue;
+                }
+                sanitizedNested.put(String.valueOf(nestedEntry.getKey()), sanitizeValue(nestedEntry.getValue()));
+            }
+            return Map.copyOf(sanitizedNested);
+        }
+        return value;
     }
 }

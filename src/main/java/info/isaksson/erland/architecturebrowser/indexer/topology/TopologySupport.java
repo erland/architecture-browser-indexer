@@ -14,6 +14,7 @@ import info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKin
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ScopeKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,8 +29,8 @@ final class TopologySupport {
             directoryPath,
             directoryPath,
             parentScopeId,
-            List.of(new SourceReference(directoryPath, null, null, null, Map.of("scopeKind", "directory"))),
-            Map.of("relativePath", directoryPath)
+            List.of(new SourceReference(directoryPath, null, null, null, metadataOf("scopeKind", "directory"))),
+            metadataOf("relativePath", directoryPath)
         );
     }
 
@@ -40,8 +41,8 @@ final class TopologySupport {
             modulePath,
             modulePath,
             parentScopeId,
-            List.of(new SourceReference(modulePath, null, null, null, Map.of("scopeKind", "module", "language", language))),
-            Map.of("relativePath", modulePath, "language", language)
+            List.of(new SourceReference(modulePath, null, null, null, metadataOf("scopeKind", "module", "language", language))),
+            metadataOf("relativePath", modulePath, "language", language)
         );
     }
 
@@ -53,8 +54,8 @@ final class TopologySupport {
             modulePath,
             modulePath,
             scopeId,
-            List.of(new SourceReference(modulePath, null, null, null, Map.of("entityKind", "module", "language", language))),
-            Map.of("language", language, "logicalRole", role, "relativePath", modulePath)
+            List.of(new SourceReference(modulePath, null, null, null, metadataOf("entityKind", "module", "language", language))),
+            metadataOf("language", language, "logicalRole", role, "relativePath", modulePath)
         );
     }
 
@@ -67,7 +68,7 @@ final class TopologySupport {
             packageScope.displayName(),
             packageScope.id(),
             packageScope.sourceRefs(),
-            Map.of("language", packageScope.metadata().getOrDefault("language", "unknown"), "logicalRole", "package")
+            metadataOf("language", packageScope.metadata().getOrDefault("language", "unknown"), "logicalRole", "package")
         );
     }
 
@@ -109,6 +110,22 @@ final class TopologySupport {
             refs == null ? List.of() : refs,
             Map.of()
         );
+    }
+
+
+    private static Map<String, Object> metadataOf(Object... keyValues) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        for (int i = 0; i + 1 < keyValues.length; i += 2) {
+            Object key = keyValues[i];
+            if (!(key instanceof String s) || s == null) {
+                continue;
+            }
+            Object value = keyValues[i + 1];
+            if (value != null) {
+                metadata.put(s, value);
+            }
+        }
+        return Map.copyOf(metadata);
     }
 
     static String primaryPath(ExtractedEntityFact entity) {

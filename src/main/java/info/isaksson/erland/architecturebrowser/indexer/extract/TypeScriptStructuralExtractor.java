@@ -27,13 +27,20 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
     @Override
     public ExtractionAccumulator extract(SourceParseResult parseResult, ExtractionAccumulator accumulator) {
         accumulator.incrementFilesVisited();
-        if (!parseResult.successful() || parseResult.syntaxTree() == null) {
+        if (parseResult.syntaxTree() == null) {
             accumulator.addDiagnostic(ExtractionSupport.extractionWarning(
                 parseResult,
                 "extract.typescript.syntax-tree-required",
-                "TypeScript structural extraction requires a successful Tree-sitter syntax tree; no regex fallback is used."
+                "TypeScript structural extraction requires a Tree-sitter syntax tree; no regex fallback is used."
             ));
             return accumulator;
+        }
+        if (!parseResult.successful()) {
+            accumulator.addDiagnostic(ExtractionSupport.extractionWarning(
+                parseResult,
+                "extract.typescript.degraded-syntax-tree",
+                "TypeScript extraction is proceeding from a degraded Tree-sitter syntax tree despite parse errors."
+            ));
         }
         return extractFromSyntaxTree(parseResult, accumulator, parseResult.request().relativePath(), parseResult.syntaxTree());
     }

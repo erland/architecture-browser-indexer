@@ -63,7 +63,11 @@ final class GitClient {
             }
             return output;
         } catch (IOException exception) {
-            throw new IllegalStateException("Unable to execute git command: " + String.join(" ", command), exception);
+            throw new IllegalStateException(
+                "Unable to execute git command: " + String.join(" ", command)
+                    + ". Ensure git is installed and available on PATH in the runtime environment.",
+                exception
+            );
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Git command interrupted: " + String.join(" ", command), exception);

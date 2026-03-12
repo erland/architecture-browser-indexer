@@ -9,7 +9,7 @@ services:
       - ./jobs:/jobs
       - ./lib:/app/lib
     environment:
-      ARCH_BROWSER_TREE_SITTER_LIB_DIR: /app/lib/macos-aarch64
+      ARCH_BROWSER_TREE_SITTER_LIB_DIR: /app/lib/linux-aarch64
     ports:
       - "8080:8080"
     command:

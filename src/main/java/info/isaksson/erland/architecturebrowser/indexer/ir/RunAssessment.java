@@ -60,6 +60,7 @@ final class RunAssessment {
         int parseBackendUnavailableCount = 0;
         int parseUnsupportedCount = 0;
         int parseErrorCount = 0;
+        int recoverableParseErrorCount = 0;
         if (parseBatchResult != null) {
             for (var result : parseBatchResult.results()) {
                 switch (result.status()) {
@@ -75,7 +76,11 @@ final class RunAssessment {
                     }
                     case PARSE_ERROR -> {
                         parseErrorCount++;
-                        degradedPaths.add(result.request().relativePath());
+                        if (result.syntaxTree() == null) {
+                            degradedPaths.add(result.request().relativePath());
+                        } else {
+                            recoverableParseErrorCount++;
+                        }
                     }
                 }
             }
@@ -111,7 +116,13 @@ final class RunAssessment {
 
         List<String> notes = new ArrayList<>(completenessNotes == null ? List.of() : completenessNotes);
         if (parseErrorCount > 0) {
-            notes.add(parseErrorCount + " file(s) had parse errors");
+            if (recoverableParseErrorCount > 0) {
+                notes.add(recoverableParseErrorCount + " file(s) had recoverable parse errors but still produced syntax trees");
+            }
+            int nonRecoverableParseErrorCount = parseErrorCount - recoverableParseErrorCount;
+            if (nonRecoverableParseErrorCount > 0) {
+                notes.add(nonRecoverableParseErrorCount + " file(s) had non-recoverable parse errors");
+            }
         }
         if (parseBackendUnavailableCount > 0) {
             notes.add(parseBackendUnavailableCount + " file(s) could not be parsed because the backend was unavailable");
@@ -141,6 +152,8 @@ final class RunAssessment {
         parseCounts.put("backendUnavailable", parseBackendUnavailableCount);
         parseCounts.put("unsupportedLanguage", parseUnsupportedCount);
         parseCounts.put("parseError", parseErrorCount);
+        parseCounts.put("recoverableParseError", recoverableParseErrorCount);
+        parseCounts.put("nonRecoverableParseError", parseErrorCount - recoverableParseErrorCount);
 
         Map<String, Object> diagnosticSummary = new LinkedHashMap<>();
         diagnosticSummary.put("totalDiagnostics", safeDiagnostics.size());

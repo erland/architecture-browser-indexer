@@ -10,8 +10,11 @@ COPY lib ./lib
 RUN mvn -q -DskipTests package
 
 FROM eclipse-temurin:25-jre
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-ENV ARCH_BROWSER_TREE_SITTER_LIB_DIR=/app/lib/macos-aarch64
+ENV ARCH_BROWSER_TREE_SITTER_LIB_DIR=/app/lib/linux-aarch64
 COPY --from=build /workspace/target/architecture-browser-indexer-*.jar /app/architecture-browser-indexer.jar
 COPY lib /app/lib
 COPY docker/entrypoint.sh /app/entrypoint.sh

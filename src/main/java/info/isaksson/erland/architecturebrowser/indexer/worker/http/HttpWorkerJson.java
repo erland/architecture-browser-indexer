@@ -10,6 +10,7 @@ import java.io.InputStream;
 public final class HttpWorkerJson {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
         .enable(SerializationFeature.INDENT_OUTPUT)
+        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
         .findAndRegisterModules();
 
     private HttpWorkerJson() {

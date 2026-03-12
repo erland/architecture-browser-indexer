@@ -12,6 +12,7 @@ import java.nio.file.Path;
 public final class WorkerJobJson {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
         .enable(SerializationFeature.INDENT_OUTPUT)
+        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
         .findAndRegisterModules();
 
     private WorkerJobJson() {
