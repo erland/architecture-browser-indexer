@@ -3,6 +3,7 @@ package info.isaksson.erland.architecturebrowser.indexer.extract;
 import info.isaksson.erland.architecturebrowser.indexer.extract.model.StructuralExtractionResult;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind;
+import info.isaksson.erland.architecturebrowser.indexer.ir.model.ScopeKind;
 import info.isaksson.erland.architecturebrowser.indexer.parse.ParseBatchResult;
 import info.isaksson.erland.architecturebrowser.indexer.parse.ParseLanguage;
 import info.isaksson.erland.architecturebrowser.indexer.parse.ParseStatus;
@@ -71,6 +72,69 @@ class StructuralExtractionServiceTest {
         assertEquals(0, result.summary().extractedByLanguage().getOrDefault("typescript", 0));
         assertEquals(0, result.summary().extractedByMode().getOrDefault("SOURCE_TEXT_FALLBACK", 0));
         assertTrue(result.diagnostics().stream().anyMatch(d -> "extract.typescript.syntax-tree-required".equals(d.code())));
+    }
+
+
+    @Test
+    void assignsFileScopeToParentDirectoryAndUsesBasenameDisplayName() {
+        String relativePath = "src/__tests__/App.test.tsx";
+        String source = "export function run() { return 1; }\n";
+
+        SyntaxNode root = new SyntaxNode("program", true, 0, source.length(), 0, 0, 0, source.length(), false, false, source, List.of(
+            new SyntaxNode("function_declaration", true, 0, source.length() - 1, 0, 0, 0, source.length() - 1, false, false,
+                "export function run() { return 1; }", List.of(
+                    new SyntaxNode("identifier", true, 16, 19, 0, 16, 0, 19, false, false, "run", List.of())
+                ))
+        ));
+
+        SourceParseResult parseResult = new SourceParseResult(
+            new SourceParseRequest(Path.of(relativePath), relativePath, ParseLanguage.TYPESCRIPT, source),
+            ParseStatus.SUCCESS,
+            new SyntaxTree(ParseLanguage.TYPESCRIPT, "tree-sitter-jtreesitter", root, false, root.nodeCount()),
+            List.of(),
+            Map.of("parserBackend", "tree-sitter-jtreesitter")
+        );
+
+        StructuralExtractionResult result = new StructuralExtractionService(StructuralExtractorRegistry.defaultRegistry())
+            .extract(new ParseBatchResult(List.of(parseResult), Map.of(ParseLanguage.TYPESCRIPT, 1), Map.of(ParseStatus.SUCCESS, 1)));
+
+        assertTrue(result.scopes().stream().anyMatch(scope ->
+            scope.kind() == ScopeKind.FILE
+                && relativePath.equals(scope.name())
+                && "App.test.tsx".equals(scope.displayName())
+                && IdUtils.scopeId("directory", "src/__tests__").equals(scope.parentScopeId())
+        ));
+    }
+
+
+    @Test
+    void inferredDirectoryScopesUseBasenameDisplayName() {
+        String relativePath = "src/__tests__/App.test.tsx";
+        String source = "export function run() { return 1; }\n";
+
+        SyntaxNode root = new SyntaxNode("program", true, 0, source.length(), 0, 0, 0, source.length(), false, false, source, List.of(
+            new SyntaxNode("function_declaration", true, 0, source.length() - 1, 0, 0, 0, source.length() - 1, false, false,
+                "export function run() { return 1; }", List.of(
+                    new SyntaxNode("identifier", true, 16, 19, 0, 16, 0, 19, false, false, "run", List.of())
+                ))
+        ));
+
+        SourceParseResult parseResult = new SourceParseResult(
+            new SourceParseRequest(Path.of(relativePath), relativePath, ParseLanguage.TYPESCRIPT, source),
+            ParseStatus.SUCCESS,
+            new SyntaxTree(ParseLanguage.TYPESCRIPT, "tree-sitter-jtreesitter", root, false, root.nodeCount()),
+            List.of(),
+            Map.of("parserBackend", "tree-sitter-jtreesitter")
+        );
+
+        StructuralExtractionResult result = new StructuralExtractionService(StructuralExtractorRegistry.defaultRegistry())
+            .extract(new ParseBatchResult(List.of(parseResult), Map.of(ParseLanguage.TYPESCRIPT, 1), Map.of(ParseStatus.SUCCESS, 1)));
+
+        assertTrue(result.scopes().stream().anyMatch(scope ->
+            scope.kind() == ScopeKind.DIRECTORY
+                && "src/__tests__".equals(scope.name())
+                && "__tests__".equals(scope.displayName())
+        ));
     }
 
     @Test

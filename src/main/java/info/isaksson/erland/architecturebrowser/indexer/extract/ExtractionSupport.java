@@ -25,14 +25,16 @@ final class ExtractionSupport {
     }
 
     static LogicalScope fileScope(String repositoryScopeId, String relativePath) {
+        String parentScopeId = parentDirectoryScopeId(relativePath, repositoryScopeId);
+        String displayName = baseName(relativePath);
         return new LogicalScope(
             IdUtils.scopeId("file", relativePath),
             ScopeKind.FILE,
             relativePath,
-            relativePath,
-            repositoryScopeId,
+            displayName,
+            parentScopeId,
             List.of(new SourceReference(relativePath, null, null, null, Map.of("scopeKind", "file"))),
-            Map.of("relativePath", relativePath)
+            Map.of("relativePath", relativePath, "displayName", displayName)
         );
     }
 
@@ -59,6 +61,21 @@ final class ExtractionSupport {
             List.of(new SourceReference(relativePath, null, null, null, Map.of("entityKind", "module", "language", language))),
             Map.of("language", language, "relativePath", relativePath)
         );
+    }
+
+    private static String parentDirectoryScopeId(String relativePath, String repositoryScopeId) {
+        if (relativePath == null || relativePath.isBlank() || !relativePath.contains("/")) {
+            return repositoryScopeId;
+        }
+        String parentPath = relativePath.substring(0, relativePath.lastIndexOf('/'));
+        return IdUtils.scopeId("directory", parentPath);
+    }
+
+    private static String baseName(String relativePath) {
+        if (relativePath == null || relativePath.isBlank() || !relativePath.contains("/")) {
+            return relativePath;
+        }
+        return relativePath.substring(relativePath.lastIndexOf('/') + 1);
     }
 
     static ExtractedEntityFact externalDependencyEntity(String language, String qualifiedName, String relativePath, int line) {

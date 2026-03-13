@@ -23,14 +23,15 @@ final class TopologySupport {
     }
 
     static LogicalScope directoryScope(String directoryPath, String parentScopeId) {
+        String displayName = baseName(directoryPath);
         return new LogicalScope(
             IdUtils.scopeId("directory", directoryPath),
             ScopeKind.DIRECTORY,
             directoryPath,
-            directoryPath,
+            displayName,
             parentScopeId,
             List.of(new SourceReference(directoryPath, null, null, null, metadataOf("scopeKind", "directory"))),
-            metadataOf("relativePath", directoryPath)
+            metadataOf("relativePath", directoryPath, "displayName", displayName)
         );
     }
 
@@ -126,6 +127,15 @@ final class TopologySupport {
             }
         }
         return Map.copyOf(metadata);
+    }
+
+
+    static String baseName(String path) {
+        if (path == null || path.isBlank()) {
+            return path;
+        }
+        int lastSlash = path.lastIndexOf('/');
+        return lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
     }
 
     static String primaryPath(ExtractedEntityFact entity) {
