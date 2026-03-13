@@ -5,6 +5,7 @@ import info.isaksson.erland.architecturebrowser.indexer.extract.model.Extraction
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityOrigin;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
+import info.isaksson.erland.architecturebrowser.indexer.naming.DisplayNamePolicy;
 import info.isaksson.erland.architecturebrowser.indexer.parse.ParseLanguage;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SourceParseResult;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxNode;
@@ -94,7 +95,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                 kind,
                 EntityOrigin.OBSERVED,
                 typeName,
-                qualifiedName,
+                DisplayNamePolicy.entityDisplayName(kind, qualifiedName, "java"),
                 packageScope.id(),
                 List.of(ref),
                 Map.of(
@@ -113,10 +114,11 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         for (SyntaxNode methodNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of(
             "method_declaration", "constructor_declaration"
         ))) {
-            String methodName = SyntaxTreeExtractionSupport.declarationName(methodNode);
+            String methodName = SyntaxTreeExtractionSupport.javaMethodLikeName(methodNode);
             if (methodName == null || methodName.isBlank()) {
                 continue;
             }
+            String parameterSnippet = SyntaxTreeExtractionSupport.parameterSnippet(methodNode);
             int line = SyntaxTreeExtractionSupport.oneBasedLine(methodNode);
             SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, methodNode.textSnippet(), Map.of("language", "java", "kind", methodNode.type()));
             List<String> annotations = SyntaxTreeExtractionSupport.descendantsByType(methodNode, Set.of(
@@ -127,12 +129,12 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                 EntityKind.FUNCTION,
                 EntityOrigin.OBSERVED,
                 methodName,
-                methodName + "()",
+                SyntaxTreeExtractionSupport.javaMethodDisplayName(methodName, parameterSnippet),
                 fileScope.id(),
                 List.of(ref),
                 Map.of(
                     "language", "java",
-                    "parameters", SyntaxTreeExtractionSupport.parameterSnippet(methodNode),
+                    "parameters", parameterSnippet,
                     "annotations", annotations,
                     "parseStatus", parseResult.status().name(),
                     "extractionMode", extractionMode.name()

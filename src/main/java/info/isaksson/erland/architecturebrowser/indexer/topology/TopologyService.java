@@ -73,17 +73,32 @@ public final class TopologyService {
             }
         }
 
-        // Create package logical module entities for package scopes and contain files.
+        // Create package logical module entities for package scopes and keep package hierarchy mappings.
+        Map<String, LogicalScope> packageScopesById = expandPackageScopeHierarchy(extractionResult.scopes());
         Map<String, String> packageScopeToEntityId = new LinkedHashMap<>();
-        for (LogicalScope scope : extractionResult.scopes()) {
-            if (scope.kind() == ScopeKind.PACKAGE) {
-                ArchitectureEntity packageEntity = TopologySupport.packageEntity(scope);
-                inferredEntities.putIfAbsent(packageEntity.id(), packageEntity);
-                packageScopeToEntityId.put(scope.id(), packageEntity.id());
+        for (LogicalScope scope : packageScopesById.values()) {
+            inferredScopes.putIfAbsent(scope.id(), scope);
+            ArchitectureEntity packageEntity = TopologySupport.packageEntity(scope);
+            inferredEntities.putIfAbsent(packageEntity.id(), packageEntity);
+            packageScopeToEntityId.put(scope.id(), packageEntity.id());
+        }
+
+        // Build contains relations module->top-level package/file, package->subpackage and package->file.
+        for (LogicalScope packageScope : packageScopesById.values()) {
+            LogicalScope parentPackageScope = packageScopesById.get(packageScope.parentScopeId());
+            if (parentPackageScope == null) {
+                continue;
+            }
+            String parentEntityId = packageScopeToEntityId.get(parentPackageScope.id());
+            String childEntityId = packageScopeToEntityId.get(packageScope.id());
+            if (parentEntityId != null && childEntityId != null) {
+                inferredRelationships.putIfAbsent(
+                    IdUtils.relationshipId("topology-contains", parentEntityId, childEntityId, packageScope.name()),
+                    TopologySupport.contains(parentEntityId, childEntityId, packageScope.name(), packageScope.sourceRefs(), Map.of("rollup", "package-subpackage"))
+                );
             }
         }
 
-        // Build contains relations module->package/file and package->file.
         for (ArchitectureEntity entity : inferredEntities.values()) {
             Object logicalRole = entity.metadata().get("logicalRole");
             if ("source-root".equals(logicalRole)) {
@@ -97,17 +112,24 @@ public final class TopologyService {
                         );
                     }
                 }
-                for (LogicalScope scope : extractionResult.scopes()) {
-                    if (scope.kind() == ScopeKind.PACKAGE && scope.sourceRefs().stream().anyMatch(ref -> {
+                for (LogicalScope scope : packageScopesById.values()) {
+                    if (scope.sourceRefs().stream().anyMatch(ref -> {
                         String p = ref.path();
                         return p != null && modulePath.equals(moduleRoot(p));
                     })) {
-                        String packageEntityId = packageScopeToEntityId.get(scope.id());
-                        if (packageEntityId != null) {
-                            inferredRelationships.putIfAbsent(
-                                IdUtils.relationshipId("topology-contains", entity.id(), packageEntityId, scope.name()),
-                                TopologySupport.contains(entity.id(), packageEntityId, scope.name(), scope.sourceRefs(), Map.of("rollup", "module-package"))
-                            );
+                        LogicalScope parentPackageScope = packageScopesById.get(scope.parentScopeId());
+                        boolean topLevelInModule = parentPackageScope == null || parentPackageScope.sourceRefs().stream().noneMatch(ref -> {
+                            String p = ref.path();
+                            return p != null && modulePath.equals(moduleRoot(p));
+                        });
+                        if (topLevelInModule) {
+                            String packageEntityId = packageScopeToEntityId.get(scope.id());
+                            if (packageEntityId != null) {
+                                inferredRelationships.putIfAbsent(
+                                    IdUtils.relationshipId("topology-contains", entity.id(), packageEntityId, scope.name()),
+                                    TopologySupport.contains(entity.id(), packageEntityId, scope.name(), scope.sourceRefs(), Map.of("rollup", "module-package"))
+                                );
+                            }
                         }
                     }
                 }
@@ -274,6 +296,71 @@ private static String moduleRoot(String relativePath) {
     }
     return parts.length > 0 ? parts[0] : null;
 }
+
+    private static Map<String, LogicalScope> expandPackageScopeHierarchy(List<LogicalScope> scopes) {
+        Map<String, LogicalScope> packageScopes = scopes.stream()
+            .filter(scope -> scope.kind() == ScopeKind.PACKAGE)
+            .collect(Collectors.toMap(LogicalScope::id, scope -> scope, (left, right) -> mergePackageScopes(left, right), LinkedHashMap::new));
+
+        boolean changed;
+        do {
+            changed = false;
+            List<LogicalScope> snapshot = new ArrayList<>(packageScopes.values());
+            for (LogicalScope scope : snapshot) {
+                String language = String.valueOf(scope.metadata().getOrDefault("language", "unknown"));
+                String parentPackageName = parentPackageName(scope.name());
+                if (parentPackageName == null) {
+                    continue;
+                }
+                String parentScopeId = IdUtils.scopeId(language + "-package", parentPackageName);
+                if (!packageScopes.containsKey(parentScopeId)) {
+                    packageScopes.put(parentScopeId, TopologySupport.packageScope(
+                        parentPackageName,
+                        parentPackageName(parentPackageName) == null ? "scope:repo" : IdUtils.scopeId(language + "-package", parentPackageName(parentPackageName)),
+                        language,
+                        scope.sourceRefs()
+                    ));
+                    changed = true;
+                }
+                if (!parentScopeId.equals(scope.parentScopeId())) {
+                    packageScopes.put(scope.id(), new LogicalScope(
+                        scope.id(),
+                        scope.kind(),
+                        scope.name(),
+                        scope.displayName(),
+                        parentScopeId,
+                        scope.sourceRefs(),
+                        scope.metadata()
+                    ));
+                    changed = true;
+                }
+            }
+        } while (changed);
+
+        return packageScopes;
+    }
+
+    private static LogicalScope mergePackageScopes(LogicalScope left, LogicalScope right) {
+        if (left.sourceRefs().size() >= right.sourceRefs().size()) {
+            return left;
+        }
+        return new LogicalScope(
+            left.id(),
+            left.kind(),
+            left.name(),
+            left.displayName(),
+            left.parentScopeId(),
+            right.sourceRefs(),
+            left.metadata().isEmpty() ? right.metadata() : left.metadata()
+        );
+    }
+
+    private static String parentPackageName(String packageName) {
+        if (packageName == null || packageName.isBlank() || !packageName.contains(".")) {
+            return null;
+        }
+        return packageName.substring(0, packageName.lastIndexOf('.'));
+    }
 
     private static <T, K extends Enum<K>> Map<String, Integer> countsByKind(Collection<T> values, java.util.function.Function<T, K> classifier) {
         Map<String, Integer> counts = new LinkedHashMap<>();

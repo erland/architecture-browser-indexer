@@ -96,6 +96,29 @@ final class SyntaxTreeExtractionSupport {
             .orElse("");
     }
 
+    static String javaMethodLikeName(SyntaxNode node) {
+        if (node == null || node.textSnippet() == null || node.textSnippet().isBlank()) {
+            return declarationName(node);
+        }
+        String snippet = node.textSnippet();
+        int paren = snippet.indexOf('(');
+        String before = paren >= 0 ? snippet.substring(0, paren) : snippet;
+        Matcher matcher = Pattern.compile("([A-Za-z_][\\w$]*)").matcher(before);
+        String last = null;
+        while (matcher.find()) {
+            last = matcher.group(1);
+        }
+        return last;
+    }
+
+    static String javaMethodDisplayName(String methodName, String parameterSnippet) {
+        if (methodName == null || methodName.isBlank()) {
+            return methodName;
+        }
+        String params = parameterSnippet == null ? "" : parameterSnippet.strip();
+        return params.isEmpty() ? methodName : methodName + params;
+    }
+
     static boolean containsDescendantType(SyntaxNode node, String type) {
         return firstDescendantByType(node, Set.of(type)).isPresent();
     }

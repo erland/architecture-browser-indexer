@@ -90,7 +90,7 @@ class SqlAndConfigStructuralExtractionTest {
                 Map.of(ParseStatus.SUCCESS, 2)
             ));
 
-        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.CONFIG_ARTIFACT && "baseUrl".equals(entity.name())));
+        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.CONFIG_ARTIFACT && "baseUrl".equals(entity.name()) && "baseUrl".equals(entity.displayName())));
         assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.DATASTORE && "spring.datasource.url".equals(entity.name())));
         assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON && rel.label().contains("https://api.example.org")));
         assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON && rel.label().contains("jdbc:postgresql://localhost:5432/app")));

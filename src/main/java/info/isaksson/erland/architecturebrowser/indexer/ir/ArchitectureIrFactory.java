@@ -157,53 +157,64 @@ public final class ArchitectureIrFactory {
             diagnostics.addAll(topologyResult.diagnostics());
         }
 
-        List<LogicalScope> scopes = new ArrayList<>();
-        scopes.add(repositoryScope);
+        Map<String, LogicalScope> scopesById = new LinkedHashMap<>();
+        scopesById.put(repositoryScope.id(), repositoryScope);
         if (extractionResult != null) {
-            scopes.addAll(extractionResult.scopes());
+            for (LogicalScope scope : extractionResult.scopes()) {
+                scopesById.put(scope.id(), scope);
+            }
         }
         if (topologyResult != null) {
-            scopes.addAll(topologyResult.scopes());
+            for (LogicalScope scope : topologyResult.scopes()) {
+                scopesById.put(scope.id(), scope);
+            }
         }
+        List<LogicalScope> scopes = List.copyOf(scopesById.values());
 
-        List<ArchitectureEntity> entities = new ArrayList<>();
-        entities.add(inventoryEntity);
+        Map<String, ArchitectureEntity> entitiesById = new LinkedHashMap<>();
+        entitiesById.put(inventoryEntity.id(), inventoryEntity);
         if (extractionResult != null) {
             for (ExtractedEntityFact entity : extractionResult.entities()) {
-                entities.add(new ArchitectureEntity(
+                entitiesById.put(entity.id(), new ArchitectureEntity(
                     entity.id(), entity.kind(), entity.origin(), entity.name(), entity.displayName(), normalizeScopeId(entity.scopeId(), repositoryScope.id()), entity.sourceRefs(), entity.metadata()
                 ));
             }
         }
         if (interpretationResult != null) {
             for (InterpretedEntityFact entity : interpretationResult.entities()) {
-                entities.add(new ArchitectureEntity(
+                entitiesById.put(entity.id(), new ArchitectureEntity(
                     entity.id(), entity.kind(), entity.origin(), entity.name(), entity.displayName(), normalizeScopeId(entity.scopeId(), repositoryScope.id()), entity.sourceRefs(), entity.metadata()
                 ));
             }
         }
         if (topologyResult != null) {
-            entities.addAll(topologyResult.entities());
+            for (ArchitectureEntity entity : topologyResult.entities()) {
+                entitiesById.put(entity.id(), entity);
+            }
         }
+        List<ArchitectureEntity> entities = List.copyOf(entitiesById.values());
 
-        List<ArchitectureRelationship> relationships = new ArrayList<>();
+        Map<String, ArchitectureRelationship> relationshipsById = new LinkedHashMap<>();
         if (extractionResult != null) {
             for (ExtractedRelationshipFact relationship : extractionResult.relationships()) {
-                relationships.add(new ArchitectureRelationship(
+                relationshipsById.put(relationship.id(), new ArchitectureRelationship(
                     relationship.id(), relationship.kind(), relationship.fromEntityId(), relationship.toEntityId(), relationship.label(), relationship.sourceRefs(), relationship.metadata()
                 ));
             }
         }
         if (interpretationResult != null) {
             for (InterpretedRelationshipFact relationship : interpretationResult.relationships()) {
-                relationships.add(new ArchitectureRelationship(
+                relationshipsById.put(relationship.id(), new ArchitectureRelationship(
                     relationship.id(), relationship.kind(), relationship.fromEntityId(), relationship.toEntityId(), relationship.label(), relationship.sourceRefs(), relationship.metadata()
                 ));
             }
         }
         if (topologyResult != null) {
-            relationships.addAll(topologyResult.relationships());
+            for (ArchitectureRelationship relationship : topologyResult.relationships()) {
+                relationshipsById.put(relationship.id(), relationship);
+            }
         }
+        List<ArchitectureRelationship> relationships = List.copyOf(relationshipsById.values());
 
         List<String> completenessNotes = new ArrayList<>();
         if (extractionResult == null) {

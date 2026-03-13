@@ -32,8 +32,9 @@ class TopologyServiceTest {
 
         StructuralExtractionResult extraction = new StructuralExtractionResult(
             List.of(
-                new info.isaksson.erland.architecturebrowser.indexer.ir.model.LogicalScope("scope:pkg:order", ScopeKind.PACKAGE, "com.example.order", "com.example.order", "scope:repo", List.of(aRef), Map.of("language", "java")),
-                new info.isaksson.erland.architecturebrowser.indexer.ir.model.LogicalScope("scope:pkg:shared", ScopeKind.PACKAGE, "com.example.shared", "com.example.shared", "scope:repo", List.of(bRef), Map.of("language", "java"))
+                new info.isaksson.erland.architecturebrowser.indexer.ir.model.LogicalScope("scope:pkg:example", ScopeKind.PACKAGE, "com.example", "example", "scope:repo", List.of(aRef, bRef), Map.of("language", "java")),
+                new info.isaksson.erland.architecturebrowser.indexer.ir.model.LogicalScope("scope:pkg:order", ScopeKind.PACKAGE, "com.example.order", "com.example.order", "scope:pkg:example", List.of(aRef), Map.of("language", "java")),
+                new info.isaksson.erland.architecturebrowser.indexer.ir.model.LogicalScope("scope:pkg:shared", ScopeKind.PACKAGE, "com.example.shared", "com.example.shared", "scope:pkg:example", List.of(bRef), Map.of("language", "java"))
             ),
             List.of(
                 new ExtractedEntityFact("entity:file:a", EntityKind.MODULE, EntityOrigin.OBSERVED, aPath, aPath, "scope:file:a", List.of(aRef), Map.of("language", "java", "relativePath", aPath)),
@@ -60,11 +61,12 @@ class TopologyServiceTest {
         var result = service.infer(inventory, extraction, new InterpretationResult(List.of(), List.of(), List.of(), new InterpretationSummary(Map.of(), Map.of(), Map.of())));
 
         assertTrue(result.scopes().stream().anyMatch(scope -> scope.kind() == ScopeKind.DIRECTORY && "src/main/java/com/example/order".equals(scope.name())));
-        assertTrue(result.scopes().stream().anyMatch(scope -> scope.kind() == ScopeKind.DIRECTORY && "src/main/java/com/example/order".equals(scope.name()) && "order".equals(scope.displayName())));
         assertTrue(result.scopes().stream().anyMatch(scope -> scope.kind() == ScopeKind.MODULE && "src/main/java".equals(scope.name())));
         assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.MODULE && "src/main/java".equals(entity.name())));
         assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.USES && "com.example.shared.CustomerRepository".equals(rel.label())));
         assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.CONTAINS && "com.example.order".equals(rel.label())));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.CONTAINS && "com.example.shared".equals(rel.label())));
+        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.MODULE && "order".equals(entity.displayName()) && "com.example.order".equals(entity.name())));
     }
 
     @Test

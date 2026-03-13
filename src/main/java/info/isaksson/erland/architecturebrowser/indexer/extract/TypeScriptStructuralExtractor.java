@@ -5,6 +5,7 @@ import info.isaksson.erland.architecturebrowser.indexer.extract.model.Extraction
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityOrigin;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
+import info.isaksson.erland.architecturebrowser.indexer.naming.DisplayNamePolicy;
 import info.isaksson.erland.architecturebrowser.indexer.parse.ParseLanguage;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SourceParseResult;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxNode;
@@ -118,8 +119,8 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
             IdUtils.scopedEntityId("typescript", relativePath, name, line),
             kind,
             EntityOrigin.OBSERVED,
+            DisplayNamePolicy.entityDisplayName(kind, name, "typescript"),
             name,
-            relativePath + "#" + name,
             IdUtils.scopeId("file", relativePath),
             List.of(ref),
             Map.of(

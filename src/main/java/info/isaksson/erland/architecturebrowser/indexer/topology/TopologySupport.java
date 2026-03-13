@@ -13,6 +13,7 @@ import info.isaksson.erland.architecturebrowser.indexer.ir.model.LogicalScope;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ScopeKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
+import info.isaksson.erland.architecturebrowser.indexer.naming.DisplayNamePolicy;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,54 +24,98 @@ final class TopologySupport {
     }
 
     static LogicalScope directoryScope(String directoryPath, String parentScopeId) {
-        String displayName = baseName(directoryPath);
         return new LogicalScope(
             IdUtils.scopeId("directory", directoryPath),
             ScopeKind.DIRECTORY,
             directoryPath,
-            displayName,
+            DisplayNamePolicy.scopeDisplayName(ScopeKind.DIRECTORY, directoryPath, null),
             parentScopeId,
             List.of(new SourceReference(directoryPath, null, null, null, metadataOf("scopeKind", "directory"))),
-            metadataOf("relativePath", directoryPath, "displayName", displayName)
+            metadataOf("relativePath", directoryPath)
         );
     }
 
     static LogicalScope moduleScope(String modulePath, String parentScopeId, String language) {
+        String displayName = DisplayNamePolicy.scopeDisplayName(ScopeKind.MODULE, modulePath, language);
         return new LogicalScope(
             IdUtils.scopeId("module", modulePath),
             ScopeKind.MODULE,
             modulePath,
-            modulePath,
+            displayName,
             parentScopeId,
-            List.of(new SourceReference(modulePath, null, null, null, metadataOf("scopeKind", "module", "language", language))),
-            metadataOf("relativePath", modulePath, "language", language)
+            List.of(new SourceReference(modulePath, null, null, null, metadataOf("scopeKind", "module", "language", language, "displayName", displayName))),
+            metadataOf("relativePath", modulePath, "language", language, "displayName", displayName)
+        );
+    }
+
+    static LogicalScope packageScope(String packageName, String parentScopeId, String language, List<SourceReference> refs) {
+        String displayName = DisplayNamePolicy.scopeDisplayName(ScopeKind.PACKAGE, packageName, language);
+        return new LogicalScope(
+            IdUtils.scopeId(language + "-package", packageName),
+            ScopeKind.PACKAGE,
+            packageName,
+            displayName,
+            parentScopeId,
+            refs == null ? List.of() : refs,
+            metadataOf(
+                "language", language,
+                "packageName", packageName,
+                "displayName", displayName,
+                "parentPackageName", parentPackageName(packageName)
+            )
         );
     }
 
     static ArchitectureEntity moduleEntity(String modulePath, String scopeId, String language, String role) {
+        String displayName = DisplayNamePolicy.entityDisplayName(EntityKind.MODULE, modulePath, language);
         return new ArchitectureEntity(
             IdUtils.externalEntityId("logical-module", modulePath),
             EntityKind.MODULE,
             EntityOrigin.INFERRED,
             modulePath,
-            modulePath,
+            displayName,
             scopeId,
-            List.of(new SourceReference(modulePath, null, null, null, metadataOf("entityKind", "module", "language", language))),
-            metadataOf("language", language, "logicalRole", role, "relativePath", modulePath)
+            List.of(new SourceReference(modulePath, null, null, null, metadataOf("entityKind", "module", "language", language, "displayName", displayName))),
+            metadataOf("language", language, "logicalRole", role, "relativePath", modulePath, "displayName", displayName)
         );
     }
 
     static ArchitectureEntity packageEntity(LogicalScope packageScope) {
+        String displayName = packageDisplayName(packageScope);
         return new ArchitectureEntity(
             IdUtils.externalEntityId("logical-package", packageScope.name()),
             EntityKind.MODULE,
             EntityOrigin.INFERRED,
             packageScope.name(),
-            packageScope.displayName(),
+            displayName,
             packageScope.id(),
             packageScope.sourceRefs(),
-            metadataOf("language", packageScope.metadata().getOrDefault("language", "unknown"), "logicalRole", "package")
+            metadataOf(
+                "language", packageScope.metadata().getOrDefault("language", "unknown"),
+                "logicalRole", "package",
+                "displayName", displayName
+            )
         );
+    }
+
+
+    private static String packageDisplayName(LogicalScope packageScope) {
+        Object explicit = packageScope.metadata().get("displayName");
+        if (explicit instanceof String s && !s.isBlank()) {
+            return DisplayNamePolicy.scopeDisplayName(ScopeKind.PACKAGE, s, String.valueOf(packageScope.metadata().getOrDefault("language", "")));
+        }
+        String displayName = packageScope.displayName();
+        if (displayName != null && !displayName.isBlank()) {
+            return DisplayNamePolicy.scopeDisplayName(ScopeKind.PACKAGE, displayName, String.valueOf(packageScope.metadata().getOrDefault("language", "")));
+        }
+        return DisplayNamePolicy.scopeDisplayName(ScopeKind.PACKAGE, packageScope.name(), String.valueOf(packageScope.metadata().getOrDefault("language", "")));
+    }
+
+    private static String parentPackageName(String packageName) {
+        if (packageName == null || packageName.isBlank() || !packageName.contains(".")) {
+            return null;
+        }
+        return packageName.substring(0, packageName.lastIndexOf('.'));
     }
 
     static ArchitectureRelationship contains(String fromId, String toId, String label, List<SourceReference> refs, Map<String, Object> metadata) {
@@ -127,15 +172,6 @@ final class TopologySupport {
             }
         }
         return Map.copyOf(metadata);
-    }
-
-
-    static String baseName(String path) {
-        if (path == null || path.isBlank()) {
-            return path;
-        }
-        int lastSlash = path.lastIndexOf('/');
-        return lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
     }
 
     static String primaryPath(ExtractedEntityFact entity) {

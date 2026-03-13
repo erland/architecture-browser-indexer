@@ -11,6 +11,7 @@ import info.isaksson.erland.architecturebrowser.indexer.ir.model.LogicalScope;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ScopeKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
+import info.isaksson.erland.architecturebrowser.indexer.naming.DisplayNamePolicy;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SourceParseResult;
 
 import java.util.List;
@@ -25,69 +26,66 @@ final class ExtractionSupport {
     }
 
     static LogicalScope fileScope(String repositoryScopeId, String relativePath) {
-        String parentScopeId = parentDirectoryScopeId(relativePath, repositoryScopeId);
-        String displayName = baseName(relativePath);
+        String parentDirectory = parentDirectory(relativePath);
+        String parentScopeId = parentDirectory == null ? repositoryScopeId : IdUtils.scopeId("directory", parentDirectory);
+        String displayName = DisplayNamePolicy.scopeDisplayName(ScopeKind.FILE, relativePath, null);
         return new LogicalScope(
             IdUtils.scopeId("file", relativePath),
             ScopeKind.FILE,
             relativePath,
             displayName,
             parentScopeId,
-            List.of(new SourceReference(relativePath, null, null, null, Map.of("scopeKind", "file"))),
+            List.of(new SourceReference(relativePath, null, null, null, Map.of("scopeKind", "file", "displayName", displayName))),
             Map.of("relativePath", relativePath, "displayName", displayName)
         );
     }
 
     static LogicalScope packageScope(String repositoryScopeId, String packageName, String relativePath, String language) {
+        String parentPackageName = parentPackageName(packageName);
+        String parentScopeId = parentPackageName == null
+            ? repositoryScopeId
+            : IdUtils.scopeId(language + "-package", parentPackageName);
         return new LogicalScope(
             IdUtils.scopeId(language + "-package", packageName),
             ScopeKind.PACKAGE,
             packageName,
-            packageName,
-            repositoryScopeId,
+            DisplayNamePolicy.scopeDisplayName(ScopeKind.PACKAGE, packageName, language),
+            parentScopeId,
             List.of(new SourceReference(relativePath, null, null, null, Map.of("scopeKind", "package", "language", language))),
-            Map.of("language", language)
+            Map.of(
+                "language", language,
+                "packageName", packageName,
+                "displayName", DisplayNamePolicy.scopeDisplayName(ScopeKind.PACKAGE, packageName, language),
+                "parentPackageName", parentPackageName == null ? "" : parentPackageName
+            )
         );
     }
 
     static ExtractedEntityFact fileModuleEntity(String scopeId, String relativePath, String language) {
+        String displayName = DisplayNamePolicy.entityDisplayName(EntityKind.MODULE, relativePath, language);
         return new ExtractedEntityFact(
             IdUtils.fileEntityId(relativePath),
             EntityKind.MODULE,
             EntityOrigin.OBSERVED,
             relativePath,
-            relativePath,
+            displayName,
             scopeId,
-            List.of(new SourceReference(relativePath, null, null, null, Map.of("entityKind", "module", "language", language))),
-            Map.of("language", language, "relativePath", relativePath)
+            List.of(new SourceReference(relativePath, null, null, null, Map.of("entityKind", "module", "language", language, "displayName", displayName))),
+            Map.of("language", language, "relativePath", relativePath, "displayName", displayName)
         );
     }
 
-    private static String parentDirectoryScopeId(String relativePath, String repositoryScopeId) {
-        if (relativePath == null || relativePath.isBlank() || !relativePath.contains("/")) {
-            return repositoryScopeId;
-        }
-        String parentPath = relativePath.substring(0, relativePath.lastIndexOf('/'));
-        return IdUtils.scopeId("directory", parentPath);
-    }
-
-    private static String baseName(String relativePath) {
-        if (relativePath == null || relativePath.isBlank() || !relativePath.contains("/")) {
-            return relativePath;
-        }
-        return relativePath.substring(relativePath.lastIndexOf('/') + 1);
-    }
-
     static ExtractedEntityFact externalDependencyEntity(String language, String qualifiedName, String relativePath, int line) {
+        String displayName = DisplayNamePolicy.entityDisplayName(EntityKind.MODULE, qualifiedName, language);
         return new ExtractedEntityFact(
             IdUtils.externalEntityId(language, qualifiedName),
             EntityKind.MODULE,
             EntityOrigin.INFERRED,
             qualifiedName,
-            qualifiedName,
+            displayName,
             null,
-            List.of(sourceRef(relativePath, line, qualifiedName, Map.of("language", language, "external", true))),
-            Map.of("language", language, "qualifiedName", qualifiedName, "external", true)
+            List.of(sourceRef(relativePath, line, qualifiedName, Map.of("language", language, "external", true, "displayName", displayName))),
+            Map.of("language", language, "qualifiedName", qualifiedName, "external", true, "displayName", displayName)
         );
     }
 
@@ -114,6 +112,22 @@ final class ExtractionSupport {
             Map.of("language", language)
         );
     }
+
+
+    private static String parentDirectory(String relativePath) {
+        if (relativePath == null || relativePath.isBlank() || !relativePath.contains("/")) {
+            return null;
+        }
+        return relativePath.substring(0, relativePath.lastIndexOf('/'));
+    }
+
+    private static String parentPackageName(String packageName) {
+        if (packageName == null || packageName.isBlank() || !packageName.contains(".")) {
+            return null;
+        }
+        return packageName.substring(0, packageName.lastIndexOf('.'));
+    }
+
 
     static Diagnostic extractionWarning(SourceParseResult parseResult, String code, String message) {
         return new Diagnostic(
