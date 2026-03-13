@@ -60,6 +60,7 @@ class TopologyServiceTest {
         var result = service.infer(inventory, extraction, new InterpretationResult(List.of(), List.of(), List.of(), new InterpretationSummary(Map.of(), Map.of(), Map.of())));
 
         assertTrue(result.scopes().stream().anyMatch(scope -> scope.kind() == ScopeKind.DIRECTORY && "src/main/java/com/example/order".equals(scope.name())));
+        assertTrue(result.scopes().stream().anyMatch(scope -> scope.kind() == ScopeKind.DIRECTORY && "src/main/java/com/example/order".equals(scope.name()) && "order".equals(scope.displayName())));
         assertTrue(result.scopes().stream().anyMatch(scope -> scope.kind() == ScopeKind.MODULE && "src/main/java".equals(scope.name())));
         assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.MODULE && "src/main/java".equals(entity.name())));
         assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.USES && "com.example.shared.CustomerRepository".equals(rel.label())));

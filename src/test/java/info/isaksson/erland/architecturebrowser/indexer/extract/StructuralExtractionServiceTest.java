@@ -108,36 +108,6 @@ class StructuralExtractionServiceTest {
 
 
     @Test
-    void inferredDirectoryScopesUseBasenameDisplayName() {
-        String relativePath = "src/__tests__/App.test.tsx";
-        String source = "export function run() { return 1; }\n";
-
-        SyntaxNode root = new SyntaxNode("program", true, 0, source.length(), 0, 0, 0, source.length(), false, false, source, List.of(
-            new SyntaxNode("function_declaration", true, 0, source.length() - 1, 0, 0, 0, source.length() - 1, false, false,
-                "export function run() { return 1; }", List.of(
-                    new SyntaxNode("identifier", true, 16, 19, 0, 16, 0, 19, false, false, "run", List.of())
-                ))
-        ));
-
-        SourceParseResult parseResult = new SourceParseResult(
-            new SourceParseRequest(Path.of(relativePath), relativePath, ParseLanguage.TYPESCRIPT, source),
-            ParseStatus.SUCCESS,
-            new SyntaxTree(ParseLanguage.TYPESCRIPT, "tree-sitter-jtreesitter", root, false, root.nodeCount()),
-            List.of(),
-            Map.of("parserBackend", "tree-sitter-jtreesitter")
-        );
-
-        StructuralExtractionResult result = new StructuralExtractionService(StructuralExtractorRegistry.defaultRegistry())
-            .extract(new ParseBatchResult(List.of(parseResult), Map.of(ParseLanguage.TYPESCRIPT, 1), Map.of(ParseStatus.SUCCESS, 1)));
-
-        assertTrue(result.scopes().stream().anyMatch(scope ->
-            scope.kind() == ScopeKind.DIRECTORY
-                && "src/__tests__".equals(scope.name())
-                && "__tests__".equals(scope.displayName())
-        ));
-    }
-
-    @Test
     void prefersSyntaxTreeModeWhenRealSyntaxTreeIsAvailable() {
         String source = """
             package com.example.demo;
