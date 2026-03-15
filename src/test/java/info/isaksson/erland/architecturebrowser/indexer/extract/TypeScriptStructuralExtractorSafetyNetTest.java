@@ -232,7 +232,7 @@ class TypeScriptStructuralExtractorSafetyNetTest {
     }
 
     @Test
-    void documentsCurrentGapThatHierarchyAndDeclarationTypeDependenciesAreStillMissing() {
+    void extractsTypeScriptHierarchyRelationshipsAndHierarchyDependencies() {
         String source = """
             import { BaseService } from './base-service';
             import type { User } from './contracts';
@@ -273,14 +273,82 @@ class TypeScriptStructuralExtractorSafetyNetTest {
             && moduleEntity.id().equals(rel.fromEntityId())
             && "./contracts".equals(rel.label())));
 
-        assertFalse(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.EXTENDS
-            && userServiceEntity.id().equals(rel.fromEntityId())));
-        assertFalse(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.IMPLEMENTS
-            && userServiceEntity.id().equals(rel.fromEntityId())));
-        assertFalse(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
-            && userServiceEntity.id().equals(rel.fromEntityId())));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.EXTENDS
+            && userServiceEntity.id().equals(rel.fromEntityId())
+            && "BaseService".equals(rel.label())
+            && "extends".equals(rel.metadata().get("dependencySource"))
+            && "hierarchy".equals(rel.metadata().get("dependencyCategory"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.IMPLEMENTS
+            && userServiceEntity.id().equals(rel.fromEntityId())
+            && "User".equals(rel.label())
+            && "implements".equals(rel.metadata().get("dependencySource"))
+            && "hierarchy".equals(rel.metadata().get("dependencyCategory"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && userServiceEntity.id().equals(rel.fromEntityId())
+            && "BaseService".equals(rel.label())
+            && "extends".equals(rel.metadata().get("dependencySource"))
+            && "hierarchy".equals(rel.metadata().get("dependencyCategory"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && userServiceEntity.id().equals(rel.fromEntityId())
+            && "User".equals(rel.label())
+            && "implements".equals(rel.metadata().get("dependencySource"))
+            && "hierarchy".equals(rel.metadata().get("dependencyCategory"))));
     }
 
+    @Test
+    void resolvesLocalDeclaredTypesForTypeScriptHierarchyRelationships() {
+        String source = """
+            export interface BaseContract {}
+            export interface UserContract extends BaseContract {}
+            export class BaseService {}
+            export class UserService extends BaseService implements UserContract {}
+            """;
+        SyntaxNode baseContract = new SyntaxNode("interface_declaration", true, 0, 32, 0, 0, 0, 32, false, false,
+            "export interface BaseContract {}", List.of(
+                new SyntaxNode("type_identifier", true, 17, 29, 0, 17, 0, 29, false, false, "BaseContract", List.of())
+            ));
+        SyntaxNode userContract = new SyntaxNode("interface_declaration", true, 33, 87, 1, 0, 1, 54, false, false,
+            "export interface UserContract extends BaseContract {}", List.of(
+                new SyntaxNode("type_identifier", true, 50, 62, 1, 17, 1, 29, false, false, "UserContract", List.of()),
+                new SyntaxNode("extends_clause", true, 63, 83, 1, 30, 1, 50, false, false, "extends BaseContract", List.of(
+                    new SyntaxNode("type_identifier", true, 71, 83, 1, 38, 1, 50, false, false, "BaseContract", List.of())
+                ))
+            ));
+        SyntaxNode baseService = new SyntaxNode("class_declaration", true, 88, 115, 2, 0, 2, 27, false, false,
+            "export class BaseService {}", List.of(
+                new SyntaxNode("type_identifier", true, 101, 112, 2, 13, 2, 24, false, false, "BaseService", List.of())
+            ));
+        SyntaxNode userService = new SyntaxNode("class_declaration", true, 116, source.length(), 3, 0, 3, 68, false, false,
+            "export class UserService extends BaseService implements UserContract {}", List.of(
+                new SyntaxNode("type_identifier", true, 129, 140, 3, 13, 3, 24, false, false, "UserService", List.of()),
+                new SyntaxNode("extends_clause", true, 141, 160, 3, 25, 3, 44, false, false, "extends BaseService", List.of(
+                    new SyntaxNode("type_identifier", true, 149, 160, 3, 33, 3, 44, false, false, "BaseService", List.of())
+                )),
+                new SyntaxNode("implements_clause", true, 161, 184, 3, 45, 3, 68, false, false, "implements UserContract", List.of(
+                    new SyntaxNode("type_identifier", true, 172, 184, 3, 56, 3, 68, false, false, "UserContract", List.of())
+                ))
+            ));
+
+        StructuralExtractionResult result = extract("src/app/types.ts", source, program(source, baseContract, userContract, baseService, userService));
+
+        var userContractEntity = entity(result, EntityKind.INTERFACE, "UserContract");
+        var baseContractEntity = entity(result, EntityKind.INTERFACE, "BaseContract");
+        var userServiceEntity = entity(result, EntityKind.CLASS, "UserService");
+        var baseServiceEntity = entity(result, EntityKind.CLASS, "BaseService");
+
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.EXTENDS
+            && userContractEntity.id().equals(rel.fromEntityId())
+            && baseContractEntity.id().equals(rel.toEntityId())
+            && "BaseContract".equals(rel.label())));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.EXTENDS
+            && userServiceEntity.id().equals(rel.fromEntityId())
+            && baseServiceEntity.id().equals(rel.toEntityId())
+            && "BaseService".equals(rel.label())));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.IMPLEMENTS
+            && userServiceEntity.id().equals(rel.fromEntityId())
+            && userContractEntity.id().equals(rel.toEntityId())
+            && "UserContract".equals(rel.label())));
+    }
     private static StructuralExtractionResult extract(String relativePath, String source, SyntaxNode root) {
         SourceParseResult parseResult = new SourceParseResult(
             new SourceParseRequest(Path.of(relativePath), relativePath, ParseLanguage.TYPESCRIPT, source),

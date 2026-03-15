@@ -79,16 +79,39 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
             ));
         }
 
+        Map<String, ExtractedEntityFact> declaredTypes = new LinkedHashMap<>();
         for (SyntaxNode classNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("class_declaration"))) {
             ExtractedEntityFact typeEntity = addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, classNode, EntityKind.CLASS, "class_declaration", extractionMode);
             if (typeEntity != null) {
-                addOwnedMembers(parseResult, accumulator, typeEntity, relativePath, classNode, extractionMode, "class");
+                declaredTypes.putIfAbsent(typeEntity.name(), typeEntity);
+                Object qualifiedName = typeEntity.metadata().get("qualifiedName");
+                if (qualifiedName instanceof String qualified && !qualified.isBlank()) {
+                    declaredTypes.putIfAbsent(qualified, typeEntity);
+                }
             }
         }
         for (SyntaxNode interfaceNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("interface_declaration"))) {
             ExtractedEntityFact typeEntity = addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, interfaceNode, EntityKind.INTERFACE, "interface_declaration", extractionMode);
             if (typeEntity != null) {
+                declaredTypes.putIfAbsent(typeEntity.name(), typeEntity);
+                Object qualifiedName = typeEntity.metadata().get("qualifiedName");
+                if (qualifiedName instanceof String qualified && !qualified.isBlank()) {
+                    declaredTypes.putIfAbsent(qualified, typeEntity);
+                }
+            }
+        }
+        for (SyntaxNode classNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("class_declaration"))) {
+            ExtractedEntityFact typeEntity = declaredTypes.get(SyntaxTreeExtractionSupport.declarationName(classNode));
+            if (typeEntity != null) {
+                addOwnedMembers(parseResult, accumulator, typeEntity, relativePath, classNode, extractionMode, "class");
+                addTypeRelationships(accumulator, relativePath, classNode, typeEntity, declaredTypes);
+            }
+        }
+        for (SyntaxNode interfaceNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("interface_declaration"))) {
+            ExtractedEntityFact typeEntity = declaredTypes.get(SyntaxTreeExtractionSupport.declarationName(interfaceNode));
+            if (typeEntity != null) {
                 addOwnedMembers(parseResult, accumulator, typeEntity, relativePath, interfaceNode, extractionMode, "interface");
+                addTypeRelationships(accumulator, relativePath, interfaceNode, typeEntity, declaredTypes);
             }
         }
         for (SyntaxNode functionNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("function_declaration"))) {
@@ -133,6 +156,96 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
                 }
             }
         }
+    }
+
+
+    private static void addTypeRelationships(
+        ExtractionAccumulator accumulator,
+        String relativePath,
+        SyntaxNode typeNode,
+        ExtractedEntityFact typeEntity,
+        Map<String, ExtractedEntityFact> declaredTypes
+    ) {
+        if (typeNode == null || typeEntity == null) {
+            return;
+        }
+        int line = SyntaxTreeExtractionSupport.oneBasedLine(typeNode);
+        SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, typeNode.textSnippet(), Map.of("language", "typescript", "kind", typeNode.type()));
+        for (String parentType : extractExtendedTypes(typeNode)) {
+            EntityKind targetKind = typeEntity.kind() == EntityKind.INTERFACE ? EntityKind.INTERFACE : EntityKind.CLASS;
+            addResolvedTypeRelationship(accumulator, typeEntity, parentType, targetKind, info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.EXTENDS, "extends", relativePath, line, ref, declaredTypes);
+        }
+        for (String implementedType : extractImplementedTypes(typeNode)) {
+            addResolvedTypeRelationship(accumulator, typeEntity, implementedType, EntityKind.INTERFACE, info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.IMPLEMENTS, "implements", relativePath, line, ref, declaredTypes);
+        }
+    }
+
+    private static void addResolvedTypeRelationship(
+        ExtractionAccumulator accumulator,
+        ExtractedEntityFact sourceType,
+        String referencedType,
+        EntityKind fallbackTargetKind,
+        info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind relationshipKind,
+        String relationshipPrefix,
+        String relativePath,
+        int line,
+        SourceReference ref,
+        Map<String, ExtractedEntityFact> declaredTypes
+    ) {
+        ResolvedTypeScriptType resolved = resolveTypeReference(accumulator, referencedType, fallbackTargetKind, relativePath, line, declaredTypes);
+        if (resolved == null || sourceType.id().equals(resolved.entityId())) {
+            return;
+        }
+        accumulator.addRelationship(ExtractionSupport.typedRelationship(
+            relationshipKind,
+            relationshipPrefix,
+            sourceType.id(),
+            resolved.entityId(),
+            resolved.label(),
+            ref,
+            "typescript",
+            dependencyMetadata(relationshipPrefix, "hierarchy")
+        ));
+        accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
+            sourceType.id(),
+            resolved.entityId(),
+            resolved.label(),
+            ref,
+            "typescript",
+            dependencyMetadata(relationshipPrefix, "hierarchy")
+        ));
+    }
+
+    private static ResolvedTypeScriptType resolveTypeReference(
+        ExtractionAccumulator accumulator,
+        String referencedType,
+        EntityKind fallbackTargetKind,
+        String relativePath,
+        int line,
+        Map<String, ExtractedEntityFact> declaredTypes
+    ) {
+        String normalized = normalizeTypeReference(referencedType);
+        if (normalized.isBlank()) {
+            return null;
+        }
+        ExtractedEntityFact declared = declaredTypes.get(normalized);
+        if (declared != null) {
+            String declaredQualifiedName = String.valueOf(declared.metadata().getOrDefault("qualifiedName", declared.name()));
+            return new ResolvedTypeScriptType(declared.id(), declaredQualifiedName, declared.kind());
+        }
+        var inferred = ExtractionSupport.inferredTypeEntity(
+            "typescript",
+            fallbackTargetKind,
+            normalized,
+            relativePath,
+            line,
+            Map.of(
+                "resolvedFrom", normalized,
+                "resolution", "unresolved-or-external"
+            )
+        );
+        accumulator.addEntity(inferred);
+        return new ResolvedTypeScriptType(inferred.id(), normalized, inferred.kind());
     }
 
     private static ExtractedEntityFact addNamedEntityFromNode(
@@ -258,11 +371,62 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
         );
     }
 
+
+    private static List<String> extractExtendedTypes(SyntaxNode typeNode) {
+        return extractClauseTypes(typeNode, "extends_clause");
+    }
+
+    private static List<String> extractImplementedTypes(SyntaxNode typeNode) {
+        return extractClauseTypes(typeNode, "implements_clause");
+    }
+
+    private static List<String> extractClauseTypes(SyntaxNode typeNode, String clauseType) {
+        if (typeNode == null) {
+            return List.of();
+        }
+        java.util.LinkedHashSet<String> result = new java.util.LinkedHashSet<>();
+        for (SyntaxNode clauseNode : typeNode.children()) {
+            if (!clauseType.equals(clauseNode.type())) {
+                continue;
+            }
+            for (SyntaxNode candidate : SyntaxTreeExtractionSupport.descendantsByType(clauseNode, Set.of("type_identifier", "nested_type_identifier", "predefined_type", "identifier"))) {
+                String normalized = normalizeTypeReference(candidate.textSnippet());
+                if (!normalized.isBlank()) {
+                    result.add(normalized);
+                }
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private static String normalizeTypeReference(String value) {
+        if (value == null) {
+            return "";
+        }
+        String normalized = value
+            .replaceAll("<[^>]+>", " ")
+            .replace("?", " ")
+            .replace("[]", " ")
+            .trim();
+        Matcher matcher = Pattern.compile("([A-Za-z_$][\\w.$]*)").matcher(normalized);
+        return matcher.find() ? matcher.group(1) : "";
+    }
+
+    private static Map<String, Object> dependencyMetadata(String dependencySource, String dependencyCategory) {
+        java.util.Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+        metadata.put("dependencySource", dependencySource);
+        metadata.put("dependencyCategory", dependencyCategory);
+        return java.util.Map.copyOf(metadata);
+    }
+
     private static String importFromSnippet(String snippet) {
         if (snippet == null) {
             return null;
         }
         Matcher matcher = IMPORT_FROM_SNIPPET.matcher(snippet);
         return matcher.find() ? matcher.group(1) : null;
+    }
+
+    private record ResolvedTypeScriptType(String entityId, String label, EntityKind kind) {
     }
 }
