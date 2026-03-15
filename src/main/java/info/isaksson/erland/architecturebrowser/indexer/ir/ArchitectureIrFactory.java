@@ -737,7 +737,7 @@ public final class ArchitectureIrFactory {
             return;
         }
         switch (key) {
-            case "renders", "declares", "imports", "exports", "bootstraps" -> sink.add("composition");
+            case "renders", "templateRenders", "usesDirective", "usesPipe", "declares", "imports", "exports", "bootstraps" -> sink.add("composition");
             case "targets", "childOf", "lazyLoads", "guards", "resolves" -> sink.add("route");
             case "provides", "providedBy", "injects", "resolvesTo", "providesContext", "consumesContext" -> sink.add("provider-di");
             case "usesHook" -> sink.add("hook");
