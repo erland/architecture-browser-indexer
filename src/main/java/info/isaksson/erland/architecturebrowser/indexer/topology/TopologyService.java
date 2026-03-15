@@ -208,12 +208,13 @@ public final class TopologyService {
             String fromPackageEntityId = fromPackageScopeId == null ? null : packageScopeToEntityId.get(fromPackageScopeId);
             String toPackageEntityId = toPackageScopeId == null ? null : packageScopeToEntityId.get(toPackageScopeId);
             if (fromPackageEntityId != null && toPackageEntityId != null && !fromPackageEntityId.equals(toPackageEntityId)) {
-                String key = relationship.kind().name() + ":" + fromPackageEntityId + "->" + toPackageEntityId;
+                String key = relationship.kind().name() + ":" + fromPackageEntityId + "->" + toPackageEntityId + "|" + rollupDependencySignature(relationship);
                 if (seenPackageUses.add(key)) {
+                    Map<String, Object> packageMetadata = topologyMetadata(relationship, Map.of("rollup", "package-package"));
                     ArchitectureRelationship pkgRelationship = switch (relationship.kind()) {
-                        case EXTENDS -> TopologySupport.typedRelationship(RelationshipKind.EXTENDS, fromPackageEntityId, toPackageEntityId, relationship.label(), relationship.sourceRefs(), Map.of("rollup", "package-package"));
-                        case IMPLEMENTS -> TopologySupport.typedRelationship(RelationshipKind.IMPLEMENTS, fromPackageEntityId, toPackageEntityId, relationship.label(), relationship.sourceRefs(), Map.of("rollup", "package-package"));
-                        default -> TopologySupport.uses(fromPackageEntityId, toPackageEntityId, relationship.label(), relationship.sourceRefs(), Map.of("rollup", "package-package"));
+                        case EXTENDS -> TopologySupport.typedRelationship(RelationshipKind.EXTENDS, fromPackageEntityId, toPackageEntityId, relationship.label(), relationship.sourceRefs(), packageMetadata);
+                        case IMPLEMENTS -> TopologySupport.typedRelationship(RelationshipKind.IMPLEMENTS, fromPackageEntityId, toPackageEntityId, relationship.label(), relationship.sourceRefs(), packageMetadata);
+                        default -> TopologySupport.uses(fromPackageEntityId, toPackageEntityId, relationship.label(), relationship.sourceRefs(), packageMetadata);
                     };
                     inferredRelationships.putIfAbsent(pkgRelationship.id(), pkgRelationship);
                 }
@@ -226,11 +227,14 @@ public final class TopologyService {
                 && toModuleEntityId != null
                 && (!sameModule || relationship.kind() == RelationshipKind.DEPENDS_ON);
             if (allowModuleRollup) {
-                String key = relationship.kind().name() + ":" + fromModuleEntityId + "->" + toModuleEntityId;
+                String key = relationship.kind().name() + ":" + fromModuleEntityId + "->" + toModuleEntityId + "|" + rollupDependencySignature(relationship) + "|same=" + sameModule;
                 if (seenModuleUses.add(key)) {
-                    Map<String, Object> moduleMetadata = sameModule
-                        ? Map.of("rollup", "module-module", "sameModule", true)
-                        : Map.of("rollup", "module-module");
+                    Map<String, Object> moduleAdditions = new LinkedHashMap<>();
+                    moduleAdditions.put("rollup", "module-module");
+                    if (sameModule) {
+                        moduleAdditions.put("sameModule", true);
+                    }
+                    Map<String, Object> moduleMetadata = topologyMetadata(relationship, moduleAdditions);
                     ArchitectureRelationship moduleRelationship = switch (relationship.kind()) {
                         case EXTENDS -> TopologySupport.typedRelationship(RelationshipKind.EXTENDS, fromModuleEntityId, toModuleEntityId, relationship.label(), relationship.sourceRefs(), moduleMetadata);
                         case IMPLEMENTS -> TopologySupport.typedRelationship(RelationshipKind.IMPLEMENTS, fromModuleEntityId, toModuleEntityId, relationship.label(), relationship.sourceRefs(), moduleMetadata);
@@ -466,6 +470,30 @@ private static String moduleRoot(String relativePath) {
         String language = String.valueOf(relationship.metadata().getOrDefault("language", ""));
         String dependencySource = String.valueOf(relationship.metadata().getOrDefault("dependencySource", ""));
         return "typescript".equalsIgnoreCase(language) && "import".equalsIgnoreCase(dependencySource);
+    }
+
+
+    private static String rollupDependencySignature(ExtractedRelationshipFact relationship) {
+        if (relationship == null || relationship.metadata() == null || relationship.metadata().isEmpty()) {
+            return "generic";
+        }
+        List<String> parts = new ArrayList<>();
+        addRollupSignaturePart(parts, "dependencySource", relationship.metadata().get("dependencySource"));
+        addRollupSignaturePart(parts, "framework", relationship.metadata().get("framework"));
+        addRollupSignaturePart(parts, "frameworkRelationship", relationship.metadata().get("frameworkRelationship"));
+        addRollupSignaturePart(parts, "hookClassification", relationship.metadata().get("hookClassification"));
+        addRollupSignaturePart(parts, "dependencyCategory", relationship.metadata().get("dependencyCategory"));
+        return parts.isEmpty() ? "generic" : String.join("|", parts);
+    }
+
+    private static void addRollupSignaturePart(List<String> parts, String key, Object value) {
+        if (value == null) {
+            return;
+        }
+        String normalized = String.valueOf(value).trim();
+        if (!normalized.isEmpty()) {
+            parts.add(key + "=" + normalized);
+        }
     }
 
     private static Map<String, Object> topologyMetadata(ExtractedRelationshipFact relationship, Map<String, Object> additions) {

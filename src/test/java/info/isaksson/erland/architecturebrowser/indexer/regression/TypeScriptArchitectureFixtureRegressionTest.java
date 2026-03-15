@@ -361,6 +361,143 @@ class TypeScriptArchitectureFixtureRegressionTest {
         );
     }
 
+    @Test
+    void frontendFrameworkRelationshipsFlowIntoTypeAndModuleRollups() {
+        ArchitectureIndexDocument document = buildDocument(List.of(
+            tsFile(
+                "src/app/context/AuthContext.tsx",
+                "typescript",
+                "react",
+                """
+                import React, { createContext } from 'react';
+                export const AuthContext = createContext(null);
+                export function AuthProvider() { return <AuthContext.Provider value={{}}><section /></AuthContext.Provider>; }
+                """,
+                List.of("import React, { createContext } from 'react';"),
+                List.of(
+                    functionDeclaration("export function AuthProvider() { return <AuthContext.Provider value={{}}><section /></AuthContext.Provider>; }", "AuthProvider")
+                )
+            ),
+            tsFile(
+                "src/app/hooks/useOrdersQuery.ts",
+                "typescript",
+                "react",
+                """
+                export function useOrdersQuery() { return null; }
+                """,
+                List.of(),
+                List.of(functionDeclaration("export function useOrdersQuery() { return null; }", "useOrdersQuery"))
+            ),
+            tsFile(
+                "src/app/pages/OrdersPage.tsx",
+                "typescript",
+                "react",
+                """
+                import React, { useContext } from 'react';
+                import { Route } from 'react-router-dom';
+                import { AuthContext } from '../context/AuthContext';
+                import { useOrdersQuery } from '../hooks/useOrdersQuery';
+
+                export function OrdersPage() {
+                  const auth = useContext(AuthContext);
+                  useOrdersQuery();
+                  return <main><Route path="orders" element={<OrdersPage />} /></main>;
+                }
+                """,
+                List.of(
+                    "import React, { useContext } from 'react';",
+                    "import { Route } from 'react-router-dom';",
+                    "import { AuthContext } from '../context/AuthContext';",
+                    "import { useOrdersQuery } from '../hooks/useOrdersQuery';"
+                ),
+                List.of(functionDeclaration("""
+                    export function OrdersPage() {
+                      const auth = useContext(AuthContext);
+                      useOrdersQuery();
+                      return <main><Route path="orders" element={<OrdersPage />} /></main>;
+                    }
+                    """, "OrdersPage"))
+            ),
+            tsFile(
+                "src/app/orders/orders.component.ts",
+                "typescript",
+                "angular",
+                """
+                import { Component, Inject } from '@angular/core';
+                import { ORDER_API } from './orders.tokens';
+
+                @Component({ selector: 'app-orders' })
+                export class OrdersComponent {
+                  constructor(@Inject(ORDER_API) api: OrdersApi) {}
+                }
+                """,
+                List.of(
+                    "import { Component, Inject } from '@angular/core';",
+                    "import { ORDER_API } from './orders.tokens';"
+                ),
+                List.of(classDeclaration("""
+                    @Component({ selector: 'app-orders' })
+                    export class OrdersComponent {
+                      constructor(@Inject(ORDER_API) api: OrdersApi) {}
+                    }
+                    """, "OrdersComponent", List.of("@Component({ selector: 'app-orders' })"), null, List.of(), List.of(
+                    methodDefinition("constructor(@Inject(ORDER_API) api: OrdersApi) {}", "constructor", null)
+                )))
+            ),
+            tsFile(
+                "src/app/orders/orders.module.ts",
+                "typescript",
+                "angular",
+                """
+                import { NgModule } from '@angular/core';
+                import { OrdersComponent } from './orders.component';
+                import { OrdersApi } from './orders.api';
+                import { ORDER_API } from './orders.tokens';
+
+                @NgModule({ declarations: [OrdersComponent], providers: [{ provide: ORDER_API, useClass: OrdersApi }] })
+                export class OrdersModule {}
+                """,
+                List.of(
+                    "import { NgModule } from '@angular/core';",
+                    "import { OrdersComponent } from './orders.component';",
+                    "import { OrdersApi } from './orders.api';",
+                    "import { ORDER_API } from './orders.tokens';"
+                ),
+                List.of(classDeclaration("""
+                    @NgModule({ declarations: [OrdersComponent], providers: [{ provide: ORDER_API, useClass: OrdersApi }] })
+                    export class OrdersModule {}
+                    """, "OrdersModule", List.of("@NgModule({ declarations: [OrdersComponent], providers: [{ provide: ORDER_API, useClass: OrdersApi }] })"), null, List.of(), List.of()))
+            )
+        ));
+
+        Map<String, Object> dependencyViews = dependencyViews(document);
+        List<Map<String, Object>> frameworkTypeDependencies = dependencyViewList(document, "frameworkTypeDependencies");
+        List<Map<String, Object>> frameworkModuleDependencies = dependencyViewList(document, "frameworkModuleDependencies");
+        List<Map<String, Object>> compositionTypeDependencies = dependencyViewList(document, "compositionTypeDependencies");
+        List<Map<String, Object>> routeTypeDependencies = dependencyViewList(document, "routeTypeDependencies");
+        List<Map<String, Object>> providerTypeDependencies = dependencyViewList(document, "providerTypeDependencies");
+        List<Map<String, Object>> hookTypeDependencies = dependencyViewList(document, "hookTypeDependencies");
+
+        assertTrue(!frameworkTypeDependencies.isEmpty(), () -> "Expected framework-aware type dependencies. dependencyViews=" + dependencyViews);
+        assertTrue(!frameworkModuleDependencies.isEmpty(), () -> "Expected framework-aware module dependencies. dependencyViews=" + dependencyViews);
+        assertTrue(compositionTypeDependencies.stream().anyMatch(dep -> ((List<?>) dep.get("frameworkRelationships")).contains("renders")));
+        assertTrue(routeTypeDependencies.stream().anyMatch(dep -> ((List<?>) dep.get("frameworkRelationships")).contains("targets")));
+        assertTrue(providerTypeDependencies.stream().anyMatch(dep -> {
+            List<?> relationships = (List<?>) dep.get("frameworkRelationships");
+            return relationships.contains("providesContext") || relationships.contains("consumesContext") || relationships.contains("injects") || relationships.contains("providedBy");
+        }), () -> "Expected provider/DI dependencies. providerTypeDependencies=" + providerTypeDependencies);
+        assertTrue(hookTypeDependencies.stream().anyMatch(dep -> ((List<?>) dep.get("frameworkRelationships")).contains("usesHook")));
+        assertTrue(frameworkModuleDependencies.stream().anyMatch(dep -> {
+            List<?> viewKinds = (List<?>) dep.get("architectureViewKinds");
+            List<?> frameworks = (List<?>) dep.get("frameworks");
+            return viewKinds.contains("framework") && (frameworks.contains("react") || frameworks.contains("angular"));
+        }), () -> "Expected framework metadata on module rollups. frameworkModuleDependencies=" + frameworkModuleDependencies);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> frontendArchitectureViews = (Map<String, Object>) dependencyViews.get("frontendArchitectureViews");
+        assertEquals(List.of("frameworkTypeDependencies", "frameworkModuleDependencies"), frontendArchitectureViews.get("frameworkAware"));
+    }
+
     private static ArchitectureIndexDocument buildDocument(List<TsFixtureFile> files) {
         Set<String> technologies = files.stream()
             .flatMap(file -> file.technologies().stream())
@@ -408,9 +545,13 @@ class TypeScriptArchitectureFixtureRegressionTest {
     }
 
     @SuppressWarnings("unchecked")
+    private static Map<String, Object> dependencyViews(ArchitectureIndexDocument document) {
+        return (Map<String, Object>) document.metadata().get("dependencyViews");
+    }
+
+    @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> dependencyViewList(ArchitectureIndexDocument document, String key) {
-        Map<String, Object> dependencyViews = (Map<String, Object>) document.metadata().get("dependencyViews");
-        return (List<Map<String, Object>>) dependencyViews.get(key);
+        return (List<Map<String, Object>>) dependencyViews(document).get(key);
     }
 
     private static ArchitectureEntity entity(ArchitectureIndexDocument document, EntityKind kind, String name) {

@@ -631,24 +631,123 @@ public final class ArchitectureIrFactory {
             evidenceDependencies.add(dependency.toMetadataMap());
         }
         List<Map<String, Object>> packageMetrics = buildPackageMetrics(entitiesById, packageDependencies);
+        List<Map<String, Object>> frameworkTypeDependencies = filterDependenciesByViewKind(typeDependencies, "framework");
+        List<Map<String, Object>> frameworkModuleDependencies = filterDependenciesByViewKind(moduleDependencies, "framework");
+        List<Map<String, Object>> compositionTypeDependencies = filterDependenciesByViewKind(typeDependencies, "composition");
+        List<Map<String, Object>> compositionModuleDependencies = filterDependenciesByViewKind(moduleDependencies, "composition");
+        List<Map<String, Object>> routeTypeDependencies = filterDependenciesByViewKind(typeDependencies, "route");
+        List<Map<String, Object>> routeModuleDependencies = filterDependenciesByViewKind(moduleDependencies, "route");
+        List<Map<String, Object>> providerTypeDependencies = filterDependenciesByViewKind(typeDependencies, "provider-di");
+        List<Map<String, Object>> providerModuleDependencies = filterDependenciesByViewKind(moduleDependencies, "provider-di");
+        List<Map<String, Object>> hookTypeDependencies = filterDependenciesByViewKind(typeDependencies, "hook");
+        List<Map<String, Object>> hookModuleDependencies = filterDependenciesByViewKind(moduleDependencies, "hook");
         Map<String, Object> dependencyViews = new LinkedHashMap<>();
         dependencyViews.put("typeDependencies", List.copyOf(typeDependencies));
         dependencyViews.put("packageDependencies", List.copyOf(packageDependencies));
         dependencyViews.put("moduleDependencies", List.copyOf(moduleDependencies));
         dependencyViews.put("evidenceDependencies", List.copyOf(evidenceDependencies));
+        dependencyViews.put("frameworkTypeDependencies", List.copyOf(frameworkTypeDependencies));
+        dependencyViews.put("frameworkModuleDependencies", List.copyOf(frameworkModuleDependencies));
+        dependencyViews.put("compositionTypeDependencies", List.copyOf(compositionTypeDependencies));
+        dependencyViews.put("compositionModuleDependencies", List.copyOf(compositionModuleDependencies));
+        dependencyViews.put("routeTypeDependencies", List.copyOf(routeTypeDependencies));
+        dependencyViews.put("routeModuleDependencies", List.copyOf(routeModuleDependencies));
+        dependencyViews.put("providerTypeDependencies", List.copyOf(providerTypeDependencies));
+        dependencyViews.put("providerModuleDependencies", List.copyOf(providerModuleDependencies));
+        dependencyViews.put("hookTypeDependencies", List.copyOf(hookTypeDependencies));
+        dependencyViews.put("hookModuleDependencies", List.copyOf(hookModuleDependencies));
         dependencyViews.put("packageMetrics", List.copyOf(packageMetrics));
         dependencyViews.put("boundarySummary", buildBoundarySummary(typeDependencies, packageDependencies, moduleDependencies));
-        dependencyViews.put("recommendedEntryPoints", List.of("packageDependencies", "typeDependencies", "moduleDependencies", "evidenceDependencies"));
-        dependencyViews.put("primaryArchitectureViews", List.of("packageDependencies", "typeDependencies", "moduleDependencies"));
+        List<String> recommendedEntryPoints = new ArrayList<>(List.of("packageDependencies", "typeDependencies", "moduleDependencies"));
+        List<String> primaryArchitectureViews = new ArrayList<>(List.of("packageDependencies", "typeDependencies", "moduleDependencies"));
+        if (!frameworkTypeDependencies.isEmpty()) {
+            recommendedEntryPoints.add("frameworkTypeDependencies");
+            primaryArchitectureViews.add("frameworkTypeDependencies");
+        }
+        if (!frameworkModuleDependencies.isEmpty()) {
+            recommendedEntryPoints.add("frameworkModuleDependencies");
+            primaryArchitectureViews.add("frameworkModuleDependencies");
+        }
+        recommendedEntryPoints.add("evidenceDependencies");
+        dependencyViews.put("recommendedEntryPoints", List.copyOf(recommendedEntryPoints));
+        dependencyViews.put("primaryArchitectureViews", List.copyOf(primaryArchitectureViews));
+        dependencyViews.put("frontendArchitectureViews", Map.of(
+            "frameworkAware", List.of("frameworkTypeDependencies", "frameworkModuleDependencies"),
+            "composition", List.of("compositionTypeDependencies", "compositionModuleDependencies"),
+            "routing", List.of("routeTypeDependencies", "routeModuleDependencies"),
+            "providerAndDi", List.of("providerTypeDependencies", "providerModuleDependencies"),
+            "hooks", List.of("hookTypeDependencies", "hookModuleDependencies")
+        ));
         dependencyViews.put("evidenceStatus", Map.of(
             "fileImportDependencies", "supporting-evidence",
             "recommendedForArchitectureViews", false,
-            "description", "File import dependencies are retained for traceability and drill-down, but higher-level architecture views should prefer package, type, and module dependencies."
+            "description", "File import dependencies are retained for traceability and drill-down, but higher-level architecture views should prefer package, type, module, and framework-aware dependency rollups."
         ));
         return Map.copyOf(dependencyViews);
     }
 
 
+
+    private static List<Map<String, Object>> filterDependenciesByViewKind(List<Map<String, Object>> dependencies, String viewKind) {
+        List<Map<String, Object>> filtered = new ArrayList<>();
+        for (Map<String, Object> dependency : dependencies) {
+            if (hasArchitectureViewKind(dependency, viewKind)) {
+                filtered.add(dependency);
+            }
+        }
+        return List.copyOf(filtered);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean hasArchitectureViewKind(Map<String, Object> dependency, String viewKind) {
+        if (dependency == null || viewKind == null || viewKind.isBlank()) {
+            return false;
+        }
+        Object value = dependency.get("architectureViewKinds");
+        if (value instanceof List<?> list) {
+            return list.stream().filter(Objects::nonNull).map(String::valueOf).anyMatch(viewKind::equals);
+        }
+        return false;
+    }
+
+    private static void addFrameworkMetadata(
+        Set<String> frameworks,
+        Set<String> frameworkRelationships,
+        Set<String> architectureViewKinds,
+        ArchitectureRelationship relationship
+    ) {
+        if (relationship == null || relationship.metadata() == null) {
+            return;
+        }
+        NormalizedTypeDependency.addIfPresent(frameworks, relationship.metadata().get("framework"));
+        Object frameworkRelationship = relationship.metadata().get("frameworkRelationship");
+        NormalizedTypeDependency.addIfPresent(frameworkRelationships, frameworkRelationship);
+        addArchitectureViewKinds(architectureViewKinds, relationship.metadata().get("dependencySource"), frameworkRelationship);
+    }
+
+    private static void addArchitectureViewKinds(Set<String> sink, Object dependencySource, Object frameworkRelationship) {
+        String dependencySourceValue = dependencySource == null ? "" : String.valueOf(dependencySource).trim();
+        String frameworkRelationshipValue = frameworkRelationship == null ? "" : String.valueOf(frameworkRelationship).trim();
+        boolean frameworkSpecificSource = dependencySourceValue.startsWith("react:") || dependencySourceValue.startsWith("angular:");
+        if (!frameworkRelationshipValue.isEmpty() || frameworkSpecificSource) {
+            sink.add("framework");
+        }
+        String key = !frameworkRelationshipValue.isEmpty() ? frameworkRelationshipValue : dependencySourceValue;
+        if (key.isEmpty()) {
+            return;
+        }
+        switch (key) {
+            case "renders", "declares", "imports", "exports", "bootstraps" -> sink.add("composition");
+            case "targets", "childOf", "lazyLoads", "guards", "resolves" -> sink.add("route");
+            case "provides", "providedBy", "injects", "resolvesTo", "providesContext", "consumesContext" -> sink.add("provider-di");
+            case "usesHook" -> sink.add("hook");
+            default -> {
+                if (dependencySourceValue.contains("route")) {
+                    sink.add("route");
+                }
+            }
+        }
+    }
 
     private static List<Map<String, Object>> buildPackageMetrics(
         Map<String, ArchitectureEntity> entitiesById,
@@ -1003,7 +1102,22 @@ public final class ArchitectureIrFactory {
     }
 
     private static boolean isTypeEntity(ArchitectureEntity entity) {
-        return entity != null && (entity.kind() == EntityKind.CLASS || entity.kind() == EntityKind.INTERFACE);
+        if (entity == null) {
+            return false;
+        }
+        if (entity.kind() == EntityKind.CLASS || entity.kind() == EntityKind.INTERFACE) {
+            return true;
+        }
+        if (entity.kind() == EntityKind.FUNCTION || entity.kind() == EntityKind.UI_MODULE) {
+            String language = stringMetadata(entity, "language", "");
+            if ("typescript".equalsIgnoreCase(language)) {
+                return true;
+            }
+            if (entity.metadata() != null && entity.metadata().get("framework") != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String boundaryForEntity(ArchitectureEntity entity) {
@@ -1072,6 +1186,9 @@ public final class ArchitectureIrFactory {
         private final String targetClassification;
         private final Set<String> dependencySources = new LinkedHashSet<>();
         private final Set<String> dependencyCategories = new LinkedHashSet<>();
+        private final Set<String> frameworks = new LinkedHashSet<>();
+        private final Set<String> frameworkRelationships = new LinkedHashSet<>();
+        private final Set<String> architectureViewKinds = new LinkedHashSet<>();
         private final Set<String> evidenceRelationshipIds = new LinkedHashSet<>();
         private final Set<String> evidenceLabels = new LinkedHashSet<>();
 
@@ -1107,6 +1224,7 @@ public final class ArchitectureIrFactory {
             if (relationship.metadata() != null) {
                 addIfPresent(dependencySources, relationship.metadata().get("dependencySource"));
                 addIfPresent(dependencyCategories, relationship.metadata().get("dependencyCategory"));
+                addFrameworkMetadata(frameworks, frameworkRelationships, architectureViewKinds, relationship);
             }
         }
 
@@ -1123,6 +1241,9 @@ public final class ArchitectureIrFactory {
             }
             metadata.put("dependencySources", List.copyOf(dependencySources));
             metadata.put("dependencyCategories", List.copyOf(dependencyCategories));
+            metadata.put("frameworks", List.copyOf(frameworks));
+            metadata.put("frameworkRelationships", List.copyOf(frameworkRelationships));
+            metadata.put("architectureViewKinds", List.copyOf(architectureViewKinds));
             metadata.put("sourceBoundary", sourceBoundary);
             metadata.put("targetBoundary", targetBoundary);
             metadata.put("targetClassification", targetClassification);
@@ -1156,6 +1277,9 @@ public final class ArchitectureIrFactory {
         private final String targetPackageClassification;
         private final Set<String> dependencySources = new LinkedHashSet<>();
         private final Set<String> dependencyCategories = new LinkedHashSet<>();
+        private final Set<String> frameworks = new LinkedHashSet<>();
+        private final Set<String> frameworkRelationships = new LinkedHashSet<>();
+        private final Set<String> architectureViewKinds = new LinkedHashSet<>();
         private final Set<String> evidenceRelationshipIds = new LinkedHashSet<>();
         private final Set<String> evidenceLabels = new LinkedHashSet<>();
         private final Set<String> sourceTypeIds = new LinkedHashSet<>();
@@ -1195,6 +1319,7 @@ public final class ArchitectureIrFactory {
             if (relationship.metadata() != null) {
                 NormalizedTypeDependency.addIfPresent(dependencySources, relationship.metadata().get("dependencySource"));
                 NormalizedTypeDependency.addIfPresent(dependencyCategories, relationship.metadata().get("dependencyCategory"));
+                addFrameworkMetadata(frameworks, frameworkRelationships, architectureViewKinds, relationship);
             }
         }
 
@@ -1205,6 +1330,9 @@ public final class ArchitectureIrFactory {
             metadata.put("relationshipKind", relationshipKind.name());
             metadata.put("dependencySources", List.copyOf(dependencySources));
             metadata.put("dependencyCategories", List.copyOf(dependencyCategories));
+            metadata.put("frameworks", List.copyOf(frameworks));
+            metadata.put("frameworkRelationships", List.copyOf(frameworkRelationships));
+            metadata.put("architectureViewKinds", List.copyOf(architectureViewKinds));
             metadata.put("sourceBoundary", sourceBoundary);
             metadata.put("targetBoundary", targetBoundary);
             metadata.put("targetPackageClassification", targetPackageClassification);
@@ -1231,6 +1359,9 @@ public final class ArchitectureIrFactory {
         private final boolean sameModule;
         private final Set<String> dependencySources = new LinkedHashSet<>();
         private final Set<String> dependencyCategories = new LinkedHashSet<>();
+        private final Set<String> frameworks = new LinkedHashSet<>();
+        private final Set<String> frameworkRelationships = new LinkedHashSet<>();
+        private final Set<String> architectureViewKinds = new LinkedHashSet<>();
         private final Set<String> evidenceRelationshipIds = new LinkedHashSet<>();
         private final Set<String> evidenceLabels = new LinkedHashSet<>();
         private final Set<String> sourceTypeIds = new LinkedHashSet<>();
@@ -1272,6 +1403,7 @@ public final class ArchitectureIrFactory {
             if (relationship.metadata() != null) {
                 NormalizedTypeDependency.addIfPresent(dependencySources, relationship.metadata().get("dependencySource"));
                 NormalizedTypeDependency.addIfPresent(dependencyCategories, relationship.metadata().get("dependencyCategory"));
+                addFrameworkMetadata(frameworks, frameworkRelationships, architectureViewKinds, relationship);
             }
         }
 
@@ -1282,6 +1414,9 @@ public final class ArchitectureIrFactory {
             metadata.put("relationshipKind", relationshipKind.name());
             metadata.put("dependencySources", List.copyOf(dependencySources));
             metadata.put("dependencyCategories", List.copyOf(dependencyCategories));
+            metadata.put("frameworks", List.copyOf(frameworks));
+            metadata.put("frameworkRelationships", List.copyOf(frameworkRelationships));
+            metadata.put("architectureViewKinds", List.copyOf(architectureViewKinds));
             metadata.put("sourceBoundary", sourceBoundary);
             metadata.put("targetBoundary", targetBoundary);
             metadata.put("targetModuleClassification", targetModuleClassification);
@@ -1308,6 +1443,9 @@ public final class ArchitectureIrFactory {
         private final String targetClassification;
         private final Set<String> dependencySources = new LinkedHashSet<>();
         private final Set<String> dependencyCategories = new LinkedHashSet<>();
+        private final Set<String> frameworks = new LinkedHashSet<>();
+        private final Set<String> frameworkRelationships = new LinkedHashSet<>();
+        private final Set<String> architectureViewKinds = new LinkedHashSet<>();
         private final Set<String> evidenceRelationshipIds = new LinkedHashSet<>();
         private final Set<String> evidenceLabels = new LinkedHashSet<>();
 
@@ -1340,6 +1478,7 @@ public final class ArchitectureIrFactory {
             if (dependencyCategory instanceof String s && !s.isBlank()) {
                 dependencyCategories.add(s);
             }
+            addFrameworkMetadata(frameworks, frameworkRelationships, architectureViewKinds, relationship);
             evidenceRelationshipIds.add(relationship.id());
             if (relationship.label() != null && !relationship.label().isBlank()) {
                 evidenceLabels.add(relationship.label());
@@ -1358,6 +1497,9 @@ public final class ArchitectureIrFactory {
             metadata.put("targetClassification", targetClassification);
             metadata.put("dependencySources", List.copyOf(dependencySources));
             metadata.put("dependencyCategories", List.copyOf(dependencyCategories));
+            metadata.put("frameworks", List.copyOf(frameworks));
+            metadata.put("frameworkRelationships", List.copyOf(frameworkRelationships));
+            metadata.put("architectureViewKinds", List.copyOf(architectureViewKinds));
             metadata.put("underlyingRelationshipCount", evidenceRelationshipIds.size());
             metadata.put("evidenceRelationshipIds", List.copyOf(evidenceRelationshipIds));
             metadata.put("evidenceLabels", List.copyOf(evidenceLabels));
