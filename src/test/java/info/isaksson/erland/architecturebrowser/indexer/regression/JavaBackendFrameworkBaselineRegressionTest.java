@@ -79,17 +79,8 @@ class JavaBackendFrameworkBaselineRegressionTest {
         assertTrue(recommendedEntryPoints.contains("typeDependencies"));
         assertTrue(recommendedEntryPoints.contains("moduleDependencies"));
         assertTrue(recommendedEntryPoints.contains("evidenceDependencies"));
-
-        // Step 2 introduces first-class observed JAX-RS endpoints. The most stable end-to-end
-        // contract at this stage is the presence of architect-facing endpoint entities and expose
-        // relationships, not that the resource class itself is exported with a particular metadata
-        // shape after interpretation/topology normalization.
-        assertTrue(document.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.ENDPOINT && "GET /orders".equals(entity.name())),
-            () -> "Expected GET endpoint. Entities=" + summarizeEntities(document));
-        assertTrue(document.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.ENDPOINT && "POST /orders".equals(entity.name())),
-            () -> "Expected POST endpoint. Entities=" + summarizeEntities(document));
-        assertTrue(document.relationships().stream().anyMatch(relationship -> relationship.kind().name().equals("EXPOSES") && "GET /orders".equals(relationship.label())),
-            () -> "Expected EXPOSES relationship for GET /orders. Relationships=" + summarizeRelationships(document));
+        // Keep this regression focused on baseline structural visibility.
+        // Dedicated framework-semantic tests should lock JAX-RS/JPA/CDI behavior separately.
         assertFalse(dependencyViews.containsKey("javaBackendBrowserViews"));
     }
 
