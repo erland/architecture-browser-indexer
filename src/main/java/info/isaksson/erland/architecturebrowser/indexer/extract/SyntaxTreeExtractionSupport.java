@@ -318,6 +318,77 @@ final class SyntaxTreeExtractionSupport {
         ).contains(node.type());
     }
 
+    static String typeScriptMethodReturnType(SyntaxNode node) {
+        if (node == null || node.textSnippet() == null || node.textSnippet().isBlank()) {
+            return "";
+        }
+        String snippet = node.textSnippet().replace('\n', ' ').replace('\r', ' ').trim();
+        snippet = snippet.replaceAll("@[A-Za-z_][\\w.]*\\s*(\\([^)]*\\))?", " ");
+        int closeParen = snippet.indexOf(')');
+        if (closeParen < 0) {
+            return "";
+        }
+        String tail = snippet.substring(closeParen + 1).trim();
+        if (!tail.startsWith(":")) {
+            return "";
+        }
+        tail = tail.substring(1).trim();
+        int cut = tail.length();
+        for (String marker : new String[]{"{", ";", "="}) {
+            int idx = tail.indexOf(marker);
+            if (idx >= 0) {
+                cut = Math.min(cut, idx);
+            }
+        }
+        return tail.substring(0, cut).replaceAll("\\s+", " ").trim();
+    }
+
+    static List<String> typeScriptMethodParameterDeclaredTypes(SyntaxNode node) {
+        String params = parameterSnippet(node);
+        if (params == null || params.isBlank() || "()".equals(params.strip())) {
+            return List.of();
+        }
+        String inner = params.strip();
+        if (inner.startsWith("(")) {
+            inner = inner.substring(1);
+        }
+        if (inner.endsWith(")")) {
+            inner = inner.substring(0, inner.length() - 1);
+        }
+        if (inner.isBlank()) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        for (String part : splitTopLevelCommaSeparated(inner)) {
+            String type = typeScriptParameterDeclaredType(part);
+            if (!type.isBlank()) {
+                result.add(type);
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private static String typeScriptParameterDeclaredType(String parameterSnippet) {
+        if (parameterSnippet == null || parameterSnippet.isBlank()) {
+            return "";
+        }
+        String snippet = parameterSnippet.replace('\n', ' ').replace('\r', ' ').trim();
+        snippet = snippet.replaceAll("@[A-Za-z_][\\w.]*\\s*(\\([^)]*\\))?", " ");
+        int colon = snippet.indexOf(':');
+        if (colon < 0) {
+            return "";
+        }
+        String tail = snippet.substring(colon + 1).trim();
+        int cut = tail.length();
+        for (String marker : new String[]{"=", ","}) {
+            int idx = tail.indexOf(marker);
+            if (idx >= 0) {
+                cut = Math.min(cut, idx);
+            }
+        }
+        return tail.substring(0, cut).replaceAll("\\s+", " ").trim();
+    }
+
     static boolean containsDescendantType(SyntaxNode node, String type) {
         return firstDescendantByType(node, Set.of(type)).isPresent();
     }

@@ -103,14 +103,14 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
         for (SyntaxNode classNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("class_declaration"))) {
             ExtractedEntityFact typeEntity = declaredTypes.get(SyntaxTreeExtractionSupport.declarationName(classNode));
             if (typeEntity != null) {
-                addOwnedMembers(parseResult, accumulator, typeEntity, relativePath, classNode, extractionMode, "class");
+                addOwnedMembers(parseResult, accumulator, typeEntity, relativePath, classNode, extractionMode, "class", declaredTypes);
                 addTypeRelationships(accumulator, relativePath, classNode, typeEntity, declaredTypes);
             }
         }
         for (SyntaxNode interfaceNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("interface_declaration"))) {
             ExtractedEntityFact typeEntity = declaredTypes.get(SyntaxTreeExtractionSupport.declarationName(interfaceNode));
             if (typeEntity != null) {
-                addOwnedMembers(parseResult, accumulator, typeEntity, relativePath, interfaceNode, extractionMode, "interface");
+                addOwnedMembers(parseResult, accumulator, typeEntity, relativePath, interfaceNode, extractionMode, "interface", declaredTypes);
                 addTypeRelationships(accumulator, relativePath, interfaceNode, typeEntity, declaredTypes);
             }
         }
@@ -132,7 +132,8 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
         String relativePath,
         SyntaxNode ownerNode,
         ExtractionMode extractionMode,
-        String ownerDeclarationKind
+        String ownerDeclarationKind,
+        Map<String, ExtractedEntityFact> declaredTypes
     ) {
         String ownerQualifiedName = String.valueOf(ownerEntity.metadata().getOrDefault("qualifiedName", ownerEntity.name()));
         for (SyntaxNode memberNode : ownerNode.children()) {
@@ -144,6 +145,7 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
                         ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(memberNode), memberNode.textSnippet(), Map.of("language", "typescript", "kind", memberNode.type()))
                         : methodEntity.sourceRefs().getFirst();
                     accumulator.addRelationship(ExtractionSupport.containsRelationship(ownerEntity.id(), methodEntity.id(), ref));
+                    addMethodTypeDependencies(accumulator, ownerEntity, methodEntity, relativePath, lineOf(ref, memberNode), ref, declaredTypes);
                 }
             } else if (SyntaxTreeExtractionSupport.isTypeScriptPropertyLikeDeclaration(memberNode)) {
                 ExtractedEntityFact propertyEntity = toTypeScriptPropertyEntity(parseResult, relativePath, extractionMode, ownerEntity.scopeId(), memberNode, ownerQualifiedName, ownerDeclarationKind);
@@ -153,6 +155,7 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
                         ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(memberNode), memberNode.textSnippet(), Map.of("language", "typescript", "kind", memberNode.type()))
                         : propertyEntity.sourceRefs().getFirst();
                     accumulator.addRelationship(ExtractionSupport.containsRelationship(ownerEntity.id(), propertyEntity.id(), ref));
+                    addPropertyTypeDependencies(accumulator, ownerEntity, propertyEntity, relativePath, lineOf(ref, memberNode), ref, declaredTypes);
                 }
             }
         }
@@ -323,6 +326,8 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
             Map.of(
                 "language", "typescript",
                 "parameters", parameterSnippet,
+                "returnType", SyntaxTreeExtractionSupport.typeScriptMethodReturnType(methodNode),
+                "parameterTypes", SyntaxTreeExtractionSupport.typeScriptMethodParameterDeclaredTypes(methodNode),
                 "decorators", decorators,
                 "ownerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName,
                 "ownerDeclarationKind", ownerDeclarationKind == null ? "" : ownerDeclarationKind,
@@ -382,6 +387,133 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
     }
 
 
+    private static void addPropertyTypeDependencies(
+        ExtractionAccumulator accumulator,
+        ExtractedEntityFact ownerEntity,
+        ExtractedEntityFact propertyEntity,
+        String relativePath,
+        int line,
+        SourceReference ref,
+        Map<String, ExtractedEntityFact> declaredTypes
+    ) {
+        String declaredType = String.valueOf(propertyEntity.metadata().getOrDefault("declaredType", ""));
+        if (declaredType.isBlank()) {
+            return;
+        }
+        addDeclaredTypeDependencies(
+            accumulator,
+            ownerEntity.id(),
+            List.of(declaredType),
+            relativePath,
+            line,
+            ref,
+            declaredTypes,
+            dependencyMetadata("field", "composition")
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void addMethodTypeDependencies(
+        ExtractionAccumulator accumulator,
+        ExtractedEntityFact ownerEntity,
+        ExtractedEntityFact methodEntity,
+        String relativePath,
+        int line,
+        SourceReference ref,
+        Map<String, ExtractedEntityFact> declaredTypes
+    ) {
+        String returnType = String.valueOf(methodEntity.metadata().getOrDefault("returnType", ""));
+        if (!returnType.isBlank()) {
+            addDeclaredTypeDependencies(
+                accumulator,
+                ownerEntity.id(),
+                List.of(returnType),
+                relativePath,
+                line,
+                ref,
+                declaredTypes,
+                dependencyMetadata("returnType", "api")
+            );
+        }
+        List<String> parameterTypes = (List<String>) methodEntity.metadata().getOrDefault("parameterTypes", List.of());
+        if (!parameterTypes.isEmpty()) {
+            addDeclaredTypeDependencies(
+                accumulator,
+                ownerEntity.id(),
+                parameterTypes,
+                relativePath,
+                line,
+                ref,
+                declaredTypes,
+                dependencyMetadata("constructor".equals(methodEntity.name()) ? "constructorParameter" : "parameterType", "api")
+            );
+        }
+    }
+
+    private static void addDeclaredTypeDependencies(
+        ExtractionAccumulator accumulator,
+        String sourceEntityId,
+        List<String> declaredTypeTexts,
+        String relativePath,
+        int line,
+        SourceReference ref,
+        Map<String, ExtractedEntityFact> declaredTypes,
+        Map<String, Object> metadata
+    ) {
+        if (sourceEntityId == null || declaredTypeTexts == null || declaredTypeTexts.isEmpty()) {
+            return;
+        }
+        java.util.LinkedHashSet<String> seen = new java.util.LinkedHashSet<>();
+        for (String declaredTypeText : declaredTypeTexts) {
+            for (String referencedType : extractReferencedTypes(declaredTypeText)) {
+                ResolvedTypeScriptType resolved = resolveTypeReference(accumulator, referencedType, EntityKind.CLASS, relativePath, line, declaredTypes);
+                if (resolved == null || sourceEntityId.equals(resolved.entityId()) || !seen.add(resolved.label())) {
+                    continue;
+                }
+                accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
+                    sourceEntityId,
+                    resolved.entityId(),
+                    resolved.label(),
+                    ref,
+                    "typescript",
+                    metadata
+                ));
+            }
+        }
+    }
+
+    private static List<String> extractReferencedTypes(String declaredTypeText) {
+        if (declaredTypeText == null || declaredTypeText.isBlank()) {
+            return List.of();
+        }
+        String normalized = declaredTypeText
+            .replaceAll("@[A-Za-z_][\\w.]*\\s*(\\([^)]*\\))?", " ")
+            .replaceAll("\\bextends\\b", " ")
+            .replaceAll("\\bkeyof\\b", " ")
+            .replaceAll("\\breadonly\\b", " ")
+            .replace("?", " ")
+            .replace("[]", " ")
+            .replace("...", " ")
+            .replace("|", " ")
+            .replace("&", " ");
+        Matcher matcher = Pattern.compile("([A-Za-z_$][\\w.$]*)").matcher(normalized);
+        java.util.LinkedHashSet<String> result = new java.util.LinkedHashSet<>();
+        while (matcher.find()) {
+            String candidate = matcher.group(1);
+            if (!isTypeScriptPrimitiveOrKeyword(candidate)) {
+                result.add(candidate);
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private static boolean isTypeScriptPrimitiveOrKeyword(String candidate) {
+        return Set.of(
+            "string", "number", "boolean", "void", "null", "undefined", "unknown", "never", "any",
+            "object", "symbol", "bigint", "true", "false", "this", "super"
+        ).contains(candidate);
+    }
+
     private static List<String> extractExtendedTypes(SyntaxNode typeNode) {
         return extractClauseTypes(typeNode, "extends_clause");
     }
@@ -420,6 +552,10 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
             .trim();
         Matcher matcher = Pattern.compile("([A-Za-z_$][\\w.$]*)").matcher(normalized);
         return matcher.find() ? matcher.group(1) : "";
+    }
+
+    private static int lineOf(SourceReference ref, SyntaxNode fallbackNode) {
+        return ref == null ? SyntaxTreeExtractionSupport.oneBasedLine(fallbackNode) : java.util.Objects.requireNonNullElse(ref.startLine(), SyntaxTreeExtractionSupport.oneBasedLine(fallbackNode));
     }
 
     private static Map<String, Object> dependencyMetadata(String dependencySource, String dependencyCategory) {

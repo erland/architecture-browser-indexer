@@ -368,6 +368,75 @@ class TypeScriptStructuralExtractorSafetyNetTest {
     }
 
     @Test
+    void addsDeclarationBasedDependenciesForPropertiesAndMethodSignatures() {
+        String source = """
+            import { ApiClient } from './api-client';
+            import type { User } from './contracts';
+
+            export class UserService {
+              currentUser: User;
+              constructor(api: ApiClient) {}
+              getUser(client: ApiClient): User { return this.currentUser; }
+            }
+            """;
+        SyntaxNode importApi = new SyntaxNode("import_statement", true, 0, 40, 0, 0, 0, 40, false, false,
+            "import { ApiClient } from './api-client';", List.of());
+        SyntaxNode importUser = new SyntaxNode("import_statement", true, 41, 81, 1, 0, 1, 40, false, false,
+            "import type { User } from './contracts';", List.of());
+        SyntaxNode userService = new SyntaxNode("class_declaration", true, 83, source.length(), 3, 0, 7, 1, false, false,
+            """
+            export class UserService {
+              currentUser: User;
+              constructor(api: ApiClient) {}
+              getUser(client: ApiClient): User { return this.currentUser; }
+            }
+            """.strip(), List.of(
+                new SyntaxNode("type_identifier", true, 96, 107, 3, 13, 3, 24, false, false, "UserService", List.of()),
+                new SyntaxNode("public_field_definition", true, 112, 130, 4, 2, 4, 20, false, false,
+                    "currentUser: User;", List.of(
+                        new SyntaxNode("property_identifier", true, 112, 123, 4, 2, 4, 13, false, false, "currentUser", List.of()),
+                        new SyntaxNode("type_identifier", true, 125, 129, 4, 15, 4, 19, false, false, "User", List.of())
+                    )),
+                new SyntaxNode("method_definition", true, 133, 163, 5, 2, 5, 32, false, false,
+                    "constructor(api: ApiClient) {}", List.of(
+                        new SyntaxNode("property_identifier", true, 133, 144, 5, 2, 5, 13, false, false, "constructor", List.of()),
+                        new SyntaxNode("formal_parameters", true, 144, 161, 5, 13, 5, 30, false, false, "(api: ApiClient)", List.of())
+                    )),
+                new SyntaxNode("method_definition", true, 166, 223, 6, 2, 6, 59, false, false,
+                    "getUser(client: ApiClient): User { return this.currentUser; }", List.of(
+                        new SyntaxNode("property_identifier", true, 166, 173, 6, 2, 6, 9, false, false, "getUser", List.of()),
+                        new SyntaxNode("formal_parameters", true, 173, 192, 6, 9, 6, 28, false, false, "(client: ApiClient)", List.of()),
+                        new SyntaxNode("type_identifier", true, 195, 199, 6, 31, 6, 35, false, false, "User", List.of())
+                    ))
+            ));
+
+        StructuralExtractionResult result = extract("src/app/user.service.ts", source, program(source, importApi, importUser, userService));
+
+        var userServiceEntity = entity(result, EntityKind.CLASS, "UserService");
+
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && userServiceEntity.id().equals(rel.fromEntityId())
+            && "User".equals(rel.label())
+            && "field".equals(rel.metadata().get("dependencySource"))
+            && "composition".equals(rel.metadata().get("dependencyCategory"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && userServiceEntity.id().equals(rel.fromEntityId())
+            && "ApiClient".equals(rel.label())
+            && "constructorParameter".equals(rel.metadata().get("dependencySource"))
+            && "api".equals(rel.metadata().get("dependencyCategory"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && userServiceEntity.id().equals(rel.fromEntityId())
+            && "ApiClient".equals(rel.label())
+            && "parameterType".equals(rel.metadata().get("dependencySource"))
+            && "api".equals(rel.metadata().get("dependencyCategory"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && userServiceEntity.id().equals(rel.fromEntityId())
+            && "User".equals(rel.label())
+            && "returnType".equals(rel.metadata().get("dependencySource"))
+            && "api".equals(rel.metadata().get("dependencyCategory"))));
+    }
+
+    @Test
     void resolvesLocalDeclaredTypesForTypeScriptHierarchyRelationships() {
         String source = """
             export interface BaseContract {}
