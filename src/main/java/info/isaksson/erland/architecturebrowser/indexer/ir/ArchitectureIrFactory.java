@@ -304,9 +304,11 @@ public final class ArchitectureIrFactory {
             ArchitectureEntity source = canonicalDependencyEntity(entitiesById.get(relationship.fromEntityId()), observedTypesByQualifiedName);
             ArchitectureEntity target = canonicalDependencyEntity(entitiesById.get(relationship.toEntityId()), observedTypesByQualifiedName);
             boolean packageRollup = hasRollup(relationship, "package-package");
+            boolean moduleRollup = hasRollup(relationship, "module-module");
             boolean dependencyRelationship = isDependencyRelationship(relationship.kind());
             boolean packageDependencyRelationship = packageRollup || isPackageDependencyRelationship(relationship, source, target);
-            if (!dependencyRelationship && !packageDependencyRelationship) {
+            boolean moduleDependencyRelationship = moduleRollup || isModuleDependencyRelationship(relationship, source, target);
+            if (!dependencyRelationship && !packageDependencyRelationship && !moduleDependencyRelationship) {
                 enriched.add(relationship);
                 continue;
             }
@@ -350,6 +352,23 @@ public final class ArchitectureIrFactory {
                     metadata.put("dependencyTargetPackageClassification", packageClassificationForName(targetPackageName, entitiesById));
                 }
                 metadata.put("dependencyTargetBoundary", targetPackageName == null ? "unknown" : packageBoundaryForName(targetPackageName, entitiesById));
+            } else if (moduleDependencyRelationship) {
+                metadata.put("dependencyView", "module");
+                metadata.put("dependencySourceModuleId", relationship.fromEntityId());
+                metadata.put("dependencyTargetModuleId", relationship.toEntityId());
+                String sourceModuleName = source == null ? null : moduleNameForDependencyEntity(source);
+                String targetModuleName = target == null ? null : moduleNameForDependencyEntity(target);
+                if (sourceModuleName != null) {
+                    metadata.put("dependencySourceModuleName", sourceModuleName);
+                    metadata.put("dependencySourceModuleBoundary", moduleBoundaryForName(sourceModuleName, entitiesById));
+                }
+                if (targetModuleName != null) {
+                    metadata.put("dependencyTargetModuleName", targetModuleName);
+                    metadata.put("dependencyTargetModuleBoundary", moduleBoundaryForName(targetModuleName, entitiesById));
+                    metadata.put("dependencyTargetModuleClassification", moduleClassificationForName(targetModuleName, entitiesById));
+                }
+                metadata.put("dependencyTargetBoundary", targetModuleName == null ? "unknown" : moduleBoundaryForName(targetModuleName, entitiesById));
+                metadata.put("sameModule", Objects.equals(sourceModuleName, targetModuleName));
             } else if (isImportEvidenceRelationship(relationship, source, target)) {
                 metadata.putIfAbsent("dependencyView", "evidence");
                 metadata.put("dependencyTargetInternal", isInternalEntity(target));
@@ -509,6 +528,7 @@ public final class ArchitectureIrFactory {
     ) {
         Map<String, NormalizedTypeDependency> typeDependenciesByKey = new LinkedHashMap<>();
         Map<String, NormalizedPackageDependency> packageDependenciesByKey = new LinkedHashMap<>();
+        Map<String, NormalizedModuleDependency> moduleDependenciesByKey = new LinkedHashMap<>();
         for (ArchitectureRelationship relationship : relationships) {
             ArchitectureEntity source = canonicalDependencyEntity(entitiesById.get(relationship.fromEntityId()), observedTypesByQualifiedName);
             ArchitectureEntity target = canonicalDependencyEntity(entitiesById.get(relationship.toEntityId()), observedTypesByQualifiedName);
@@ -544,6 +564,22 @@ public final class ArchitectureIrFactory {
                         packageClassificationForName(targetPackageName, entitiesById)
                     )).addEvidence(relationship, source, target);
                 }
+                String sourceModuleName = moduleNameForDependencyEntity(source);
+                String targetModuleName = moduleNameForDependencyEntity(target);
+                if (sourceModuleName != null && targetModuleName != null) {
+                    String moduleKey = relationship.kind().name() + "|" + sourceModuleName + "|" + targetModuleName;
+                    moduleDependenciesByKey.computeIfAbsent(moduleKey, ignored -> new NormalizedModuleDependency(
+                        sourceModuleName,
+                        targetModuleName,
+                        relationship.kind(),
+                        isInternalEntity(target),
+                        isExternalEntity(target),
+                        moduleBoundaryForName(sourceModuleName, entitiesById),
+                        moduleBoundaryForName(targetModuleName, entitiesById),
+                        moduleClassificationForName(targetModuleName, entitiesById),
+                        Objects.equals(sourceModuleName, targetModuleName)
+                    )).addEvidence(relationship, source, target);
+                }
             }
         }
         List<Map<String, Object>> typeDependencies = new ArrayList<>();
@@ -554,12 +590,17 @@ public final class ArchitectureIrFactory {
         for (NormalizedPackageDependency dependency : packageDependenciesByKey.values()) {
             packageDependencies.add(dependency.toMetadataMap());
         }
+        List<Map<String, Object>> moduleDependencies = new ArrayList<>();
+        for (NormalizedModuleDependency dependency : moduleDependenciesByKey.values()) {
+            moduleDependencies.add(dependency.toMetadataMap());
+        }
         List<Map<String, Object>> packageMetrics = buildPackageMetrics(entitiesById, packageDependencies);
         Map<String, Object> dependencyViews = new LinkedHashMap<>();
         dependencyViews.put("typeDependencies", List.copyOf(typeDependencies));
         dependencyViews.put("packageDependencies", List.copyOf(packageDependencies));
+        dependencyViews.put("moduleDependencies", List.copyOf(moduleDependencies));
         dependencyViews.put("packageMetrics", List.copyOf(packageMetrics));
-        dependencyViews.put("boundarySummary", buildBoundarySummary(typeDependencies, packageDependencies));
+        dependencyViews.put("boundarySummary", buildBoundarySummary(typeDependencies, packageDependencies, moduleDependencies));
         return Map.copyOf(dependencyViews);
     }
 
@@ -681,13 +722,16 @@ public final class ArchitectureIrFactory {
 
     private static Map<String, Object> buildBoundarySummary(
         List<Map<String, Object>> typeDependencies,
-        List<Map<String, Object>> packageDependencies
+        List<Map<String, Object>> packageDependencies,
+        List<Map<String, Object>> moduleDependencies
     ) {
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("typeInternalCount", countBoundary(typeDependencies, "targetBoundary", "internal"));
         summary.put("typeExternalCount", countBoundary(typeDependencies, "targetBoundary", "external"));
         summary.put("packageInternalCount", countBoundary(packageDependencies, "targetBoundary", "internal"));
         summary.put("packageExternalCount", countBoundary(packageDependencies, "targetBoundary", "external"));
+        summary.put("moduleInternalCount", countBoundary(moduleDependencies, "targetBoundary", "internal"));
+        summary.put("moduleExternalCount", countBoundary(moduleDependencies, "targetBoundary", "external"));
         return Map.copyOf(summary);
     }
 
@@ -777,6 +821,21 @@ public final class ArchitectureIrFactory {
             && isPackageEntity(target);
     }
 
+    private static boolean isModuleDependencyRelationship(
+        ArchitectureRelationship relationship,
+        ArchitectureEntity source,
+        ArchitectureEntity target
+    ) {
+        if (source == null || target == null) {
+            return false;
+        }
+        Object rollup = relationship.metadata() == null ? null : relationship.metadata().get("rollup");
+        return (relationship.kind() == RelationshipKind.USES || isDependencyRelationship(relationship.kind()))
+            && Objects.equals("module-module", rollup)
+            && isSourceRootEntity(source)
+            && isSourceRootEntity(target);
+    }
+
     private static boolean isImportEvidenceRelationship(
         ArchitectureRelationship relationship,
         ArchitectureEntity source,
@@ -814,6 +873,82 @@ public final class ArchitectureIrFactory {
             return null;
         }
         return qualifiedName.substring(0, qualifiedName.lastIndexOf('.'));
+    }
+
+    private static String moduleNameForDependencyEntity(ArchitectureEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        if (isSourceRootEntity(entity)) {
+            return entity.name();
+        }
+        if (entity.metadata() != null) {
+            Object explicit = entity.metadata().get("sourceRoot");
+            if (explicit instanceof String s && !s.isBlank()) {
+                return s;
+            }
+            Object relativePath = entity.metadata().get("relativePath");
+            if (relativePath instanceof String s && !s.isBlank()) {
+                String derived = moduleRootFromRelativePath(s);
+                if (derived != null) {
+                    return derived;
+                }
+            }
+        }
+        if (isInternalEntity(entity)) {
+            for (SourceReference ref : entity.sourceRefs()) {
+                if (ref == null || ref.path() == null || ref.path().isBlank()) {
+                    continue;
+                }
+                String derived = moduleRootFromRelativePath(ref.path());
+                if (derived != null) {
+                    return derived;
+                }
+            }
+        }
+        return packageNameForDependencyEntity(entity);
+    }
+
+    private static String moduleBoundaryForName(String moduleName, Map<String, ArchitectureEntity> entitiesById) {
+        if (moduleName == null || moduleName.isBlank()) {
+            return "unknown";
+        }
+        return findSourceRootEntityIdByName(moduleName, entitiesById) != null ? "internal" : "external";
+    }
+
+    private static String moduleClassificationForName(String moduleName, Map<String, ArchitectureEntity> entitiesById) {
+        if (moduleName == null || moduleName.isBlank()) {
+            return "unknown";
+        }
+        return findSourceRootEntityIdByName(moduleName, entitiesById) != null ? "observed-source-root" : "external-module-or-package";
+    }
+
+    private static String findSourceRootEntityIdByName(String moduleName, Map<String, ArchitectureEntity> entitiesById) {
+        for (ArchitectureEntity entity : entitiesById.values()) {
+            if (isSourceRootEntity(entity) && Objects.equals(moduleName, entity.name())) {
+                return entity.id();
+            }
+        }
+        return null;
+    }
+
+    private static String moduleRootFromRelativePath(String relativePath) {
+        if (relativePath == null || relativePath.isBlank()) {
+            return null;
+        }
+        String normalized = relativePath.replace('\\', '/');
+        String[] parts = normalized.split("/");
+        if (parts.length >= 3 && "src".equals(parts[0]) && ("main".equals(parts[1]) || "test".equals(parts[1]))) {
+            return parts[0] + "/" + parts[1] + "/" + parts[2];
+        }
+        return parts.length > 0 ? parts[0] : null;
+    }
+
+    private static boolean isSourceRootEntity(ArchitectureEntity entity) {
+        return entity != null
+            && entity.kind() == EntityKind.MODULE
+            && entity.metadata() != null
+            && Objects.equals("source-root", entity.metadata().get("logicalRole"));
     }
 
     private static boolean isPackageEntity(ArchitectureEntity entity) {
@@ -1031,6 +1166,84 @@ public final class ArchitectureIrFactory {
             metadata.put("targetPackageClassification", targetPackageClassification);
             metadata.put("internalTarget", internalTarget);
             metadata.put("externalTarget", externalTarget);
+            metadata.put("underlyingRelationshipCount", evidenceRelationshipIds.size());
+            metadata.put("sourceTypeCount", sourceTypeIds.size());
+            metadata.put("targetTypeCount", targetTypeIds.size());
+            metadata.put("evidenceRelationshipIds", List.copyOf(evidenceRelationshipIds));
+            metadata.put("evidenceLabels", List.copyOf(evidenceLabels));
+            return Map.copyOf(metadata);
+        }
+    }
+
+    private static final class NormalizedModuleDependency {
+        private final String sourceModuleName;
+        private final String targetModuleName;
+        private final RelationshipKind relationshipKind;
+        private final boolean internalTarget;
+        private final boolean externalTarget;
+        private final String sourceBoundary;
+        private final String targetBoundary;
+        private final String targetModuleClassification;
+        private final boolean sameModule;
+        private final Set<String> dependencySources = new LinkedHashSet<>();
+        private final Set<String> dependencyCategories = new LinkedHashSet<>();
+        private final Set<String> evidenceRelationshipIds = new LinkedHashSet<>();
+        private final Set<String> evidenceLabels = new LinkedHashSet<>();
+        private final Set<String> sourceTypeIds = new LinkedHashSet<>();
+        private final Set<String> targetTypeIds = new LinkedHashSet<>();
+
+        private NormalizedModuleDependency(
+            String sourceModuleName,
+            String targetModuleName,
+            RelationshipKind relationshipKind,
+            boolean internalTarget,
+            boolean externalTarget,
+            String sourceBoundary,
+            String targetBoundary,
+            String targetModuleClassification,
+            boolean sameModule
+        ) {
+            this.sourceModuleName = sourceModuleName;
+            this.targetModuleName = targetModuleName;
+            this.relationshipKind = relationshipKind;
+            this.internalTarget = internalTarget;
+            this.externalTarget = externalTarget;
+            this.sourceBoundary = sourceBoundary;
+            this.targetBoundary = targetBoundary;
+            this.targetModuleClassification = targetModuleClassification;
+            this.sameModule = sameModule;
+        }
+
+        private void addEvidence(ArchitectureRelationship relationship, ArchitectureEntity source, ArchitectureEntity target) {
+            evidenceRelationshipIds.add(relationship.id());
+            if (relationship.label() != null && !relationship.label().isBlank()) {
+                evidenceLabels.add(relationship.label());
+            }
+            if (source != null) {
+                sourceTypeIds.add(source.id());
+            }
+            if (target != null) {
+                targetTypeIds.add(target.id());
+            }
+            if (relationship.metadata() != null) {
+                NormalizedTypeDependency.addIfPresent(dependencySources, relationship.metadata().get("dependencySource"));
+                NormalizedTypeDependency.addIfPresent(dependencyCategories, relationship.metadata().get("dependencyCategory"));
+            }
+        }
+
+        private Map<String, Object> toMetadataMap() {
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("sourceModuleName", sourceModuleName);
+            metadata.put("targetModuleName", targetModuleName);
+            metadata.put("relationshipKind", relationshipKind.name());
+            metadata.put("dependencySources", List.copyOf(dependencySources));
+            metadata.put("dependencyCategories", List.copyOf(dependencyCategories));
+            metadata.put("sourceBoundary", sourceBoundary);
+            metadata.put("targetBoundary", targetBoundary);
+            metadata.put("targetModuleClassification", targetModuleClassification);
+            metadata.put("internalTarget", internalTarget);
+            metadata.put("externalTarget", externalTarget);
+            metadata.put("sameModule", sameModule);
             metadata.put("underlyingRelationshipCount", evidenceRelationshipIds.size());
             metadata.put("sourceTypeCount", sourceTypeIds.size());
             metadata.put("targetTypeCount", targetTypeIds.size());

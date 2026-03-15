@@ -314,6 +314,27 @@ class ArchitectureIrFactoryStructuralExtractionTest {
                 && Integer.valueOf(1).equals(dep.get("underlyingRelationshipCount"))
         ));
         @SuppressWarnings("unchecked")
+        List<Map<String, Object>> moduleDependencies = (List<Map<String, Object>>) dependencyViews.get("moduleDependencies");
+        assertTrue(moduleDependencies.stream().anyMatch(dep ->
+            "DEPENDS_ON".equals(dep.get("relationshipKind"))
+                && "src/main/java".equals(dep.get("sourceModuleName"))
+                && "src/main/java".equals(dep.get("targetModuleName"))
+                && Boolean.TRUE.equals(dep.get("internalTarget"))
+                && Boolean.TRUE.equals(dep.get("sameModule"))
+                && ((List<?>) dep.get("dependencySources")).contains("field")
+                && Integer.valueOf(1).equals(dep.get("underlyingRelationshipCount"))
+        ));
+        assertTrue(moduleDependencies.stream().anyMatch(dep ->
+            "DEPENDS_ON".equals(dep.get("relationshipKind"))
+                && "src/main/java".equals(dep.get("sourceModuleName"))
+                && "org.springframework.web.context.request".equals(dep.get("targetModuleName"))
+                && Boolean.TRUE.equals(dep.get("externalTarget"))
+                && "external".equals(dep.get("targetBoundary"))
+                && "external-module-or-package".equals(dep.get("targetModuleClassification"))
+                && ((List<?>) dep.get("dependencySources")).contains("field")
+                && Integer.valueOf(1).equals(dep.get("underlyingRelationshipCount"))
+        ));
+        @SuppressWarnings("unchecked")
         List<Map<String, Object>> packageMetrics = (List<Map<String, Object>>) dependencyViews.get("packageMetrics");
         assertTrue(packageMetrics.stream().anyMatch(metric ->
             "com.example.api".equals(metric.get("packageName"))
@@ -340,6 +361,8 @@ class ArchitectureIrFactoryStructuralExtractionTest {
         Map<String, Object> boundarySummary = (Map<String, Object>) dependencyViews.get("boundarySummary");
         assertEquals(1, boundarySummary.get("packageInternalCount"));
         assertEquals(1, boundarySummary.get("packageExternalCount"));
+        assertEquals(1, boundarySummary.get("moduleInternalCount"));
+        assertEquals(1, boundarySummary.get("moduleExternalCount"));
     }
 
 }
