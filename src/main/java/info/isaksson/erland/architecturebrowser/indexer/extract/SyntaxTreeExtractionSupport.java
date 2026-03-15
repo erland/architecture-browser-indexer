@@ -96,6 +96,48 @@ final class SyntaxTreeExtractionSupport {
             .orElse("");
     }
 
+
+    static List<String> javaFieldNames(SyntaxNode node) {
+        List<String> result = new ArrayList<>();
+        if (node == null) {
+            return List.of();
+        }
+        for (SyntaxNode declarator : descendantsByType(node, Set.of("variable_declarator", "constant_declarator"))) {
+            String name = declarationName(declarator);
+            if (name != null && !name.isBlank()) {
+                result.add(name);
+            }
+        }
+        if (!result.isEmpty()) {
+            return List.copyOf(result);
+        }
+        String fallback = declarationName(node);
+        return fallback == null || fallback.isBlank() ? List.of() : List.of(fallback);
+    }
+
+    static String javaFieldDeclaredType(SyntaxNode node) {
+        if (node == null || node.textSnippet() == null || node.textSnippet().isBlank()) {
+            return "";
+        }
+        String snippet = node.textSnippet().replace('\n', ' ').replace('\r', ' ').trim();
+        snippet = snippet.replaceAll("@[A-Za-z_][\w.]*\s*(\([^)]*\))?", " " );
+        snippet = snippet.replaceAll("\b(public|protected|private|static|final|transient|volatile|abstract|synchronized|native|strictfp|default)\b", " " );
+        Matcher matcher = Pattern.compile("([A-Za-z_$][\w.$]*(?:\s*<[^;=]+>)?(?:\s*\[\])*)\s+[A-Za-z_$][\w$]*").matcher(snippet);
+        return matcher.find() ? matcher.group(1).replaceAll("\s+", " " ).trim() : "";
+    }
+
+    static List<String> javaModifiers(SyntaxNode node) {
+        if (node == null || node.textSnippet() == null || node.textSnippet().isBlank()) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        Matcher matcher = Pattern.compile("\b(public|protected|private|static|final|transient|volatile|abstract|synchronized|native|strictfp|default)\b").matcher(node.textSnippet());
+        while (matcher.find()) {
+            result.add(matcher.group(1));
+        }
+        return result.stream().distinct().toList();
+    }
+
     static String javaMethodLikeName(SyntaxNode node) {
         if (node == null || node.textSnippet() == null || node.textSnippet().isBlank()) {
             return declarationName(node);

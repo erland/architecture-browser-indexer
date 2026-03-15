@@ -23,7 +23,7 @@ public final class DisplayNamePolicy {
             return canonicalName;
         }
         return switch (kind) {
-            case FUNCTION, CONFIG_ARTIFACT -> memberOrKeyName(canonicalName, language);
+            case FUNCTION, FIELD, CONFIG_ARTIFACT -> memberOrKeyName(canonicalName, language);
             case MODULE, CLASS, INTERFACE, SERVICE, PERSISTENCE_ADAPTER, UI_MODULE, STARTUP_POINT -> typeOrModuleName(canonicalName, language);
             case ENDPOINT, DATASTORE, EXTERNAL_SYSTEM -> canonicalName;
         };

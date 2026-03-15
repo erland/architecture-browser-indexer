@@ -139,6 +139,16 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                 Object qualifiedName = typeEntity.metadata().get("qualifiedName");
                 currentOwningQualifiedName = qualifiedName == null ? owningQualifiedName : String.valueOf(qualifiedName);
             }
+        } else if (isJavaFieldDeclaration(node)) {
+            for (ExtractedEntityFact fieldEntity : toFieldEntities(parseResult, relativePath, extractionMode, fileScopeId, node, currentOwningQualifiedName)) {
+                accumulator.addEntity(fieldEntity);
+                SourceReference ref = fieldEntity.sourceRefs().isEmpty() ? null : fieldEntity.sourceRefs().getFirst();
+                accumulator.addRelationship(ExtractionSupport.containsRelationship(
+                    currentOwningTypeEntityId == null ? fileEntityId : currentOwningTypeEntityId,
+                    fieldEntity.id(),
+                    ref
+                ));
+            }
         } else if (isJavaMethodLikeDeclaration(node)) {
             ExtractedEntityFact methodEntity = toMethodEntity(parseResult, relativePath, extractionMode, fileScopeId, node, currentOwningQualifiedName);
             if (methodEntity != null) {
@@ -405,8 +415,59 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         ).contains(node.type());
     }
 
+    private static boolean isJavaFieldDeclaration(SyntaxNode node) {
+        return node != null && Set.of("field_declaration", "constant_declaration").contains(node.type());
+    }
+
     private static boolean isJavaMethodLikeDeclaration(SyntaxNode node) {
         return node != null && Set.of("method_declaration", "constructor_declaration").contains(node.type());
+    }
+
+
+    private static List<ExtractedEntityFact> toFieldEntities(
+        SourceParseResult parseResult,
+        String relativePath,
+        ExtractionMode extractionMode,
+        String fileScopeId,
+        SyntaxNode fieldNode,
+        String owningQualifiedName
+    ) {
+        List<String> fieldNames = SyntaxTreeExtractionSupport.javaFieldNames(fieldNode);
+        if (fieldNames.isEmpty()) {
+            return List.of();
+        }
+        String declaredType = SyntaxTreeExtractionSupport.javaFieldDeclaredType(fieldNode);
+        List<String> annotations = SyntaxTreeExtractionSupport.descendantsByType(fieldNode, Set.of(
+            "marker_annotation", "annotation"
+        )).stream().flatMap(node -> SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(node.textSnippet()).stream()).distinct().toList();
+        List<String> modifiers = SyntaxTreeExtractionSupport.javaModifiers(fieldNode);
+        int line = SyntaxTreeExtractionSupport.oneBasedLine(fieldNode);
+        SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, fieldNode.textSnippet(), Map.of("language", "java", "kind", fieldNode.type()));
+        List<ExtractedEntityFact> result = new ArrayList<>();
+        for (String fieldName : fieldNames) {
+            String canonicalName = owningQualifiedName == null || owningQualifiedName.isBlank()
+                ? fieldName
+                : owningQualifiedName + "#" + fieldName;
+            result.add(new ExtractedEntityFact(
+                IdUtils.scopedEntityId("java", relativePath, canonicalName, line),
+                EntityKind.FIELD,
+                EntityOrigin.OBSERVED,
+                fieldName,
+                DisplayNamePolicy.entityDisplayName(EntityKind.FIELD, canonicalName, "java"),
+                fileScopeId,
+                List.of(ref),
+                Map.of(
+                    "language", "java",
+                    "declaredType", declaredType == null ? "" : declaredType,
+                    "annotations", annotations,
+                    "modifiers", modifiers,
+                    "ownerQualifiedName", owningQualifiedName == null ? "" : owningQualifiedName,
+                    "parseStatus", parseResult.status().name(),
+                    "extractionMode", extractionMode.name()
+                )
+            ));
+        }
+        return List.copyOf(result);
     }
 
     private static ExtractedEntityFact toTypeEntity(

@@ -4,6 +4,7 @@ public enum EntityKind {
     CLASS,
     INTERFACE,
     FUNCTION,
+    FIELD,
     MODULE,
     ENDPOINT,
     SERVICE,
