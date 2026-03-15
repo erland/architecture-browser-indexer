@@ -314,6 +314,29 @@ class ArchitectureIrFactoryStructuralExtractionTest {
                 && Integer.valueOf(1).equals(dep.get("underlyingRelationshipCount"))
         ));
         @SuppressWarnings("unchecked")
+        List<Map<String, Object>> packageMetrics = (List<Map<String, Object>>) dependencyViews.get("packageMetrics");
+        assertTrue(packageMetrics.stream().anyMatch(metric ->
+            "com.example.api".equals(metric.get("packageName"))
+                && "com.example.api".equals(metric.get("qualifiedName"))
+                && "java".equals(metric.get("language"))
+                && "src/main/java".equals(metric.get("sourceRoot"))
+                && Integer.valueOf(1).equals(metric.get("declaredTypeCount"))
+                && Integer.valueOf(1).equals(metric.get("classCount"))
+                && Integer.valueOf(0).equals(metric.get("interfaceCount"))
+                && Integer.valueOf(2).equals(metric.get("fieldCount"))
+                && Integer.valueOf(0).equals(metric.get("functionCount"))
+                && Integer.valueOf(0).equals(metric.get("incomingDependencyCount"))
+                && Integer.valueOf(2).equals(metric.get("outgoingDependencyCount"))
+        ));
+        assertTrue(document.entities().stream().anyMatch(entity ->
+            entity.kind() == EntityKind.MODULE
+                && "com.example.api".equals(entity.name())
+                && Integer.valueOf(1).equals(entity.metadata().get("declaredTypeCount"))
+                && Integer.valueOf(2).equals(entity.metadata().get("fieldCount"))
+                && Integer.valueOf(2).equals(entity.metadata().get("outgoingDependencyCount"))
+                && "src/main/java".equals(entity.metadata().get("sourceRoot"))
+        ));
+        @SuppressWarnings("unchecked")
         Map<String, Object> boundarySummary = (Map<String, Object>) dependencyViews.get("boundarySummary");
         assertEquals(1, boundarySummary.get("packageInternalCount"));
         assertEquals(1, boundarySummary.get("packageExternalCount"));
