@@ -163,6 +163,7 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
             }
         }
         AngularFrameworkRelationshipExtractor.extract(accumulator, relativePath, namedEntities);
+        AngularDependencyInjectionExtractor.extract(accumulator, relativePath, parseResult.request().sourceText(), namedEntities);
         ReactJsxCompositionExtractor.extract(accumulator, relativePath, namedEntities);
         ReactContextGraphExtractor.extract(accumulator, relativePath, parseResult.request().sourceText(), namedEntities);
         ReactCustomHookExtractor.extract(accumulator, relativePath, parseResult.request().sourceText(), namedEntities);
