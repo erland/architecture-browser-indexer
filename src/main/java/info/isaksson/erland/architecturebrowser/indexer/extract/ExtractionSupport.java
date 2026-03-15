@@ -101,6 +101,40 @@ final class ExtractionSupport {
         );
     }
 
+    static ExtractedEntityFact inferredTypeEntity(String language, EntityKind kind, String qualifiedName, String relativePath, int line, Map<String, Object> metadata) {
+        String displayName = DisplayNamePolicy.entityDisplayName(kind, qualifiedName, language);
+        java.util.Map<String, Object> merged = new java.util.LinkedHashMap<>();
+        merged.put("language", language);
+        merged.put("qualifiedName", qualifiedName);
+        merged.put("external", true);
+        merged.put("displayName", displayName);
+        if (metadata != null) {
+            merged.putAll(metadata);
+        }
+        return new ExtractedEntityFact(
+            IdUtils.externalEntityId(language + "-type-" + kind.name().toLowerCase(java.util.Locale.ROOT), qualifiedName),
+            kind,
+            EntityOrigin.INFERRED,
+            qualifiedName,
+            displayName,
+            null,
+            List.of(sourceRef(relativePath, line, qualifiedName, Map.of("language", language, "external", true, "displayName", displayName))),
+            java.util.Map.copyOf(merged)
+        );
+    }
+
+    static ExtractedRelationshipFact typedRelationship(RelationshipKind kind, String prefix, String fromId, String toId, String label, SourceReference ref, String language) {
+        return new ExtractedRelationshipFact(
+            IdUtils.relationshipId(prefix, fromId, toId, label),
+            kind,
+            fromId,
+            toId,
+            label,
+            List.of(ref),
+            Map.of("language", language)
+        );
+    }
+
     static ExtractedRelationshipFact dependencyRelationship(String fromId, String toId, String label, SourceReference ref, String language) {
         return new ExtractedRelationshipFact(
             IdUtils.relationshipId("depends-on", fromId, toId, label),

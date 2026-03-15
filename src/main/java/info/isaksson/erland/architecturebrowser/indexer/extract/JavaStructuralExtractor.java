@@ -11,9 +11,14 @@ import info.isaksson.erland.architecturebrowser.indexer.parse.SourceParseResult;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxNode;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxTree;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 final class JavaStructuralExtractor implements StructuralExtractor {
 
@@ -61,12 +66,17 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         var fileEntity = ExtractionSupport.fileModuleEntity(fileScope.id(), relativePath, "java");
         accumulator.addEntity(fileEntity);
 
+        Map<String, String> importsBySimpleName = new LinkedHashMap<>();
         for (SyntaxNode importNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("import_declaration"))) {
             String imported = importQualifiedName(importNode.textSnippet()).orElse(null);
             if (imported == null || imported.isBlank()) {
                 continue;
             }
             int line = SyntaxTreeExtractionSupport.oneBasedLine(importNode);
+            String simpleName = simpleName(imported);
+            if (simpleName != null && !simpleName.isBlank()) {
+                importsBySimpleName.putIfAbsent(simpleName, imported);
+            }
             var external = ExtractionSupport.externalDependencyEntity("java", imported, relativePath, line);
             accumulator.addEntity(external);
             accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
@@ -75,6 +85,9 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                 "java"
             ));
         }
+
+        Map<String, DeclaredJavaType> declaredTypes = new LinkedHashMap<>();
+        collectDeclaredTypes(parseResult, relativePath, packageName, extractionMode, packageScope.id(), root, null, declaredTypes);
 
         extractTypeAndMethodFacts(
             parseResult,
@@ -87,7 +100,9 @@ final class JavaStructuralExtractor implements StructuralExtractor {
             fileEntity.id(),
             root,
             null,
-            null
+            null,
+            importsBySimpleName,
+            declaredTypes
         );
         return accumulator;
     }
@@ -103,7 +118,9 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         String fileEntityId,
         SyntaxNode node,
         String owningTypeEntityId,
-        String owningQualifiedName
+        String owningQualifiedName,
+        Map<String, String> importsBySimpleName,
+        Map<String, DeclaredJavaType> declaredTypes
     ) {
         if (node == null) {
             return;
@@ -117,6 +134,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                 accumulator.addEntity(typeEntity);
                 SourceReference ref = typeEntity.sourceRefs().isEmpty() ? null : typeEntity.sourceRefs().getFirst();
                 accumulator.addRelationship(ExtractionSupport.containsRelationship(fileEntityId, typeEntity.id(), ref));
+                addTypeRelationships(accumulator, relativePath, packageName, node, typeEntity, importsBySimpleName, declaredTypes);
                 currentOwningTypeEntityId = typeEntity.id();
                 Object qualifiedName = typeEntity.metadata().get("qualifiedName");
                 currentOwningQualifiedName = qualifiedName == null ? owningQualifiedName : String.valueOf(qualifiedName);
@@ -146,9 +164,238 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                 fileEntityId,
                 child,
                 currentOwningTypeEntityId,
-                currentOwningQualifiedName
+                currentOwningQualifiedName,
+                importsBySimpleName,
+                declaredTypes
             );
         }
+    }
+
+
+    private void addTypeRelationships(
+        ExtractionAccumulator accumulator,
+        String relativePath,
+        String packageName,
+        SyntaxNode typeNode,
+        ExtractedEntityFact typeEntity,
+        Map<String, String> importsBySimpleName,
+        Map<String, DeclaredJavaType> declaredTypes
+    ) {
+        EntityKind sourceKind = typeEntity.kind();
+        int line = SyntaxTreeExtractionSupport.oneBasedLine(typeNode);
+        SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, typeNode.textSnippet(), Map.of("language", "java", "kind", typeNode.type()));
+        for (String parentType : extractExtendedTypes(typeNode)) {
+            addResolvedTypeRelationship(
+                accumulator,
+                typeEntity,
+                parentType,
+                sourceKind == EntityKind.INTERFACE ? EntityKind.INTERFACE : EntityKind.CLASS,
+                info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.EXTENDS,
+                "extends",
+                relativePath,
+                packageName,
+                line,
+                ref,
+                importsBySimpleName,
+                declaredTypes
+            );
+        }
+        for (String iface : extractImplementedTypes(typeNode)) {
+            addResolvedTypeRelationship(
+                accumulator,
+                typeEntity,
+                iface,
+                EntityKind.INTERFACE,
+                info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.IMPLEMENTS,
+                "implements",
+                relativePath,
+                packageName,
+                line,
+                ref,
+                importsBySimpleName,
+                declaredTypes
+            );
+        }
+    }
+
+    private void addResolvedTypeRelationship(
+        ExtractionAccumulator accumulator,
+        ExtractedEntityFact sourceType,
+        String referencedType,
+        EntityKind fallbackTargetKind,
+        info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind relationshipKind,
+        String relationshipPrefix,
+        String relativePath,
+        String packageName,
+        int line,
+        SourceReference ref,
+        Map<String, String> importsBySimpleName,
+        Map<String, DeclaredJavaType> declaredTypes
+    ) {
+        if (referencedType == null || referencedType.isBlank()) {
+            return;
+        }
+        String normalized = normalizeTypeReference(referencedType);
+        if (normalized.isBlank()) {
+            return;
+        }
+        DeclaredJavaType declared = declaredTypes.get(normalized);
+        String targetEntityId;
+        String label;
+        if (declared != null) {
+            targetEntityId = declared.entityId();
+            label = declared.qualifiedName();
+        } else {
+            String qualifiedName = resolveQualifiedTypeName(normalized, packageName, importsBySimpleName, declaredTypes);
+            label = qualifiedName;
+            var inferred = ExtractionSupport.inferredTypeEntity(
+                "java",
+                fallbackTargetKind,
+                qualifiedName,
+                relativePath,
+                line,
+                Map.of(
+                    "resolvedFrom", normalized,
+                    "resolution", qualifiedName.equals(normalized) ? "unresolved-or-external" : "import-or-package"
+                )
+            );
+            accumulator.addEntity(inferred);
+            targetEntityId = inferred.id();
+        }
+        accumulator.addRelationship(ExtractionSupport.typedRelationship(
+            relationshipKind,
+            relationshipPrefix,
+            sourceType.id(),
+            targetEntityId,
+            label,
+            ref,
+            "java"
+        ));
+    }
+
+    private static void collectDeclaredTypes(
+        SourceParseResult parseResult,
+        String relativePath,
+        String packageName,
+        ExtractionMode extractionMode,
+        String packageScopeId,
+        SyntaxNode node,
+        String owningQualifiedName,
+        Map<String, DeclaredJavaType> declaredTypes
+    ) {
+        if (node == null) {
+            return;
+        }
+        String nextOwningQualifiedName = owningQualifiedName;
+        if (isJavaTypeDeclaration(node)) {
+            ExtractedEntityFact typeEntity = toTypeEntity(parseResult, relativePath, packageName, extractionMode, packageScopeId, node, owningQualifiedName);
+            if (typeEntity != null) {
+                String qualifiedName = String.valueOf(typeEntity.metadata().get("qualifiedName"));
+                declaredTypes.putIfAbsent(qualifiedName, new DeclaredJavaType(typeEntity.id(), qualifiedName, typeEntity.kind()));
+                String simpleName = simpleName(qualifiedName);
+                if (simpleName != null && !simpleName.isBlank()) {
+                    declaredTypes.putIfAbsent(simpleName, new DeclaredJavaType(typeEntity.id(), qualifiedName, typeEntity.kind()));
+                }
+                nextOwningQualifiedName = qualifiedName;
+            }
+        }
+        for (SyntaxNode child : node.children()) {
+            collectDeclaredTypes(parseResult, relativePath, packageName, extractionMode, packageScopeId, child, nextOwningQualifiedName, declaredTypes);
+        }
+    }
+
+    private static List<String> extractExtendedTypes(SyntaxNode typeNode) {
+        if (typeNode == null || typeNode.textSnippet() == null) {
+            return List.of();
+        }
+        String header = declarationHeader(typeNode.textSnippet());
+        if (typeNode.type().equals("interface_declaration")) {
+            return extractTypeListAfterKeyword(header, "extends");
+        }
+        Optional<String> single = extractSingleTypeAfterKeyword(header, "extends");
+        return single.map(List::of).orElseGet(List::of);
+    }
+
+    private static List<String> extractImplementedTypes(SyntaxNode typeNode) {
+        if (typeNode == null || typeNode.textSnippet() == null) {
+            return List.of();
+        }
+        return extractTypeListAfterKeyword(declarationHeader(typeNode.textSnippet()), "implements");
+    }
+
+    private static Optional<String> extractSingleTypeAfterKeyword(String header, String keyword) {
+        Matcher matcher = Pattern.compile("\\b" + Pattern.quote(keyword) + "\\s+([A-Za-z_$][\\w.$]*(?:\\s*<[^>{}]+>)?)").matcher(header);
+        if (!matcher.find()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(normalizeTypeReference(matcher.group(1)));
+    }
+
+    private static List<String> extractTypeListAfterKeyword(String header, String keyword) {
+        Matcher matcher = Pattern.compile("\\b" + Pattern.quote(keyword) + "\\s+([^\\{]+)$").matcher(header);
+        if (!matcher.find()) {
+            return List.of();
+        }
+        String raw = matcher.group(1);
+        List<String> result = new ArrayList<>();
+        for (String part : raw.split(",")) {
+            String normalized = normalizeTypeReference(part);
+            if (!normalized.isBlank()) {
+                result.add(normalized);
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private static String declarationHeader(String snippet) {
+        int brace = snippet.indexOf('{');
+        String header = brace >= 0 ? snippet.substring(0, brace) : snippet;
+        return header.replace('\n', ' ').replace('\r', ' ').strip();
+    }
+
+    private static String normalizeTypeReference(String value) {
+        if (value == null) {
+            return "";
+        }
+        String normalized = value.replaceAll("<[^>]+>", " ")
+            .replaceAll("\bextends\b", " ")
+            .replaceAll("\bsuper\b", " ")
+            .replace("?", " ")
+            .replace("[]", " ")
+            .trim();
+        Matcher matcher = Pattern.compile("([A-Za-z_$][\\w.$]*)").matcher(normalized);
+        return matcher.find() ? matcher.group(1) : "";
+    }
+
+    private static String resolveQualifiedTypeName(String reference, String packageName, Map<String, String> importsBySimpleName, Map<String, DeclaredJavaType> declaredTypes) {
+        if (reference == null || reference.isBlank()) {
+            return "";
+        }
+        if (reference.contains(".")) {
+            return reference;
+        }
+        if (importsBySimpleName.containsKey(reference)) {
+            return importsBySimpleName.get(reference);
+        }
+        DeclaredJavaType declared = declaredTypes.get(reference);
+        if (declared != null) {
+            return declared.qualifiedName();
+        }
+        if (packageName != null && !packageName.isBlank()) {
+            return packageName + "." + reference;
+        }
+        return reference;
+    }
+
+    private static String simpleName(String qualifiedName) {
+        if (qualifiedName == null || qualifiedName.isBlank()) {
+            return null;
+        }
+        int idx = qualifiedName.lastIndexOf('.');
+        return idx >= 0 ? qualifiedName.substring(idx + 1) : qualifiedName;
+    }
+
+    private record DeclaredJavaType(String entityId, String qualifiedName, EntityKind kind) {
     }
 
 
