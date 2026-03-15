@@ -371,10 +371,24 @@ public final class ArchitectureIrFactory {
                 metadata.put("sameModule", Objects.equals(sourceModuleName, targetModuleName));
             } else if (isImportEvidenceRelationship(relationship, source, target)) {
                 metadata.putIfAbsent("dependencyView", "evidence");
+                metadata.put("dependencyTier", "supporting-evidence");
+                metadata.put("architecturePrimary", false);
+                metadata.put("recommendedForArchitectureViews", false);
                 metadata.put("dependencyTargetInternal", isInternalEntity(target));
                 metadata.put("dependencyTargetExternal", isExternalEntity(target));
                 metadata.put("dependencyTargetBoundary", boundaryForEntity(target));
                 metadata.put("dependencyTargetClassification", typeClassificationForEntity(target));
+                metadata.put("evidenceKind", "file-import");
+                metadata.put("evidenceSourceEntityId", relationship.fromEntityId());
+                metadata.put("evidenceTargetEntityId", relationship.toEntityId());
+                String sourceModuleName = source == null ? null : source.name();
+                String targetModuleName = target == null ? null : target.name();
+                if (sourceModuleName != null) {
+                    metadata.put("evidenceSourceName", sourceModuleName);
+                }
+                if (targetModuleName != null) {
+                    metadata.put("evidenceTargetName", targetModuleName);
+                }
             }
             enriched.add(new ArchitectureRelationship(
                 relationship.id(),
@@ -529,9 +543,27 @@ public final class ArchitectureIrFactory {
         Map<String, NormalizedTypeDependency> typeDependenciesByKey = new LinkedHashMap<>();
         Map<String, NormalizedPackageDependency> packageDependenciesByKey = new LinkedHashMap<>();
         Map<String, NormalizedModuleDependency> moduleDependenciesByKey = new LinkedHashMap<>();
+        Map<String, EvidenceDependency> evidenceDependenciesByKey = new LinkedHashMap<>();
         for (ArchitectureRelationship relationship : relationships) {
-            ArchitectureEntity source = canonicalDependencyEntity(entitiesById.get(relationship.fromEntityId()), observedTypesByQualifiedName);
-            ArchitectureEntity target = canonicalDependencyEntity(entitiesById.get(relationship.toEntityId()), observedTypesByQualifiedName);
+            ArchitectureEntity rawSource = entitiesById.get(relationship.fromEntityId());
+            ArchitectureEntity rawTarget = entitiesById.get(relationship.toEntityId());
+            ArchitectureEntity source = canonicalDependencyEntity(rawSource, observedTypesByQualifiedName);
+            ArchitectureEntity target = canonicalDependencyEntity(rawTarget, observedTypesByQualifiedName);
+            if (isImportEvidenceRelationship(relationship, rawSource, rawTarget)) {
+                String sourceEntityId = rawSource == null ? relationship.fromEntityId() : rawSource.id();
+                String targetEntityId = rawTarget == null ? relationship.toEntityId() : rawTarget.id();
+                String evidenceKey = relationship.kind().name() + "|" + sourceEntityId + "|" + targetEntityId;
+                evidenceDependenciesByKey.computeIfAbsent(evidenceKey, ignored -> new EvidenceDependency(
+                    sourceEntityId,
+                    targetEntityId,
+                    relationship.kind(),
+                    rawSource == null ? null : rawSource.name(),
+                    rawTarget == null ? null : rawTarget.name(),
+                    boundaryForEntity(rawSource),
+                    boundaryForEntity(rawTarget),
+                    typeClassificationForEntity(rawTarget)
+                )).addEvidence(relationship);
+            }
             if (isTypeDependencyRelationship(relationship, source, target)) {
                 String sourceTypeId = source == null ? relationship.fromEntityId() : source.id();
                 String targetTypeId = target == null ? relationship.toEntityId() : target.id();
@@ -594,13 +626,25 @@ public final class ArchitectureIrFactory {
         for (NormalizedModuleDependency dependency : moduleDependenciesByKey.values()) {
             moduleDependencies.add(dependency.toMetadataMap());
         }
+        List<Map<String, Object>> evidenceDependencies = new ArrayList<>();
+        for (EvidenceDependency dependency : evidenceDependenciesByKey.values()) {
+            evidenceDependencies.add(dependency.toMetadataMap());
+        }
         List<Map<String, Object>> packageMetrics = buildPackageMetrics(entitiesById, packageDependencies);
         Map<String, Object> dependencyViews = new LinkedHashMap<>();
         dependencyViews.put("typeDependencies", List.copyOf(typeDependencies));
         dependencyViews.put("packageDependencies", List.copyOf(packageDependencies));
         dependencyViews.put("moduleDependencies", List.copyOf(moduleDependencies));
+        dependencyViews.put("evidenceDependencies", List.copyOf(evidenceDependencies));
         dependencyViews.put("packageMetrics", List.copyOf(packageMetrics));
         dependencyViews.put("boundarySummary", buildBoundarySummary(typeDependencies, packageDependencies, moduleDependencies));
+        dependencyViews.put("recommendedEntryPoints", List.of("packageDependencies", "typeDependencies", "moduleDependencies", "evidenceDependencies"));
+        dependencyViews.put("primaryArchitectureViews", List.of("packageDependencies", "typeDependencies", "moduleDependencies"));
+        dependencyViews.put("evidenceStatus", Map.of(
+            "fileImportDependencies", "supporting-evidence",
+            "recommendedForArchitectureViews", false,
+            "description", "File import dependencies are retained for traceability and drill-down, but higher-level architecture views should prefer package, type, and module dependencies."
+        ));
         return Map.copyOf(dependencyViews);
     }
 
@@ -1249,6 +1293,78 @@ public final class ArchitectureIrFactory {
             metadata.put("targetTypeCount", targetTypeIds.size());
             metadata.put("evidenceRelationshipIds", List.copyOf(evidenceRelationshipIds));
             metadata.put("evidenceLabels", List.copyOf(evidenceLabels));
+            return Map.copyOf(metadata);
+        }
+    }
+
+    private static final class EvidenceDependency {
+        private final String sourceEntityId;
+        private final String targetEntityId;
+        private final RelationshipKind relationshipKind;
+        private final String sourceName;
+        private final String targetName;
+        private final String sourceBoundary;
+        private final String targetBoundary;
+        private final String targetClassification;
+        private final Set<String> dependencySources = new LinkedHashSet<>();
+        private final Set<String> dependencyCategories = new LinkedHashSet<>();
+        private final Set<String> evidenceRelationshipIds = new LinkedHashSet<>();
+        private final Set<String> evidenceLabels = new LinkedHashSet<>();
+
+        private EvidenceDependency(
+            String sourceEntityId,
+            String targetEntityId,
+            RelationshipKind relationshipKind,
+            String sourceName,
+            String targetName,
+            String sourceBoundary,
+            String targetBoundary,
+            String targetClassification
+        ) {
+            this.sourceEntityId = sourceEntityId;
+            this.targetEntityId = targetEntityId;
+            this.relationshipKind = relationshipKind;
+            this.sourceName = sourceName;
+            this.targetName = targetName;
+            this.sourceBoundary = sourceBoundary;
+            this.targetBoundary = targetBoundary;
+            this.targetClassification = targetClassification;
+        }
+
+        private void addEvidence(ArchitectureRelationship relationship) {
+            Object dependencySource = relationship.metadata() == null ? null : relationship.metadata().get("dependencySource");
+            if (dependencySource instanceof String s && !s.isBlank()) {
+                dependencySources.add(s);
+            }
+            Object dependencyCategory = relationship.metadata() == null ? null : relationship.metadata().get("dependencyCategory");
+            if (dependencyCategory instanceof String s && !s.isBlank()) {
+                dependencyCategories.add(s);
+            }
+            evidenceRelationshipIds.add(relationship.id());
+            if (relationship.label() != null && !relationship.label().isBlank()) {
+                evidenceLabels.add(relationship.label());
+            }
+        }
+
+        private Map<String, Object> toMetadataMap() {
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("sourceEntityId", sourceEntityId);
+            metadata.put("targetEntityId", targetEntityId);
+            metadata.put("relationshipKind", relationshipKind.name());
+            metadata.put("sourceName", sourceName);
+            metadata.put("targetName", targetName);
+            metadata.put("sourceBoundary", sourceBoundary);
+            metadata.put("targetBoundary", targetBoundary);
+            metadata.put("targetClassification", targetClassification);
+            metadata.put("dependencySources", List.copyOf(dependencySources));
+            metadata.put("dependencyCategories", List.copyOf(dependencyCategories));
+            metadata.put("underlyingRelationshipCount", evidenceRelationshipIds.size());
+            metadata.put("evidenceRelationshipIds", List.copyOf(evidenceRelationshipIds));
+            metadata.put("evidenceLabels", List.copyOf(evidenceLabels));
+            metadata.put("dependencyTier", "supporting-evidence");
+            metadata.put("architecturePrimary", false);
+            metadata.put("recommendedForArchitectureViews", false);
+            metadata.put("evidenceKind", "file-import");
             return Map.copyOf(metadata);
         }
     }

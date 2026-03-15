@@ -156,6 +156,10 @@ class ArchitectureIrFactoryStructuralExtractionTest {
         assertTrue(document.relationships().stream().anyMatch(relationship ->
             relationship.kind().name().equals("DEPENDS_ON")
                 && "evidence".equals(relationship.metadata().get("dependencyView"))
+                && "supporting-evidence".equals(relationship.metadata().get("dependencyTier"))
+                && Boolean.FALSE.equals(relationship.metadata().get("architecturePrimary"))
+                && Boolean.FALSE.equals(relationship.metadata().get("recommendedForArchitectureViews"))
+                && "file-import".equals(relationship.metadata().get("evidenceKind"))
                 && "import".equals(relationship.metadata().get("dependencySource"))
                 && "external".equals(relationship.metadata().get("dependencyTargetBoundary"))
         ));
@@ -175,6 +179,25 @@ class ArchitectureIrFactoryStructuralExtractionTest {
                 && ((List<?>) dep.get("dependencySources")).contains("returnType")
                 && Integer.valueOf(4).equals(dep.get("evidenceRelationshipCount"))
         ));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> evidenceDependencies = (List<Map<String, Object>>) dependencyViews.get("evidenceDependencies");
+        assertTrue(evidenceDependencies.stream().anyMatch(dep ->
+            "DEPENDS_ON".equals(dep.get("relationshipKind"))
+                && "src/main/java/com/example/Demo.java".equals(dep.get("sourceName"))
+                && "org.springframework.web.context.request.RequestContext".equals(dep.get("targetName"))
+                && "supporting-evidence".equals(dep.get("dependencyTier"))
+                && Boolean.FALSE.equals(dep.get("architecturePrimary"))
+                && Boolean.FALSE.equals(dep.get("recommendedForArchitectureViews"))
+                && "file-import".equals(dep.get("evidenceKind"))
+                && ((List<?>) dep.get("dependencySources")).contains("import")
+        ));
+        assertEquals(List.of("packageDependencies", "typeDependencies", "moduleDependencies", "evidenceDependencies"), dependencyViews.get("recommendedEntryPoints"));
+        assertEquals(List.of("packageDependencies", "typeDependencies", "moduleDependencies"), dependencyViews.get("primaryArchitectureViews"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> evidenceStatus = (Map<String, Object>) dependencyViews.get("evidenceStatus");
+        assertEquals("supporting-evidence", evidenceStatus.get("fileImportDependencies"));
+        assertEquals(Boolean.FALSE, evidenceStatus.get("recommendedForArchitectureViews"));
+
         @SuppressWarnings("unchecked")
         Map<String, Object> boundarySummary = (Map<String, Object>) dependencyViews.get("boundarySummary");
         assertEquals(0, boundarySummary.get("typeInternalCount"));
