@@ -15,6 +15,8 @@ import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxNode;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxTree;
 import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventory;
 import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventoryEntry;
+import info.isaksson.erland.architecturebrowser.indexer.topology.TopologyService;
+import info.isaksson.erland.architecturebrowser.indexer.topology.model.TopologyResult;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -167,6 +169,138 @@ class ArchitectureIrFactoryStructuralExtractionTest {
                 && ((List<?>) dep.get("dependencySources")).contains("parameterType")
                 && ((List<?>) dep.get("dependencySources")).contains("returnType")
                 && Integer.valueOf(4).equals(dep.get("evidenceRelationshipCount"))
+        ));
+    }
+
+    @Test
+    void exposesAggregatedPackageDependenciesAndMarksPackageRollupsSeparately() {
+        FileInventory inventory = new FileInventory(
+            List.of(
+                new FileInventoryEntry("src/main/java/com/example/api/ApiController.java", 80, "java", "source", "java", false, List.of("java")),
+                new FileInventoryEntry("src/main/java/com/example/domain/OrderService.java", 20, "java", "source", "java", false, List.of("java"))
+            ),
+            2, 2, 0, Set.of("java"), Set.of("java")
+        );
+
+        String apiSource = String.join("\n",
+            "package com.example.api;",
+            "import com.example.domain.OrderService;",
+            "import org.springframework.web.context.request.RequestContext;",
+            "public class ApiController {",
+            "  private OrderService service;",
+            "  private RequestContext requestContext;",
+            "}",
+            ""
+        );
+        String domainSource = String.join("\n",
+            "package com.example.domain;",
+            "public class OrderService {}",
+            ""
+        );
+
+        SyntaxNode apiRoot = new SyntaxNode("program", true, 0, apiSource.length(), 0, 0, 6, 0, false, false, apiSource, List.of(
+            new SyntaxNode("package_declaration", true, 0, 24, 0, 0, 0, 24, false, false, "package com.example.api;", List.of(
+                new SyntaxNode("scoped_identifier", true, 8, 23, 0, 8, 0, 23, false, false, "com.example.api", List.of())
+            )),
+            new SyntaxNode("import_declaration", true, 25, 64, 1, 0, 1, 39, false, false, "import com.example.domain.OrderService;", List.of(
+                new SyntaxNode("scoped_identifier", true, 32, 63, 1, 7, 1, 38, false, false, "com.example.domain.OrderService", List.of())
+            )),
+            new SyntaxNode("import_declaration", true, 65, 126, 2, 0, 2, 61, false, false, "import org.springframework.web.context.request.RequestContext;", List.of(
+                new SyntaxNode("scoped_identifier", true, 72, 125, 2, 7, 2, 60, false, false, "org.springframework.web.context.request.RequestContext", List.of())
+            )),
+            new SyntaxNode("class_declaration", true, 127, apiSource.length() - 1, 3, 0, 6, 1, false, false, "public class ApiController { ... }", List.of(
+                new SyntaxNode("identifier", true, 140, 153, 3, 13, 3, 26, false, false, "ApiController", List.of()),
+                new SyntaxNode("field_declaration", true, 158, 188, 4, 2, 4, 32, false, false, "private OrderService service;", List.of(
+                    new SyntaxNode("variable_declarator", true, 166, 186, 4, 10, 4, 30, false, false, "OrderService service", List.of(
+                        new SyntaxNode("type_identifier", true, 166, 178, 4, 10, 4, 22, false, false, "OrderService", List.of()),
+                        new SyntaxNode("identifier", true, 179, 186, 4, 23, 4, 30, false, false, "service", List.of())
+                    ))
+                )),
+                new SyntaxNode("field_declaration", true, 191, 228, 5, 2, 5, 39, false, false, "private RequestContext requestContext;", List.of(
+                    new SyntaxNode("variable_declarator", true, 199, 227, 5, 10, 5, 38, false, false, "RequestContext requestContext", List.of(
+                        new SyntaxNode("type_identifier", true, 199, 213, 5, 10, 5, 24, false, false, "RequestContext", List.of()),
+                        new SyntaxNode("identifier", true, 214, 228, 5, 25, 5, 39, false, false, "requestContext", List.of())
+                    ))
+                ))
+            ))
+        ));
+
+        SyntaxNode domainRoot = new SyntaxNode("program", true, 0, domainSource.length(), 0, 0, 1, 0, false, false, domainSource, List.of(
+            new SyntaxNode("package_declaration", true, 0, 27, 0, 0, 0, 27, false, false, "package com.example.domain;", List.of(
+                new SyntaxNode("scoped_identifier", true, 8, 26, 0, 8, 0, 26, false, false, "com.example.domain", List.of())
+            )),
+            new SyntaxNode("class_declaration", true, 28, 55, 1, 0, 1, 27, false, false, "public class OrderService {}", List.of(
+                new SyntaxNode("identifier", true, 41, 53, 1, 13, 1, 25, false, false, "OrderService", List.of())
+            ))
+        ));
+
+        ParseBatchResult parseBatchResult = new ParseBatchResult(
+            List.of(
+                new SourceParseResult(
+                    new SourceParseRequest(Path.of("src/main/java/com/example/api/ApiController.java"), "src/main/java/com/example/api/ApiController.java", ParseLanguage.JAVA, apiSource),
+                    ParseStatus.SUCCESS,
+                    new SyntaxTree(ParseLanguage.JAVA, "tree-sitter-jtreesitter", apiRoot, false, apiRoot.nodeCount()),
+                    List.of(),
+                    Map.of("parserBackend", "tree-sitter-jtreesitter")
+                ),
+                new SourceParseResult(
+                    new SourceParseRequest(Path.of("src/main/java/com/example/domain/OrderService.java"), "src/main/java/com/example/domain/OrderService.java", ParseLanguage.JAVA, domainSource),
+                    ParseStatus.SUCCESS,
+                    new SyntaxTree(ParseLanguage.JAVA, "tree-sitter-jtreesitter", domainRoot, false, domainRoot.nodeCount()),
+                    List.of(),
+                    Map.of("parserBackend", "tree-sitter-jtreesitter")
+                )
+            ),
+            Map.of(ParseLanguage.JAVA, 2),
+            Map.of(ParseStatus.SUCCESS, 2)
+        );
+
+        StructuralExtractionResult extractionResult = new StructuralExtractionService(StructuralExtractorRegistry.defaultRegistry())
+            .extract(parseBatchResult);
+        TopologyResult topologyResult = new TopologyService().infer(inventory, extractionResult, null);
+
+        ArchitectureIndexDocument document = ArchitectureIrFactory.createInventoryDocument(
+            RepositorySource.localPath("sample", "/tmp/sample", Instant.parse("2026-03-10T12:00:00Z")),
+            "0.1.0-SNAPSHOT",
+            inventory,
+            List.of(),
+            parseBatchResult,
+            extractionResult,
+            null,
+            topologyResult
+        );
+
+        assertTrue(document.relationships().stream().anyMatch(relationship ->
+            relationship.kind().name().equals("USES")
+                && "package".equals(relationship.metadata().get("dependencyView"))
+                && "com.example.api".equals(relationship.metadata().get("dependencySourcePackageName"))
+                && "com.example.domain".equals(relationship.metadata().get("dependencyTargetPackageName"))
+        ), () -> "Expected package rollup relationship not found. Relationships were:\n" + document.relationships().stream()
+            .map(relationship -> relationship.kind().name() + " " + relationship.fromEntityId() + " -> " + relationship.toEntityId() + " metadata=" + relationship.metadata())
+            .reduce("", (left, right) -> left + right + "\n"));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> dependencyViews = (Map<String, Object>) document.metadata().get("dependencyViews");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> packageDependencies = (List<Map<String, Object>>) dependencyViews.get("packageDependencies");
+
+        assertTrue(packageDependencies.stream().anyMatch(dep ->
+            "DEPENDS_ON".equals(dep.get("relationshipKind"))
+                && "com.example.api".equals(dep.get("sourcePackageName"))
+                && "com.example.domain".equals(dep.get("targetPackageName"))
+                && Boolean.TRUE.equals(dep.get("internalTarget"))
+                && ((List<?>) dep.get("dependencySources")).contains("field")
+                && Integer.valueOf(1).equals(dep.get("underlyingRelationshipCount"))
+        ), () -> "Expected internal package dependency not found. Package dependencies were:\n" + packageDependencies.stream()
+            .map(String::valueOf)
+            .reduce("", (left, right) -> left + right + "\n"));
+        assertTrue(packageDependencies.stream().anyMatch(dep ->
+            "DEPENDS_ON".equals(dep.get("relationshipKind"))
+                && "com.example.api".equals(dep.get("sourcePackageName"))
+                && "org.springframework.web.context.request".equals(dep.get("targetPackageName"))
+                && Boolean.TRUE.equals(dep.get("externalTarget"))
+                && ((List<?>) dep.get("dependencySources")).contains("field")
+                && Integer.valueOf(1).equals(dep.get("underlyingRelationshipCount"))
         ));
     }
 

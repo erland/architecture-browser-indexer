@@ -1,5 +1,6 @@
 package info.isaksson.erland.architecturebrowser.indexer.ir;
 
+import info.isaksson.erland.architecturebrowser.indexer.extract.IdUtils;
 import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedEntityFact;
 import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedRelationshipFact;
 import info.isaksson.erland.architecturebrowser.indexer.extract.model.StructuralExtractionResult;
@@ -219,7 +220,9 @@ public final class ArchitectureIrFactory {
                 relationshipsById.put(relationship.id(), relationship);
             }
         }
-        List<ArchitectureRelationship> relationships = enrichDependencyRelationshipMetadata(List.copyOf(relationshipsById.values()), entitiesById);
+        Map<String, ArchitectureEntity> observedTypesByQualifiedName = observedTypesByQualifiedName(entitiesById);
+        List<ArchitectureRelationship> relationships = enrichDependencyRelationshipMetadata(List.copyOf(relationshipsById.values()), entitiesById, observedTypesByQualifiedName);
+        relationships = ensurePackageDependencyRelationships(relationships, entitiesById, observedTypesByQualifiedName);
 
         List<String> completenessNotes = new ArrayList<>();
         if (extractionResult == null) {
@@ -256,7 +259,7 @@ public final class ArchitectureIrFactory {
         if (topologyResult != null) {
             documentMetadata.put("topologySummary", topologyResult.summary());
         }
-        documentMetadata.put("dependencyViews", buildDependencyViews(relationships, entitiesById));
+        documentMetadata.put("dependencyViews", buildDependencyViews(relationships, entitiesById, observedTypesByQualifiedName));
         documentMetadata.put("diagnosticSummary", assessment.diagnosticSummary());
         documentMetadata.put("partialResult", assessment.partialResult());
 
@@ -292,13 +295,17 @@ public final class ArchitectureIrFactory {
 
     private static List<ArchitectureRelationship> enrichDependencyRelationshipMetadata(
         List<ArchitectureRelationship> relationships,
-        Map<String, ArchitectureEntity> entitiesById
+        Map<String, ArchitectureEntity> entitiesById,
+        Map<String, ArchitectureEntity> observedTypesByQualifiedName
     ) {
         List<ArchitectureRelationship> enriched = new ArrayList<>(relationships.size());
         for (ArchitectureRelationship relationship : relationships) {
-            ArchitectureEntity source = entitiesById.get(relationship.fromEntityId());
-            ArchitectureEntity target = entitiesById.get(relationship.toEntityId());
-            if (!isDependencyRelationship(relationship.kind())) {
+            ArchitectureEntity source = canonicalDependencyEntity(entitiesById.get(relationship.fromEntityId()), observedTypesByQualifiedName);
+            ArchitectureEntity target = canonicalDependencyEntity(entitiesById.get(relationship.toEntityId()), observedTypesByQualifiedName);
+            boolean packageRollup = hasRollup(relationship, "package-package");
+            boolean dependencyRelationship = isDependencyRelationship(relationship.kind());
+            boolean packageDependencyRelationship = packageRollup || isPackageDependencyRelationship(relationship, source, target);
+            if (!dependencyRelationship && !packageDependencyRelationship) {
                 enriched.add(relationship);
                 continue;
             }
@@ -308,10 +315,30 @@ public final class ArchitectureIrFactory {
             }
             if (isTypeDependencyRelationship(relationship, source, target)) {
                 metadata.put("dependencyView", "type");
-                metadata.put("dependencySourceTypeId", relationship.fromEntityId());
-                metadata.put("dependencyTargetTypeId", relationship.toEntityId());
+                metadata.put("dependencySourceTypeId", source == null ? relationship.fromEntityId() : source.id());
+                metadata.put("dependencyTargetTypeId", target == null ? relationship.toEntityId() : target.id());
                 metadata.put("dependencyTargetInternal", isInternalEntity(target));
                 metadata.put("dependencyTargetExternal", isExternalEntity(target));
+                String sourcePackageName = packageNameForDependencyEntity(source);
+                String targetPackageName = packageNameForDependencyEntity(target);
+                if (sourcePackageName != null) {
+                    metadata.put("dependencySourcePackageName", sourcePackageName);
+                }
+                if (targetPackageName != null) {
+                    metadata.put("dependencyTargetPackageName", targetPackageName);
+                }
+            } else if (packageDependencyRelationship) {
+                metadata.put("dependencyView", "package");
+                metadata.put("dependencySourcePackageId", relationship.fromEntityId());
+                metadata.put("dependencyTargetPackageId", relationship.toEntityId());
+                String sourcePackageName = source == null ? null : source.name();
+                String targetPackageName = target == null ? null : target.name();
+                if (sourcePackageName != null) {
+                    metadata.put("dependencySourcePackageName", sourcePackageName);
+                }
+                if (targetPackageName != null) {
+                    metadata.put("dependencyTargetPackageName", targetPackageName);
+                }
             } else if (isImportEvidenceRelationship(relationship, source, target)) {
                 metadata.putIfAbsent("dependencyView", "evidence");
                 metadata.put("dependencyTargetInternal", isInternalEntity(target));
@@ -330,33 +357,186 @@ public final class ArchitectureIrFactory {
         return List.copyOf(enriched);
     }
 
-    private static Map<String, Object> buildDependencyViews(
+    private static List<ArchitectureRelationship> ensurePackageDependencyRelationships(
         List<ArchitectureRelationship> relationships,
-        Map<String, ArchitectureEntity> entitiesById
+        Map<String, ArchitectureEntity> entitiesById,
+        Map<String, ArchitectureEntity> observedTypesByQualifiedName
     ) {
-        Map<String, NormalizedTypeDependency> byKey = new LinkedHashMap<>();
+        Map<String, ArchitectureRelationship> byId = new LinkedHashMap<>();
         for (ArchitectureRelationship relationship : relationships) {
-            ArchitectureEntity source = entitiesById.get(relationship.fromEntityId());
-            ArchitectureEntity target = entitiesById.get(relationship.toEntityId());
+            byId.put(relationship.id(), relationship);
+        }
+
+        Map<String, ArchitectureRelationship> synthetic = new LinkedHashMap<>();
+        for (ArchitectureRelationship relationship : relationships) {
+            ArchitectureEntity source = canonicalDependencyEntity(entitiesById.get(relationship.fromEntityId()), observedTypesByQualifiedName);
+            ArchitectureEntity target = canonicalDependencyEntity(entitiesById.get(relationship.toEntityId()), observedTypesByQualifiedName);
             if (!isTypeDependencyRelationship(relationship, source, target)) {
                 continue;
             }
-            String key = relationship.kind().name() + "|" + relationship.fromEntityId() + "|" + relationship.toEntityId();
-            byKey.computeIfAbsent(key, ignored -> new NormalizedTypeDependency(
-                relationship.fromEntityId(),
-                relationship.toEntityId(),
-                relationship.kind(),
-                source == null ? null : source.name(),
-                target == null ? null : target.name(),
-                isInternalEntity(target),
-                isExternalEntity(target)
-            )).addEvidence(relationship);
+            String sourcePackageName = packageNameForDependencyEntity(source);
+            String targetPackageName = packageNameForDependencyEntity(target);
+            if (sourcePackageName == null || targetPackageName == null || sourcePackageName.equals(targetPackageName)) {
+                continue;
+            }
+            String sourcePackageEntityId = findPackageEntityIdByName(sourcePackageName, entitiesById);
+            String targetPackageEntityId = findPackageEntityIdByName(targetPackageName, entitiesById);
+            if (sourcePackageEntityId == null || targetPackageEntityId == null || sourcePackageEntityId.equals(targetPackageEntityId)) {
+                continue;
+            }
+            String syntheticId = IdUtils.relationshipId("ir-package-uses", sourcePackageEntityId, targetPackageEntityId, "");
+            if (byId.containsKey(syntheticId) || synthetic.containsKey(syntheticId)) {
+                continue;
+            }
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("rollup", "package-package");
+            metadata.put("dependencyView", "package");
+            metadata.put("dependencySourcePackageId", sourcePackageEntityId);
+            metadata.put("dependencyTargetPackageId", targetPackageEntityId);
+            metadata.put("dependencySourcePackageName", sourcePackageName);
+            metadata.put("dependencyTargetPackageName", targetPackageName);
+            if (relationship.metadata() != null) {
+                Object dependencySource = relationship.metadata().get("dependencySource");
+                Object dependencyCategory = relationship.metadata().get("dependencyCategory");
+                if (dependencySource != null) {
+                    metadata.put("dependencySource", dependencySource);
+                }
+                if (dependencyCategory != null) {
+                    metadata.put("dependencyCategory", dependencyCategory);
+                }
+            }
+            synthetic.put(syntheticId, new ArchitectureRelationship(
+                syntheticId,
+                RelationshipKind.USES,
+                sourcePackageEntityId,
+                targetPackageEntityId,
+                relationship.label(),
+                relationship.sourceRefs(),
+                Map.copyOf(metadata)
+            ));
+        }
+
+        if (synthetic.isEmpty()) {
+            return relationships;
+        }
+        List<ArchitectureRelationship> merged = new ArrayList<>(relationships.size() + synthetic.size());
+        merged.addAll(relationships);
+        merged.addAll(synthetic.values());
+        return List.copyOf(merged);
+    }
+
+    private static String findPackageEntityIdByName(String packageName, Map<String, ArchitectureEntity> entitiesById) {
+        if (packageName == null || packageName.isBlank()) {
+            return null;
+        }
+        for (ArchitectureEntity entity : entitiesById.values()) {
+            if (isPackageEntity(entity) && packageName.equals(entity.name())) {
+                return entity.id();
+            }
+        }
+        return null;
+    }
+
+    private static Map<String, Object> buildDependencyViews(
+        List<ArchitectureRelationship> relationships,
+        Map<String, ArchitectureEntity> entitiesById,
+        Map<String, ArchitectureEntity> observedTypesByQualifiedName
+    ) {
+        Map<String, NormalizedTypeDependency> typeDependenciesByKey = new LinkedHashMap<>();
+        Map<String, NormalizedPackageDependency> packageDependenciesByKey = new LinkedHashMap<>();
+        for (ArchitectureRelationship relationship : relationships) {
+            ArchitectureEntity source = canonicalDependencyEntity(entitiesById.get(relationship.fromEntityId()), observedTypesByQualifiedName);
+            ArchitectureEntity target = canonicalDependencyEntity(entitiesById.get(relationship.toEntityId()), observedTypesByQualifiedName);
+            if (isTypeDependencyRelationship(relationship, source, target)) {
+                String sourceTypeId = source == null ? relationship.fromEntityId() : source.id();
+                String targetTypeId = target == null ? relationship.toEntityId() : target.id();
+                String typeKey = relationship.kind().name() + "|" + sourceTypeId + "|" + targetTypeId;
+                typeDependenciesByKey.computeIfAbsent(typeKey, ignored -> new NormalizedTypeDependency(
+                    sourceTypeId,
+                    targetTypeId,
+                    relationship.kind(),
+                    source == null ? null : source.name(),
+                    target == null ? null : target.name(),
+                    isInternalEntity(target),
+                    isExternalEntity(target)
+                )).addEvidence(relationship);
+
+                String sourcePackageName = packageNameForDependencyEntity(source);
+                String targetPackageName = packageNameForDependencyEntity(target);
+                if (sourcePackageName != null && targetPackageName != null && !sourcePackageName.equals(targetPackageName)) {
+                    String packageKey = relationship.kind().name() + "|" + sourcePackageName + "|" + targetPackageName;
+                    packageDependenciesByKey.computeIfAbsent(packageKey, ignored -> new NormalizedPackageDependency(
+                        sourcePackageName,
+                        targetPackageName,
+                        relationship.kind(),
+                        isInternalEntity(target),
+                        isExternalEntity(target)
+                    )).addEvidence(relationship, source, target);
+                }
+            }
         }
         List<Map<String, Object>> typeDependencies = new ArrayList<>();
-        for (NormalizedTypeDependency dependency : byKey.values()) {
+        for (NormalizedTypeDependency dependency : typeDependenciesByKey.values()) {
             typeDependencies.add(dependency.toMetadataMap());
         }
-        return Map.of("typeDependencies", List.copyOf(typeDependencies));
+        List<Map<String, Object>> packageDependencies = new ArrayList<>();
+        for (NormalizedPackageDependency dependency : packageDependenciesByKey.values()) {
+            packageDependencies.add(dependency.toMetadataMap());
+        }
+        Map<String, Object> dependencyViews = new LinkedHashMap<>();
+        dependencyViews.put("typeDependencies", List.copyOf(typeDependencies));
+        dependencyViews.put("packageDependencies", List.copyOf(packageDependencies));
+        return Map.copyOf(dependencyViews);
+    }
+
+
+    private static Map<String, ArchitectureEntity> observedTypesByQualifiedName(Map<String, ArchitectureEntity> entitiesById) {
+        Map<String, ArchitectureEntity> observed = new LinkedHashMap<>();
+        for (ArchitectureEntity entity : entitiesById.values()) {
+            if (!isTypeEntity(entity) || entity.origin() != EntityOrigin.OBSERVED) {
+                continue;
+            }
+            String qualifiedName = qualifiedNameForEntity(entity);
+            if (qualifiedName != null && !qualifiedName.isBlank()) {
+                observed.putIfAbsent(qualifiedName, entity);
+            }
+        }
+        return Map.copyOf(observed);
+    }
+
+    private static ArchitectureEntity canonicalDependencyEntity(
+        ArchitectureEntity entity,
+        Map<String, ArchitectureEntity> observedTypesByQualifiedName
+    ) {
+        if (entity == null || !isTypeEntity(entity) || entity.origin() == EntityOrigin.OBSERVED) {
+            return entity;
+        }
+        String qualifiedName = qualifiedNameForEntity(entity);
+        if (qualifiedName == null || qualifiedName.isBlank()) {
+            return entity;
+        }
+        return observedTypesByQualifiedName.getOrDefault(qualifiedName, entity);
+    }
+
+    private static String qualifiedNameForEntity(ArchitectureEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        if (entity.metadata() != null) {
+            Object qualifiedName = entity.metadata().get("qualifiedName");
+            if (qualifiedName instanceof String q && !q.isBlank()) {
+                return q;
+            }
+        }
+        String name = entity.name();
+        return (name == null || name.isBlank()) ? null : name;
+    }
+
+
+    private static boolean hasRollup(ArchitectureRelationship relationship, String expectedRollup) {
+        return relationship != null
+            && relationship.metadata() != null
+            && Objects.equals(expectedRollup, relationship.metadata().get("rollup"));
     }
 
     private static boolean isDependencyRelationship(RelationshipKind kind) {
@@ -371,6 +551,21 @@ public final class ArchitectureIrFactory {
         return isDependencyRelationship(relationship.kind()) && isTypeEntity(source) && isTypeEntity(target);
     }
 
+    private static boolean isPackageDependencyRelationship(
+        ArchitectureRelationship relationship,
+        ArchitectureEntity source,
+        ArchitectureEntity target
+    ) {
+        if (source == null || target == null) {
+            return false;
+        }
+        Object rollup = relationship.metadata() == null ? null : relationship.metadata().get("rollup");
+        return (relationship.kind() == RelationshipKind.USES || isDependencyRelationship(relationship.kind()))
+            && Objects.equals("package-package", rollup)
+            && isPackageEntity(source)
+            && isPackageEntity(target);
+    }
+
     private static boolean isImportEvidenceRelationship(
         ArchitectureRelationship relationship,
         ArchitectureEntity source,
@@ -381,6 +576,40 @@ public final class ArchitectureIrFactory {
         }
         Object dependencySource = relationship.metadata() == null ? null : relationship.metadata().get("dependencySource");
         return source.kind() == EntityKind.MODULE && target.kind() == EntityKind.MODULE && Objects.equals("import", dependencySource);
+    }
+
+    private static String packageNameForDependencyEntity(ArchitectureEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        if (entity.metadata() != null) {
+            Object explicitPackage = entity.metadata().get("packageName");
+            if (explicitPackage instanceof String packageName && !packageName.isBlank()) {
+                return packageName;
+            }
+            Object qualifiedName = entity.metadata().get("qualifiedName");
+            if (qualifiedName instanceof String qualified && !qualified.isBlank()) {
+                String derived = packageNameFromQualifiedName(qualified);
+                if (derived != null) {
+                    return derived;
+                }
+            }
+        }
+        return packageNameFromQualifiedName(entity.name());
+    }
+
+    private static String packageNameFromQualifiedName(String qualifiedName) {
+        if (qualifiedName == null || qualifiedName.isBlank() || !qualifiedName.contains(".")) {
+            return null;
+        }
+        return qualifiedName.substring(0, qualifiedName.lastIndexOf('.'));
+    }
+
+    private static boolean isPackageEntity(ArchitectureEntity entity) {
+        return entity != null
+            && entity.kind() == EntityKind.MODULE
+            && entity.metadata() != null
+            && Objects.equals("package", entity.metadata().get("logicalRole"));
     }
 
     private static boolean isTypeEntity(ArchitectureEntity entity) {
@@ -474,6 +703,68 @@ public final class ArchitectureIrFactory {
             if (!asString.isEmpty()) {
                 sink.add(asString);
             }
+        }
+    }
+
+    private static final class NormalizedPackageDependency {
+        private final String sourcePackageName;
+        private final String targetPackageName;
+        private final RelationshipKind relationshipKind;
+        private final boolean internalTarget;
+        private final boolean externalTarget;
+        private final Set<String> dependencySources = new LinkedHashSet<>();
+        private final Set<String> dependencyCategories = new LinkedHashSet<>();
+        private final Set<String> evidenceRelationshipIds = new LinkedHashSet<>();
+        private final Set<String> evidenceLabels = new LinkedHashSet<>();
+        private final Set<String> sourceTypeIds = new LinkedHashSet<>();
+        private final Set<String> targetTypeIds = new LinkedHashSet<>();
+
+        private NormalizedPackageDependency(
+            String sourcePackageName,
+            String targetPackageName,
+            RelationshipKind relationshipKind,
+            boolean internalTarget,
+            boolean externalTarget
+        ) {
+            this.sourcePackageName = sourcePackageName;
+            this.targetPackageName = targetPackageName;
+            this.relationshipKind = relationshipKind;
+            this.internalTarget = internalTarget;
+            this.externalTarget = externalTarget;
+        }
+
+        private void addEvidence(ArchitectureRelationship relationship, ArchitectureEntity source, ArchitectureEntity target) {
+            evidenceRelationshipIds.add(relationship.id());
+            if (relationship.label() != null && !relationship.label().isBlank()) {
+                evidenceLabels.add(relationship.label());
+            }
+            if (source != null) {
+                sourceTypeIds.add(source.id());
+            }
+            if (target != null) {
+                targetTypeIds.add(target.id());
+            }
+            if (relationship.metadata() != null) {
+                NormalizedTypeDependency.addIfPresent(dependencySources, relationship.metadata().get("dependencySource"));
+                NormalizedTypeDependency.addIfPresent(dependencyCategories, relationship.metadata().get("dependencyCategory"));
+            }
+        }
+
+        private Map<String, Object> toMetadataMap() {
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("sourcePackageName", sourcePackageName);
+            metadata.put("targetPackageName", targetPackageName);
+            metadata.put("relationshipKind", relationshipKind.name());
+            metadata.put("dependencySources", List.copyOf(dependencySources));
+            metadata.put("dependencyCategories", List.copyOf(dependencyCategories));
+            metadata.put("internalTarget", internalTarget);
+            metadata.put("externalTarget", externalTarget);
+            metadata.put("underlyingRelationshipCount", evidenceRelationshipIds.size());
+            metadata.put("sourceTypeCount", sourceTypeIds.size());
+            metadata.put("targetTypeCount", targetTypeIds.size());
+            metadata.put("evidenceRelationshipIds", List.copyOf(evidenceRelationshipIds));
+            metadata.put("evidenceLabels", List.copyOf(evidenceLabels));
+            return Map.copyOf(metadata);
         }
     }
 
