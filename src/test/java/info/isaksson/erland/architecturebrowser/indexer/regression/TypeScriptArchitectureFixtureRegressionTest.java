@@ -496,6 +496,48 @@ class TypeScriptArchitectureFixtureRegressionTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> frontendArchitectureViews = (Map<String, Object>) dependencyViews.get("frontendArchitectureViews");
         assertEquals(List.of("frameworkTypeDependencies", "frameworkModuleDependencies"), frontendArchitectureViews.get("frameworkAware"));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> frontendBrowserViews = (Map<String, Object>) dependencyViews.get("frontendBrowserViews");
+        assertEquals("angularModuleGraph", frontendBrowserViews.get("defaultViewId"));
+        assertTrue(((List<?>) frontendBrowserViews.get("availableViews")).containsAll(List.of(
+            "angularModuleGraph",
+            "angularProviderGraph",
+            "routeGraph",
+            "reactComponentCompositionGraph",
+            "reactContextGraph",
+            "reactHookGraph"
+        )));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> browserViewDescriptors = (List<Map<String, Object>>) frontendBrowserViews.get("views");
+        assertBrowserView(browserViewDescriptors, "angularModuleGraph", "angular", "compositionTypeDependencies", "compositionModuleDependencies", "declares");
+        assertBrowserView(browserViewDescriptors, "angularProviderGraph", "angular", "providerTypeDependencies", "providerModuleDependencies", "injects");
+        assertBrowserView(browserViewDescriptors, "routeGraph", "frontend", "routeTypeDependencies", "routeModuleDependencies", "targets");
+        assertBrowserView(browserViewDescriptors, "reactComponentCompositionGraph", "react", "compositionTypeDependencies", "compositionModuleDependencies", "renders");
+        assertBrowserView(browserViewDescriptors, "reactContextGraph", "react", "providerTypeDependencies", "providerModuleDependencies", "providesContext");
+        assertBrowserView(browserViewDescriptors, "reactHookGraph", "react", "hookTypeDependencies", "hookModuleDependencies", "usesHook");
+    }
+
+    private static void assertBrowserView(
+        List<Map<String, Object>> views,
+        String id,
+        String framework,
+        String typeDependencyView,
+        String moduleDependencyView,
+        String frameworkRelationship
+    ) {
+        Map<String, Object> view = views.stream()
+            .filter(candidate -> id.equals(candidate.get("id")))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Missing browser view " + id + ". views=" + views));
+        assertEquals(framework, view.get("framework"));
+        assertEquals(typeDependencyView, view.get("typeDependencyView"));
+        assertEquals(moduleDependencyView, view.get("moduleDependencyView"));
+        assertEquals(Boolean.TRUE, view.get("available"));
+        assertTrue(((Number) view.get("typeDependencyCount")).intValue() > 0 || ((Number) view.get("moduleDependencyCount")).intValue() > 0,
+            () -> "Expected browser view " + id + " to expose dependencies. view=" + view);
+        assertTrue(((List<?>) view.get("frameworkRelationships")).contains(frameworkRelationship),
+            () -> "Expected framework relationship " + frameworkRelationship + " in view=" + view);
     }
 
     private static ArchitectureIndexDocument buildDocument(List<TsFixtureFile> files) {

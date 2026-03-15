@@ -678,6 +678,19 @@ public final class ArchitectureIrFactory {
             "providerAndDi", List.of("providerTypeDependencies", "providerModuleDependencies"),
             "hooks", List.of("hookTypeDependencies", "hookModuleDependencies")
         ));
+        Map<String, Object> frontendBrowserViews = buildFrontendBrowserViews(
+            compositionTypeDependencies,
+            compositionModuleDependencies,
+            routeTypeDependencies,
+            routeModuleDependencies,
+            providerTypeDependencies,
+            providerModuleDependencies,
+            hookTypeDependencies,
+            hookModuleDependencies
+        );
+        if (!frontendBrowserViews.isEmpty()) {
+            dependencyViews.put("frontendBrowserViews", frontendBrowserViews);
+        }
         dependencyViews.put("evidenceStatus", Map.of(
             "fileImportDependencies", "supporting-evidence",
             "recommendedForArchitectureViews", false,
@@ -746,6 +759,177 @@ public final class ArchitectureIrFactory {
                     sink.add("route");
                 }
             }
+        }
+    }
+
+
+    private static Map<String, Object> buildFrontendBrowserViews(
+        List<Map<String, Object>> compositionTypeDependencies,
+        List<Map<String, Object>> compositionModuleDependencies,
+        List<Map<String, Object>> routeTypeDependencies,
+        List<Map<String, Object>> routeModuleDependencies,
+        List<Map<String, Object>> providerTypeDependencies,
+        List<Map<String, Object>> providerModuleDependencies,
+        List<Map<String, Object>> hookTypeDependencies,
+        List<Map<String, Object>> hookModuleDependencies
+    ) {
+        List<FrontendBrowserViewDefinition> definitions = List.of(
+            new FrontendBrowserViewDefinition(
+                "angularModuleGraph",
+                "Angular module graph",
+                "Angular module, standalone component, and template composition relationships for browser-native graph exploration.",
+                "angular",
+                "composition",
+                "compositionTypeDependencies",
+                "compositionModuleDependencies",
+                List.of("declares", "imports", "exports", "bootstraps", "templateRenders", "usesDirective", "usesPipe"),
+                compositionTypeDependencies,
+                compositionModuleDependencies
+            ),
+            new FrontendBrowserViewDefinition(
+                "angularProviderGraph",
+                "Angular provider graph",
+                "Angular provider, injection-token, and dependency-injection relationships for browser-native graph exploration.",
+                "angular",
+                "provider-di",
+                "providerTypeDependencies",
+                "providerModuleDependencies",
+                List.of("provides", "providedBy", "injects", "resolvesTo"),
+                providerTypeDependencies,
+                providerModuleDependencies
+            ),
+            new FrontendBrowserViewDefinition(
+                "routeGraph",
+                "Frontend route graph",
+                "Angular and React routing relationships for browser-native navigation and path analysis.",
+                "frontend",
+                "route",
+                "routeTypeDependencies",
+                "routeModuleDependencies",
+                List.of("targets", "childOf", "lazyLoads", "guards", "resolves"),
+                routeTypeDependencies,
+                routeModuleDependencies
+            ),
+            new FrontendBrowserViewDefinition(
+                "reactComponentCompositionGraph",
+                "React component composition graph",
+                "React render/composition relationships for browser-native component graph exploration.",
+                "react",
+                "composition",
+                "compositionTypeDependencies",
+                "compositionModuleDependencies",
+                List.of("renders"),
+                compositionTypeDependencies,
+                compositionModuleDependencies
+            ),
+            new FrontendBrowserViewDefinition(
+                "reactContextGraph",
+                "React context graph",
+                "React provider/consumer context relationships for browser-native context exploration.",
+                "react",
+                "provider-di",
+                "providerTypeDependencies",
+                "providerModuleDependencies",
+                List.of("providesContext", "consumesContext"),
+                providerTypeDependencies,
+                providerModuleDependencies
+            ),
+            new FrontendBrowserViewDefinition(
+                "reactHookGraph",
+                "React hook graph",
+                "React custom-hook usage relationships for browser-native hook exploration.",
+                "react",
+                "hook",
+                "hookTypeDependencies",
+                "hookModuleDependencies",
+                List.of("usesHook"),
+                hookTypeDependencies,
+                hookModuleDependencies
+            )
+        );
+
+        List<Map<String, Object>> views = new ArrayList<>();
+        List<String> availableViews = new ArrayList<>();
+        for (FrontendBrowserViewDefinition definition : definitions) {
+            Map<String, Object> descriptor = definition.toMetadataMap();
+            views.add(descriptor);
+            if (Boolean.TRUE.equals(descriptor.get("available"))) {
+                availableViews.add(definition.id());
+            }
+        }
+        if (availableViews.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("views", List.copyOf(views));
+        result.put("availableViews", List.copyOf(availableViews));
+        result.put("defaultViewId", availableViews.get(0));
+        result.put("description", "Browser-facing frontend graph descriptors derived from existing dependency rollups.");
+        return Map.copyOf(result);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> stringList(Object value) {
+        if (value instanceof List<?> list) {
+            return list.stream().filter(Objects::nonNull).map(String::valueOf).toList();
+        }
+        return List.of();
+    }
+
+    private static List<Map<String, Object>> filterDependenciesForFrontendBrowserView(
+        List<Map<String, Object>> dependencies,
+        String framework,
+        List<String> frameworkRelationships
+    ) {
+        if (dependencies == null || dependencies.isEmpty()) {
+            return List.of();
+        }
+        return dependencies.stream()
+            .filter(dependency -> {
+                List<String> frameworks = stringList(dependency.get("frameworks"));
+                if (!"frontend".equals(framework) && !frameworks.contains(framework)) {
+                    return false;
+                }
+                if (frameworkRelationships == null || frameworkRelationships.isEmpty()) {
+                    return true;
+                }
+                List<String> relationships = stringList(dependency.get("frameworkRelationships"));
+                return relationships.stream().anyMatch(frameworkRelationships::contains);
+            })
+            .toList();
+    }
+
+    private record FrontendBrowserViewDefinition(
+        String id,
+        String title,
+        String description,
+        String framework,
+        String architectureViewKind,
+        String typeDependencyView,
+        String moduleDependencyView,
+        List<String> frameworkRelationships,
+        List<Map<String, Object>> typeDependencies,
+        List<Map<String, Object>> moduleDependencies
+    ) {
+        private Map<String, Object> toMetadataMap() {
+            List<Map<String, Object>> filteredTypeDependencies = filterDependenciesForFrontendBrowserView(typeDependencies, framework, frameworkRelationships);
+            List<Map<String, Object>> filteredModuleDependencies = filterDependenciesForFrontendBrowserView(moduleDependencies, framework, frameworkRelationships);
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("id", id);
+            metadata.put("title", title);
+            metadata.put("description", description);
+            metadata.put("framework", framework);
+            metadata.put("architectureViewKind", architectureViewKind);
+            metadata.put("typeDependencyView", typeDependencyView);
+            metadata.put("moduleDependencyView", moduleDependencyView);
+            metadata.put("frameworkRelationships", List.copyOf(frameworkRelationships));
+            metadata.put("available", !filteredTypeDependencies.isEmpty() || !filteredModuleDependencies.isEmpty());
+            metadata.put("typeDependencyCount", filteredTypeDependencies.size());
+            metadata.put("moduleDependencyCount", filteredModuleDependencies.size());
+            metadata.put("preferredDependencyView", !filteredTypeDependencies.isEmpty() ? typeDependencyView : moduleDependencyView);
+            metadata.put("browserViewKind", "graph");
+            metadata.put("recommendedForArchitectureViews", true);
+            return Map.copyOf(metadata);
         }
     }
 
