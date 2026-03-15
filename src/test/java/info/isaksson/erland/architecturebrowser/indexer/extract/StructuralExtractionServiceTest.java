@@ -909,6 +909,157 @@ class StructuralExtractionServiceTest {
 
 
     @Test
+    void javaDependencyRelationshipsCarrySourceAndCategoryMetadata() {
+        String source = """
+            package com.example.demo;
+            import java.util.List;
+            import com.example.shared.RequestContext;
+            class Dependency {}
+            class Demo extends Dependency {
+                private List<RequestContext> contexts;
+                Demo(RequestContext context) {}
+                public Dependency find(RequestContext context) { return null; }
+            }
+            """;
+
+        SyntaxNode root = new SyntaxNode("program", true, 0, source.length(), 0, 0, 7, 0, false, false, source, List.of(
+            new SyntaxNode("package_declaration", true, 0, 25, 0, 0, 0, 25, false, false, "package com.example.demo;", List.of(
+                new SyntaxNode("scoped_identifier", true, 8, 24, 0, 8, 0, 24, false, false, "com.example.demo", List.of())
+            )),
+            new SyntaxNode("import_declaration", true, 26, 48, 1, 0, 1, 22, false, false, "import java.util.List;", List.of()),
+            new SyntaxNode("import_declaration", true, 49, 90, 2, 0, 2, 41, false, false, "import com.example.shared.RequestContext;", List.of()),
+            new SyntaxNode("class_declaration", true, 91, 109, 3, 0, 3, 18, false, false,
+                "class Dependency {}", List.of(
+                    new SyntaxNode("identifier", true, 97, 107, 3, 6, 3, 16, false, false, "Dependency", List.of())
+                )),
+            new SyntaxNode("class_declaration", true, 110, source.length(), 4, 0, 7, 1, false, false,
+                "class Demo extends Dependency { private List<RequestContext> contexts; Demo(RequestContext context) {} public Dependency find(RequestContext context) { return null; } }", List.of(
+                    new SyntaxNode("identifier", true, 116, 120, 4, 6, 4, 10, false, false, "Demo", List.of()),
+                    new SyntaxNode("type_identifier", true, 129, 139, 4, 19, 4, 29, false, false, "Dependency", List.of()),
+                    new SyntaxNode("field_declaration", true, 142, 180, 5, 4, 5, 42, false, false,
+                        "private List<RequestContext> contexts;", List.of(
+                            new SyntaxNode("generic_type", true, 150, 170, 5, 12, 5, 32, false, false, "List<RequestContext>", List.of()),
+                            new SyntaxNode("variable_declarator", true, 171, 179, 5, 33, 5, 41, false, false, "contexts", List.of(
+                                new SyntaxNode("identifier", true, 171, 179, 5, 33, 5, 41, false, false, "contexts", List.of())
+                            ))
+                        )),
+                    new SyntaxNode("constructor_declaration", true, 181, 213, 6, 4, 6, 36, false, false,
+                        "Demo(RequestContext context) {}", List.of(
+                            new SyntaxNode("identifier", true, 181, 185, 6, 4, 6, 8, false, false, "Demo", List.of()),
+                            new SyntaxNode("formal_parameters", true, 185, 209, 6, 8, 6, 32, false, false, "(RequestContext context)", List.of())
+                        )),
+                    new SyntaxNode("method_declaration", true, 214, 281, 7, 4, 7, 71, false, false,
+                        "public Dependency find(RequestContext context) { return null; }", List.of(
+                            new SyntaxNode("type_identifier", true, 221, 231, 7, 11, 7, 21, false, false, "Dependency", List.of()),
+                            new SyntaxNode("identifier", true, 232, 236, 7, 22, 7, 26, false, false, "find", List.of()),
+                            new SyntaxNode("formal_parameters", true, 236, 260, 7, 26, 7, 50, false, false, "(RequestContext context)", List.of())
+                        ))
+                ))
+        ));
+
+        SourceParseResult parseResult = new SourceParseResult(
+            new SourceParseRequest(Path.of("src/main/java/com/example/demo/Demo.java"), "src/main/java/com/example/demo/Demo.java", ParseLanguage.JAVA, source),
+            ParseStatus.SUCCESS,
+            new SyntaxTree(ParseLanguage.JAVA, "tree-sitter-jtreesitter", root, false, root.nodeCount()),
+            List.of(),
+            Map.of("parserBackend", "tree-sitter-jtreesitter")
+        );
+
+        StructuralExtractionResult result = new StructuralExtractionService(StructuralExtractorRegistry.defaultRegistry())
+            .extract(new ParseBatchResult(List.of(parseResult), Map.of(ParseLanguage.JAVA, 1), Map.of(ParseStatus.SUCCESS, 1)));
+
+        String demoId = result.entities().stream().filter(entity -> entity.kind() == EntityKind.CLASS && "Demo".equals(entity.name())).findFirst().orElseThrow().id();
+        String fileEntityId = result.entities().stream().filter(entity -> entity.kind() == EntityKind.MODULE && entity.name().toString().endsWith("Demo.java")).findFirst().orElseThrow().id();
+
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && fileEntityId.equals(rel.fromEntityId())
+            && "java.util.List".equals(rel.label())
+            && "import".equals(rel.metadata().get("dependencySource"))
+            && "evidence".equals(rel.metadata().get("dependencyCategory"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && demoId.equals(rel.fromEntityId())
+            && "java.util.List".equals(rel.label())
+            && "field".equals(rel.metadata().get("dependencySource"))
+            && "composition".equals(rel.metadata().get("dependencyCategory"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && demoId.equals(rel.fromEntityId())
+            && "com.example.shared.RequestContext".equals(rel.label())
+            && "constructorParameter".equals(rel.metadata().get("dependencySource"))
+            && "api".equals(rel.metadata().get("dependencyCategory"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && demoId.equals(rel.fromEntityId())
+            && "com.example.demo.Dependency".equals(rel.label())
+            && "returnType".equals(rel.metadata().get("dependencySource"))
+            && "api".equals(rel.metadata().get("dependencyCategory"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && demoId.equals(rel.fromEntityId())
+            && "com.example.shared.RequestContext".equals(rel.label())
+            && "parameterType".equals(rel.metadata().get("dependencySource"))
+            && "api".equals(rel.metadata().get("dependencyCategory"))));
+    }
+
+    @Test
+    void javaHierarchyRelationshipsCarrySourceAndCategoryMetadata() {
+        String source = """
+            package com.example.demo;
+            interface BasePort {}
+            interface ExtendedPort extends BasePort {}
+            class BaseService {}
+            class DemoService extends BaseService implements ExtendedPort {}
+            """;
+
+        SyntaxNode root = new SyntaxNode("program", true, 0, source.length(), 0, 0, 4, 0, false, false, source, List.of(
+            new SyntaxNode("package_declaration", true, 0, 25, 0, 0, 0, 25, false, false, "package com.example.demo;", List.of(
+                new SyntaxNode("scoped_identifier", true, 8, 24, 0, 8, 0, 24, false, false, "com.example.demo", List.of())
+            )),
+            new SyntaxNode("interface_declaration", true, 26, 47, 1, 0, 1, 21, false, false, "interface BasePort {}", List.of(
+                new SyntaxNode("identifier", true, 36, 44, 1, 10, 1, 18, false, false, "BasePort", List.of())
+            )),
+            new SyntaxNode("interface_declaration", true, 48, 89, 2, 0, 2, 41, false, false, "interface ExtendedPort extends BasePort {}", List.of(
+                new SyntaxNode("identifier", true, 58, 70, 2, 10, 2, 22, false, false, "ExtendedPort", List.of()),
+                new SyntaxNode("type_identifier", true, 79, 87, 2, 31, 2, 39, false, false, "BasePort", List.of())
+            )),
+            new SyntaxNode("class_declaration", true, 90, 111, 3, 0, 3, 21, false, false, "class BaseService {}", List.of(
+                new SyntaxNode("identifier", true, 96, 107, 3, 6, 3, 17, false, false, "BaseService", List.of())
+            )),
+            new SyntaxNode("class_declaration", true, 112, 171, 4, 0, 4, 59, false, false,
+                "class DemoService extends BaseService implements ExtendedPort {}", List.of(
+                    new SyntaxNode("identifier", true, 118, 129, 4, 6, 4, 17, false, false, "DemoService", List.of()),
+                    new SyntaxNode("type_identifier", true, 138, 149, 4, 26, 4, 37, false, false, "BaseService", List.of()),
+                    new SyntaxNode("type_identifier", true, 161, 173, 4, 49, 4, 61, false, false, "ExtendedPort", List.of())
+                ))
+        ));
+
+        SourceParseResult parseResult = new SourceParseResult(
+            new SourceParseRequest(Path.of("src/main/java/com/example/demo/DemoService.java"), "src/main/java/com/example/demo/DemoService.java", ParseLanguage.JAVA, source),
+            ParseStatus.SUCCESS,
+            new SyntaxTree(ParseLanguage.JAVA, "tree-sitter-jtreesitter", root, false, root.nodeCount()),
+            List.of(),
+            Map.of("parserBackend", "tree-sitter-jtreesitter")
+        );
+
+        StructuralExtractionResult result = new StructuralExtractionService(StructuralExtractorRegistry.defaultRegistry())
+            .extract(new ParseBatchResult(List.of(parseResult), Map.of(ParseLanguage.JAVA, 1), Map.of(ParseStatus.SUCCESS, 1)));
+
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.EXTENDS
+            && "com.example.demo.BaseService".equals(rel.label())
+            && "extends".equals(rel.metadata().get("dependencySource"))
+            && "hierarchy".equals(rel.metadata().get("dependencyCategory"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.IMPLEMENTS
+            && "com.example.demo.ExtendedPort".equals(rel.label())
+            && "implements".equals(rel.metadata().get("dependencySource"))
+            && "hierarchy".equals(rel.metadata().get("dependencyCategory"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && "com.example.demo.BaseService".equals(rel.label())
+            && "extends".equals(rel.metadata().get("dependencySource"))
+            && "hierarchy".equals(rel.metadata().get("dependencyCategory"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && "com.example.demo.ExtendedPort".equals(rel.label())
+            && "implements".equals(rel.metadata().get("dependencySource"))
+            && "hierarchy".equals(rel.metadata().get("dependencyCategory"))));
+    }
+
+    @Test
     void javaEnumExtractionKeepsClassEntityKindButAddsDeclarationKindMetadata() {
         String source = """
             package com.example.demo;

@@ -124,6 +124,24 @@ final class ExtractionSupport {
     }
 
     static ExtractedRelationshipFact typedRelationship(RelationshipKind kind, String prefix, String fromId, String toId, String label, SourceReference ref, String language) {
+        return typedRelationship(kind, prefix, fromId, toId, label, ref, language, Map.of());
+    }
+
+    static ExtractedRelationshipFact typedRelationship(
+        RelationshipKind kind,
+        String prefix,
+        String fromId,
+        String toId,
+        String label,
+        SourceReference ref,
+        String language,
+        Map<String, Object> metadata
+    ) {
+        java.util.Map<String, Object> merged = new java.util.LinkedHashMap<>();
+        merged.put("language", language);
+        if (metadata != null) {
+            merged.putAll(metadata);
+        }
         return new ExtractedRelationshipFact(
             IdUtils.relationshipId(prefix, fromId, toId, label),
             kind,
@@ -131,19 +149,39 @@ final class ExtractionSupport {
             toId,
             label,
             List.of(ref),
-            Map.of("language", language)
+            java.util.Map.copyOf(merged)
         );
     }
 
     static ExtractedRelationshipFact dependencyRelationship(String fromId, String toId, String label, SourceReference ref, String language) {
+        return dependencyRelationship(fromId, toId, label, ref, language, Map.of());
+    }
+
+    static ExtractedRelationshipFact dependencyRelationship(
+        String fromId,
+        String toId,
+        String label,
+        SourceReference ref,
+        String language,
+        Map<String, Object> metadata
+    ) {
+        java.util.Map<String, Object> merged = new java.util.LinkedHashMap<>();
+        merged.put("language", language);
+        if (metadata != null) {
+            merged.putAll(metadata);
+        }
+        String dependencySourceKey = metadata == null ? null : java.util.Objects.toString(metadata.get("dependencySource"), null);
+        String relationshipLabelKey = (dependencySourceKey == null || dependencySourceKey.isBlank())
+            ? label
+            : label + ":" + dependencySourceKey;
         return new ExtractedRelationshipFact(
-            IdUtils.relationshipId("depends-on", fromId, toId, label),
+            IdUtils.relationshipId("depends-on", fromId, toId, relationshipLabelKey),
             RelationshipKind.DEPENDS_ON,
             fromId,
             toId,
             label,
             List.of(ref),
-            Map.of("language", language)
+            java.util.Map.copyOf(merged)
         );
     }
 

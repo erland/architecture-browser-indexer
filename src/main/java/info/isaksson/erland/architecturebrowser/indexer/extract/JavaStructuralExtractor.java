@@ -82,7 +82,8 @@ final class JavaStructuralExtractor implements StructuralExtractor {
             accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
                 fileEntity.id(), external.id(), imported,
                 ExtractionSupport.sourceRef(relativePath, line, importNode.textSnippet(), Map.of("language", "java", "kind", "import")),
-                "java"
+                "java",
+                dependencyMetadata("import", "evidence")
             ));
         }
 
@@ -159,7 +160,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                     ref,
                     importsBySimpleName,
                     declaredTypes,
-                    Map.of("dependencySource", "field")
+                    dependencyMetadata("field", "composition")
                 );
             }
         } else if (isJavaMethodLikeDeclaration(node)) {
@@ -173,23 +174,37 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                     methodEntity.id(),
                     ref
                 ));
-                List<String> declaredTypesInSignature = new ArrayList<>();
-                declaredTypesInSignature.add(String.valueOf(methodEntity.metadata().getOrDefault("returnType", "")));
+                String returnType = String.valueOf(methodEntity.metadata().getOrDefault("returnType", ""));
+                if (!returnType.isBlank()) {
+                    addDeclaredTypeDependencies(
+                        accumulator,
+                        dependencySourceEntityId,
+                        List.of(returnType),
+                        relativePath,
+                        packageName,
+                        lineOf(ref, node),
+                        ref,
+                        importsBySimpleName,
+                        declaredTypes,
+                        dependencyMetadata("returnType", "api")
+                    );
+                }
                 @SuppressWarnings("unchecked")
                 List<String> parameterTypes = (List<String>) methodEntity.metadata().getOrDefault("parameterTypes", List.of());
-                declaredTypesInSignature.addAll(parameterTypes);
-                addDeclaredTypeDependencies(
-                    accumulator,
-                    dependencySourceEntityId,
-                    declaredTypesInSignature,
-                    relativePath,
-                    packageName,
-                    lineOf(ref, node),
-                    ref,
-                    importsBySimpleName,
-                    declaredTypes,
-                    Map.of("dependencySource", "method-signature")
-                );
+                if (!parameterTypes.isEmpty()) {
+                    addDeclaredTypeDependencies(
+                        accumulator,
+                        dependencySourceEntityId,
+                        parameterTypes,
+                        relativePath,
+                        packageName,
+                        lineOf(ref, node),
+                        ref,
+                        importsBySimpleName,
+                        declaredTypes,
+                        dependencyMetadata(isConstructor(methodEntity) ? "constructorParameter" : "parameterType", "api")
+                    );
+                }
             }
         }
 
@@ -259,20 +274,34 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                 declaredTypes
             );
         }
-        List<String> declarationDependencies = new ArrayList<>(extendedTypes);
-        declarationDependencies.addAll(implementedTypes);
-        addDeclaredTypeDependencies(
-            accumulator,
-            typeEntity.id(),
-            declarationDependencies,
-            relativePath,
-            packageName,
-            line,
-            ref,
-            importsBySimpleName,
-            declaredTypes,
-            Map.of("dependencySource", "type-declaration")
-        );
+        if (!extendedTypes.isEmpty()) {
+            addDeclaredTypeDependencies(
+                accumulator,
+                typeEntity.id(),
+                extendedTypes,
+                relativePath,
+                packageName,
+                line,
+                ref,
+                importsBySimpleName,
+                declaredTypes,
+                dependencyMetadata("extends", "hierarchy")
+            );
+        }
+        if (!implementedTypes.isEmpty()) {
+            addDeclaredTypeDependencies(
+                accumulator,
+                typeEntity.id(),
+                implementedTypes,
+                relativePath,
+                packageName,
+                line,
+                ref,
+                importsBySimpleName,
+                declaredTypes,
+                dependencyMetadata(typeEntity.kind() == EntityKind.INTERFACE ? "extends" : "implements", "hierarchy")
+            );
+        }
     }
 
     private void addDeclaredTypeDependencies(
@@ -311,7 +340,8 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                     resolved.entityId(),
                     resolved.label(),
                     ref,
-                    "java"
+                    "java",
+                    metadata
                 ));
             }
         }
@@ -390,7 +420,8 @@ final class JavaStructuralExtractor implements StructuralExtractor {
             targetEntityId,
             label,
             ref,
-            "java"
+            "java",
+            dependencyMetadata(relationshipPrefix, "hierarchy")
         ));
     }
 
@@ -534,6 +565,26 @@ final class JavaStructuralExtractor implements StructuralExtractor {
             return packageName + "." + reference;
         }
         return reference;
+    }
+
+
+    private static boolean isConstructor(ExtractedEntityFact methodEntity) {
+        if (methodEntity == null) {
+            return false;
+        }
+        Object ownerQualifiedName = methodEntity.metadata().get("ownerQualifiedName");
+        if (ownerQualifiedName == null || String.valueOf(ownerQualifiedName).isBlank()) {
+            return false;
+        }
+        String ownerSimpleName = simpleName(String.valueOf(ownerQualifiedName));
+        return ownerSimpleName != null && ownerSimpleName.equals(methodEntity.name());
+    }
+
+    private static Map<String, Object> dependencyMetadata(String dependencySource, String dependencyCategory) {
+        java.util.Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+        metadata.put("dependencySource", dependencySource);
+        metadata.put("dependencyCategory", dependencyCategory);
+        return java.util.Map.copyOf(metadata);
     }
 
     private static String simpleName(String qualifiedName) {
