@@ -349,14 +349,14 @@ final class FrontendRoutingExtractor {
         if (lowerSnippet.contains("element:") || lowerSource.contains("react-router") || relativePath.endsWith(".tsx")) {
             return "react";
         }
-        for (String candidate : List.of(
+        for (String candidate : new String[] {
             firstGroup(ANGULAR_COMPONENT_PATTERN, snippet),
             firstGroup(REACT_ELEMENT_PATTERN, snippet),
             firstGroup(REACT_COMPONENT_PATTERN, snippet),
             firstGroup(ANGULAR_LOAD_CHILDREN_PATTERN, snippet),
             firstGroup(ANGULAR_LOAD_CHILDREN_STRING_PATTERN, snippet)
-        )) {
-            if (candidate == null) {
+        }) {
+            if (candidate == null || candidate.isBlank()) {
                 continue;
             }
             ExtractedEntityFact entity = namedEntities.get(candidate);

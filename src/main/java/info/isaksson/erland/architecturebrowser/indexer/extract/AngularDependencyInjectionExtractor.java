@@ -113,7 +113,7 @@ final class AngularDependencyInjectionExtractor {
         Map<String, ExtractedEntityFact> namedEntities
     ) {
         Map<String, String> fields = topLevelObjectFields(providerEntry);
-        String tokenRaw = normalizeAngularReference(fields.get("provide"));
+        String tokenRaw = fieldReference(fields, providerEntry, "provide");
         if (tokenRaw.isBlank()) {
             return;
         }
@@ -127,7 +127,7 @@ final class AngularDependencyInjectionExtractor {
             diRelationshipMetadata("providedBy", tokenRaw, true, "provider-owner")
         ));
 
-        String useClass = normalizeAngularReference(fields.get("useClass"));
+        String useClass = fieldReference(fields, providerEntry, "useClass");
         if (!useClass.isBlank()) {
             ExtractedEntityFact implementationEntity = resolveAngularDiTarget(accumulator, relativePath, useClass, namedEntities, EntityKind.CLASS);
             accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
@@ -140,7 +140,7 @@ final class AngularDependencyInjectionExtractor {
             ));
         }
 
-        String useExisting = normalizeAngularReference(fields.get("useExisting"));
+        String useExisting = fieldReference(fields, providerEntry, "useExisting");
         if (!useExisting.isBlank()) {
             ExtractedEntityFact implementationEntity = resolveAngularDiTarget(accumulator, relativePath, useExisting, namedEntities, EntityKind.CLASS);
             accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
@@ -153,7 +153,7 @@ final class AngularDependencyInjectionExtractor {
             ));
         }
 
-        String useFactory = normalizeAngularReference(fields.get("useFactory"));
+        String useFactory = fieldReference(fields, providerEntry, "useFactory");
         if (!useFactory.isBlank()) {
             ExtractedEntityFact factoryEntity = resolveAngularDiTarget(accumulator, relativePath, useFactory, namedEntities, EntityKind.FUNCTION);
             accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
@@ -339,7 +339,7 @@ final class AngularDependencyInjectionExtractor {
         }
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("framework", "angular");
-        metadata.put("targetClassification", "angular-di-target");
+        metadata.put("targetClassification", fallbackKind == EntityKind.MODULE ? "angular-di-token" : "angular-di-target");
         metadata.put("resolution", "inferred-angular-di-target");
         metadata.put("external", false);
         metadata.put("inferredInternal", true);
@@ -444,6 +444,24 @@ final class AngularDependencyInjectionExtractor {
         return entity.sourceRefs().isEmpty() || entity.sourceRefs().getFirst().startLine() == null
             ? 1
             : entity.sourceRefs().getFirst().startLine();
+    }
+
+    private static String fieldReference(Map<String, String> fields, String providerEntry, String fieldName) {
+        String direct = normalizeAngularReference(fields.get(fieldName));
+        if (!direct.isBlank() && !fieldName.equals(direct)) {
+            return direct;
+        }
+        if (providerEntry == null || providerEntry.isBlank()) {
+            return direct;
+        }
+        Matcher matcher = Pattern.compile("\\b" + Pattern.quote(fieldName) + "\\s*:\\s*([A-Za-z_$][\\w.$]*)").matcher(providerEntry);
+        if (matcher.find()) {
+            String fallback = normalizeAngularReference(matcher.group(1));
+            if (!fallback.isBlank()) {
+                return fallback;
+            }
+        }
+        return direct;
     }
 
     private static Map<String, String> topLevelObjectFields(String objectLiteral) {

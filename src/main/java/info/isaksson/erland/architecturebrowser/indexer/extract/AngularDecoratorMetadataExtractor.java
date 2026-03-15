@@ -47,9 +47,11 @@ final class AngularDecoratorMetadataExtractor {
         Map<String, Object> metadata = angularMetadataBase("Component", "component");
         putIfNotBlank(metadata, "angularSelector", stringLiteral(payload.get("selector")));
         putIfNotBlank(metadata, "angularTemplateUrl", stringLiteral(payload.get("templateUrl")));
+        String inlineTemplate = stringLiteral(payload.get("template"));
         if (payload.containsKey("template")) {
             metadata.put("angularHasInlineTemplate", !payload.get("template").isBlank());
         }
+        putIfNotBlank(metadata, "angularInlineTemplate", inlineTemplate);
         putIfPresent(metadata, "angularStyleUrls", arrayOrSingleton(payload.get("styleUrls")));
         putIfPresent(metadata, "angularStandalone", booleanLiteral(payload.get("standalone")));
         putIfPresent(metadata, "angularImports", arrayOrSingleton(payload.get("imports")));

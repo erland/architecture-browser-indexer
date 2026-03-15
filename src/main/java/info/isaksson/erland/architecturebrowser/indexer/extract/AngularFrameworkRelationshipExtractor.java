@@ -9,6 +9,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 final class AngularFrameworkRelationshipExtractor {
     private AngularFrameworkRelationshipExtractor() {
@@ -102,6 +104,20 @@ final class AngularFrameworkRelationshipExtractor {
         ));
     }
 
+    private static String normalizeProviderRelationshipTarget(String frameworkRelationship, String raw) {
+        if (!"provides".equals(frameworkRelationship) || raw == null || raw.isBlank()) {
+            return normalizeAngularReference(raw);
+        }
+        Matcher provideMatcher = Pattern.compile("\\bprovide\\s*:\\s*([A-Za-z_$][\\w.$]*)").matcher(raw);
+        if (provideMatcher.find()) {
+            String token = normalizeAngularReference(provideMatcher.group(1));
+            if (!token.isBlank()) {
+                return token;
+            }
+        }
+        return normalizeAngularReference(raw);
+    }
+
     private static void addRelationships(
         ExtractionAccumulator accumulator,
         String relativePath,
@@ -116,7 +132,7 @@ final class AngularFrameworkRelationshipExtractor {
             if (raw.isBlank()) {
                 continue;
             }
-            String normalized = normalizeAngularReference(raw);
+            String normalized = normalizeProviderRelationshipTarget(frameworkRelationship, raw);
             if (normalized.isBlank()) {
                 continue;
             }

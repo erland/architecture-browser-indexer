@@ -65,7 +65,7 @@ final class AngularTemplateCompositionExtractor {
             }
             SourceReference ref = primaryRef(entity, relativePath);
             String snippet = ref == null ? "" : Objects.toString(ref.snippet(), "");
-            String template = inlineTemplate(snippet);
+            String template = inlineTemplate(entity, snippet);
             if (template.isBlank()) {
                 continue;
             }
@@ -73,8 +73,10 @@ final class AngularTemplateCompositionExtractor {
             componentTargets.removeAll(normalizedSelectorValues(entity.metadata().get("angularSelector")));
             for (String selector : componentTargets) {
                 ExtractedEntityFact target = componentSelectors.get(selector);
+                boolean resolved = target != null;
                 if (target == null) {
-                    continue;
+                    target = inferredAngularTemplateTarget(selector, EntityKind.UI_MODULE, "component", "selector");
+                    accumulator.addEntity(target);
                 }
                 accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
                     entity.id(),
@@ -82,14 +84,16 @@ final class AngularTemplateCompositionExtractor {
                     target.name(),
                     templateRef(relativePath, ref.startLine(), template),
                     "typescript",
-                    relationshipMetadata("templateRenders", "angular:template-renders", true, "component-selector")
+                    relationshipMetadata("templateRenders", "angular:template-renders", resolved, "component-selector")
                 ));
             }
 
             for (String attribute : attributeNames(template)) {
                 ExtractedEntityFact target = directiveSelectors.get(attribute);
+                boolean resolved = target != null;
                 if (target == null) {
-                    continue;
+                    target = inferredAngularTemplateTarget(attribute, EntityKind.UI_MODULE, "directive", "selector");
+                    accumulator.addEntity(target);
                 }
                 accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
                     entity.id(),
@@ -97,14 +101,16 @@ final class AngularTemplateCompositionExtractor {
                     target.name(),
                     templateRef(relativePath, ref.startLine(), template),
                     "typescript",
-                    relationshipMetadata("usesDirective", "angular:template-uses-directive", true, "directive-selector")
+                    relationshipMetadata("usesDirective", "angular:template-uses-directive", resolved, "directive-selector")
                 ));
             }
 
             for (String pipeName : pipeNames(template)) {
                 ExtractedEntityFact target = pipeNames.get(pipeName);
+                boolean resolved = target != null;
                 if (target == null) {
-                    continue;
+                    target = inferredAngularTemplateTarget(pipeName, EntityKind.FUNCTION, "pipe", "name");
+                    accumulator.addEntity(target);
                 }
                 accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
                     entity.id(),
@@ -112,7 +118,7 @@ final class AngularTemplateCompositionExtractor {
                     target.name(),
                     templateRef(relativePath, ref.startLine(), template),
                     "typescript",
-                    relationshipMetadata("usesPipe", "angular:template-uses-pipe", true, "pipe-name")
+                    relationshipMetadata("usesPipe", "angular:template-uses-pipe", resolved, "pipe-name")
                 ));
             }
         }
@@ -141,6 +147,18 @@ final class AngularTemplateCompositionExtractor {
         return ExtractionSupport.sourceRef(relativePath, safeLine, template, Map.of("language", "typescript", "framework", "angular", "kind", "template"));
     }
 
+    private static ExtractedEntityFact inferredAngularTemplateTarget(String name, EntityKind kind, String angularKind, String selectorKind) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("framework", "angular");
+        metadata.put("angularKind", angularKind);
+        metadata.put("inferredInternal", true);
+        metadata.put("inferredFrom", "angular-template");
+        metadata.put("selectorKind", selectorKind);
+        metadata.put("entityRole", angularKind);
+        metadata.put("uiProfile", "angular-" + angularKind);
+        return ExtractionSupport.inferredTypeEntity("typescript", kind, name, null, 1, Map.copyOf(metadata));
+    }
+
     private static Map<String, Object> relationshipMetadata(String frameworkRelationship, String dependencySource, boolean resolved, String targetClassification) {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("framework", "angular");
@@ -153,7 +171,13 @@ final class AngularTemplateCompositionExtractor {
         return Map.copyOf(metadata);
     }
 
-    private static String inlineTemplate(String declarationSnippet) {
+    private static String inlineTemplate(ExtractedEntityFact entity, String declarationSnippet) {
+        if (entity != null) {
+            String fromMetadata = Objects.toString(entity.metadata().get("angularInlineTemplate"), "").trim();
+            if (!fromMetadata.isBlank()) {
+                return fromMetadata;
+            }
+        }
         String componentPayload = decoratorPayload(declarationSnippet, "@Component");
         if (componentPayload.isBlank()) {
             return "";

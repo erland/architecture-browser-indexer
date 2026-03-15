@@ -1301,6 +1301,18 @@ public final class ArchitectureIrFactory {
                 return true;
             }
         }
+        if (entity.kind() == EntityKind.MODULE && entity.metadata() != null) {
+            String targetClassification = stringMetadata(entity, "targetClassification", "");
+            if ("angular-di-token".equals(targetClassification)) {
+                return true;
+            }
+            if (Boolean.TRUE.equals(entity.metadata().get("angularToken"))) {
+                return true;
+            }
+            if (Boolean.TRUE.equals(entity.metadata().get("angularDiValue"))) {
+                return true;
+            }
+        }
         return false;
     }
 
