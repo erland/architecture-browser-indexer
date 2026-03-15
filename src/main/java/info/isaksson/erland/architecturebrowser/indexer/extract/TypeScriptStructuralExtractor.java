@@ -85,13 +85,16 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
         }
 
         Map<String, ExtractedEntityFact> declaredTypes = new LinkedHashMap<>();
+        Map<String, ExtractedEntityFact> namedEntities = new LinkedHashMap<>();
         for (SyntaxNode typeAliasNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("type_alias_declaration"))) {
             ExtractedEntityFact typeEntity = addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, typeAliasNode, EntityKind.INTERFACE, "type_alias_declaration", "typeAlias", extractionMode);
             if (typeEntity != null) {
                 declaredTypes.putIfAbsent(typeEntity.name(), typeEntity);
+                namedEntities.putIfAbsent(typeEntity.name(), typeEntity);
                 Object qualifiedName = typeEntity.metadata().get("qualifiedName");
                 if (qualifiedName instanceof String qualified && !qualified.isBlank()) {
                     declaredTypes.putIfAbsent(qualified, typeEntity);
+                    namedEntities.putIfAbsent(qualified, typeEntity);
                 }
             }
         }
@@ -99,9 +102,11 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
             ExtractedEntityFact typeEntity = addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, enumNode, EntityKind.CLASS, "enum_declaration", "enum", extractionMode);
             if (typeEntity != null) {
                 declaredTypes.putIfAbsent(typeEntity.name(), typeEntity);
+                namedEntities.putIfAbsent(typeEntity.name(), typeEntity);
                 Object qualifiedName = typeEntity.metadata().get("qualifiedName");
                 if (qualifiedName instanceof String qualified && !qualified.isBlank()) {
                     declaredTypes.putIfAbsent(qualified, typeEntity);
+                    namedEntities.putIfAbsent(qualified, typeEntity);
                 }
             }
         }
@@ -109,9 +114,11 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
             ExtractedEntityFact typeEntity = addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, classNode, EntityKind.CLASS, "class_declaration", "class", extractionMode);
             if (typeEntity != null) {
                 declaredTypes.putIfAbsent(typeEntity.name(), typeEntity);
+                namedEntities.putIfAbsent(typeEntity.name(), typeEntity);
                 Object qualifiedName = typeEntity.metadata().get("qualifiedName");
                 if (qualifiedName instanceof String qualified && !qualified.isBlank()) {
                     declaredTypes.putIfAbsent(qualified, typeEntity);
+                    namedEntities.putIfAbsent(qualified, typeEntity);
                 }
             }
         }
@@ -119,9 +126,11 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
             ExtractedEntityFact typeEntity = addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, interfaceNode, EntityKind.INTERFACE, "interface_declaration", "interface", extractionMode);
             if (typeEntity != null) {
                 declaredTypes.putIfAbsent(typeEntity.name(), typeEntity);
+                namedEntities.putIfAbsent(typeEntity.name(), typeEntity);
                 Object qualifiedName = typeEntity.metadata().get("qualifiedName");
                 if (qualifiedName instanceof String qualified && !qualified.isBlank()) {
                     declaredTypes.putIfAbsent(qualified, typeEntity);
+                    namedEntities.putIfAbsent(qualified, typeEntity);
                 }
             }
         }
@@ -140,13 +149,22 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
             }
         }
         for (SyntaxNode functionNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("function_declaration"))) {
-            addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, functionNode, EntityKind.FUNCTION, "function_declaration", "function", extractionMode);
+            ExtractedEntityFact functionEntity = addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, functionNode, EntityKind.FUNCTION, "function_declaration", "function", extractionMode);
+            if (functionEntity != null) {
+                namedEntities.putIfAbsent(functionEntity.name(), functionEntity);
+            }
         }
         for (SyntaxNode variableDeclarator : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("variable_declarator"))) {
             if (SyntaxTreeExtractionSupport.containsDescendantType(variableDeclarator, "arrow_function")) {
-                addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, variableDeclarator, EntityKind.FUNCTION, "arrow_function", "function", extractionMode);
+                ExtractedEntityFact functionEntity = addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, variableDeclarator, EntityKind.FUNCTION, "arrow_function", "function", extractionMode);
+                if (functionEntity != null) {
+                    namedEntities.putIfAbsent(functionEntity.name(), functionEntity);
+                }
             }
         }
+        AngularFrameworkRelationshipExtractor.extract(accumulator, relativePath, namedEntities);
+        ReactJsxCompositionExtractor.extract(accumulator, relativePath, namedEntities);
+        FrontendRoutingExtractor.extract(accumulator, relativePath, parseResult.request().sourceText(), namedEntities);
         return accumulator;
     }
 
@@ -322,6 +340,7 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
         metadata.put("language", "typescript");
         metadata.put("declarationKind", declarationKind);
         metadata.put("decorators", decorators);
+        metadata.putAll(AngularDecoratorMetadataExtractor.extract(node));
         metadata.put("parseStatus", parseResult.status().name());
         metadata.put("extractionMode", extractionMode.name());
         if (kind == EntityKind.CLASS || kind == EntityKind.INTERFACE) {

@@ -575,6 +575,168 @@ class TypeScriptStructuralExtractorSafetyNetTest {
     }
 
     @Test
+    void extractsAngularComponentDirectiveAndPipeDecoratorPayloadMetadata() {
+        String source = """
+            @Component({
+              selector: 'app-order-list',
+              templateUrl: './order-list.component.html',
+              styleUrls: ['./order-list.component.css', './shared.css'],
+              standalone: true,
+              imports: [CommonModule, RouterModule],
+              providers: [OrderFacade],
+              template: `<section>Orders</section>`
+            })
+            export class OrderListComponent {}
+
+            @Directive({ selector: '[appFocus]', standalone: true, providers: [FocusService] })
+            export class FocusDirective {}
+
+            @Pipe({ name: 'money', standalone: false })
+            export class MoneyPipe {}
+            """;
+
+        SyntaxNode component = new SyntaxNode("class_declaration", true, 0, 329, 0, 0, 8, 35, false, false,
+            """
+            @Component({
+              selector: 'app-order-list',
+              templateUrl: './order-list.component.html',
+              styleUrls: ['./order-list.component.css', './shared.css'],
+              standalone: true,
+              imports: [CommonModule, RouterModule],
+              providers: [OrderFacade],
+              template: `<section>Orders</section>`
+            })
+            export class OrderListComponent {}
+            """.strip(), List.of(
+                new SyntaxNode("decorator", true, 0, 280, 0, 0, 7, 2, false, false,
+                    """
+                    @Component({
+                      selector: 'app-order-list',
+                      templateUrl: './order-list.component.html',
+                      styleUrls: ['./order-list.component.css', './shared.css'],
+                      standalone: true,
+                      imports: [CommonModule, RouterModule],
+                      providers: [OrderFacade],
+                      template: `<section>Orders</section>`
+                    })
+                    """.strip(), List.of()),
+                new SyntaxNode("type_identifier", true, 294, 312, 8, 13, 8, 31, false, false, "OrderListComponent", List.of())
+            ));
+        SyntaxNode directive = new SyntaxNode("class_declaration", true, 331, 455, 10, 0, 11, 31, false, false,
+            """
+            @Directive({ selector: '[appFocus]', standalone: true, providers: [FocusService] })
+            export class FocusDirective {}
+            """.strip(), List.of(
+                new SyntaxNode("decorator", true, 331, 418, 10, 0, 10, 87, false, false,
+                    "@Directive({ selector: '[appFocus]', standalone: true, providers: [FocusService] })", List.of()),
+                new SyntaxNode("type_identifier", true, 432, 446, 11, 13, 11, 27, false, false, "FocusDirective", List.of())
+            ));
+        SyntaxNode pipe = new SyntaxNode("class_declaration", true, 457, source.length(), 13, 0, 14, 24, false, false,
+            """
+            @Pipe({ name: 'money', standalone: false })
+            export class MoneyPipe {}
+            """.strip(), List.of(
+                new SyntaxNode("decorator", true, 457, 503, 13, 0, 13, 46, false, false,
+                    "@Pipe({ name: 'money', standalone: false })", List.of()),
+                new SyntaxNode("type_identifier", true, 517, 526, 14, 13, 14, 22, false, false, "MoneyPipe", List.of())
+            ));
+
+        StructuralExtractionResult result = extract("src/app/angular-metadata.ts", source, program(source, component, directive, pipe));
+
+        var componentEntity = entity(result, EntityKind.CLASS, "OrderListComponent");
+        assertEquals("angular", componentEntity.metadata().get("framework"));
+        assertEquals("Component", componentEntity.metadata().get("angularDecorator"));
+        assertEquals("component", componentEntity.metadata().get("angularKind"));
+        assertEquals("app-order-list", componentEntity.metadata().get("angularSelector"));
+        assertEquals("./order-list.component.html", componentEntity.metadata().get("angularTemplateUrl"));
+        assertEquals(true, componentEntity.metadata().get("angularHasInlineTemplate"));
+        assertEquals(true, componentEntity.metadata().get("angularStandalone"));
+        assertEquals(List.of("./order-list.component.css", "./shared.css"), componentEntity.metadata().get("angularStyleUrls"));
+        assertEquals(List.of("CommonModule", "RouterModule"), componentEntity.metadata().get("angularImports"));
+        assertEquals(List.of("OrderFacade"), componentEntity.metadata().get("angularProviders"));
+
+        var directiveEntity = entity(result, EntityKind.CLASS, "FocusDirective");
+        assertEquals("Directive", directiveEntity.metadata().get("angularDecorator"));
+        assertEquals("directive", directiveEntity.metadata().get("angularKind"));
+        assertEquals("[appFocus]", directiveEntity.metadata().get("angularSelector"));
+        assertEquals(true, directiveEntity.metadata().get("angularStandalone"));
+        assertEquals(List.of("FocusService"), directiveEntity.metadata().get("angularProviders"));
+
+        var pipeEntity = entity(result, EntityKind.CLASS, "MoneyPipe");
+        assertEquals("Pipe", pipeEntity.metadata().get("angularDecorator"));
+        assertEquals("pipe", pipeEntity.metadata().get("angularKind"));
+        assertEquals("money", pipeEntity.metadata().get("angularPipeName"));
+        assertEquals(false, pipeEntity.metadata().get("angularStandalone"));
+    }
+
+    @Test
+    void extractsAngularNgModuleAndInjectableDecoratorPayloadMetadata() {
+        String source = """
+            @NgModule({
+              imports: [CommonModule, RouterModule.forChild(routes)],
+              declarations: [OrderListComponent, FocusDirective],
+              exports: [OrderListComponent],
+              providers: [OrderFacade, provideHttpClient()],
+              bootstrap: [OrderListComponent]
+            })
+            export class OrdersModule {}
+
+            @Injectable({ providedIn: 'root' })
+            export class OrderService {}
+            """;
+
+        SyntaxNode ordersModule = new SyntaxNode("class_declaration", true, 0, 297, 0, 0, 6, 29, false, false,
+            """
+            @NgModule({
+              imports: [CommonModule, RouterModule.forChild(routes)],
+              declarations: [OrderListComponent, FocusDirective],
+              exports: [OrderListComponent],
+              providers: [OrderFacade, provideHttpClient()],
+              bootstrap: [OrderListComponent]
+            })
+            export class OrdersModule {}
+            """.strip(), List.of(
+                new SyntaxNode("decorator", true, 0, 267, 0, 0, 5, 2, false, false,
+                    """
+                    @NgModule({
+                      imports: [CommonModule, RouterModule.forChild(routes)],
+                      declarations: [OrderListComponent, FocusDirective],
+                      exports: [OrderListComponent],
+                      providers: [OrderFacade, provideHttpClient()],
+                      bootstrap: [OrderListComponent]
+                    })
+                    """.strip(), List.of()),
+                new SyntaxNode("type_identifier", true, 281, 293, 6, 13, 6, 25, false, false, "OrdersModule", List.of())
+            ));
+        SyntaxNode orderService = new SyntaxNode("class_declaration", true, 299, source.length(), 8, 0, 9, 29, false, false,
+            """
+            @Injectable({ providedIn: 'root' })
+            export class OrderService {}
+            """.strip(), List.of(
+                new SyntaxNode("decorator", true, 299, 334, 8, 0, 8, 35, false, false,
+                    "@Injectable({ providedIn: 'root' })", List.of()),
+                new SyntaxNode("type_identifier", true, 348, 360, 9, 13, 9, 25, false, false, "OrderService", List.of())
+            ));
+
+        StructuralExtractionResult result = extract("src/app/orders.module.ts", source, program(source, ordersModule, orderService));
+
+        var ordersModuleEntity = entity(result, EntityKind.CLASS, "OrdersModule");
+        assertEquals("angular", ordersModuleEntity.metadata().get("framework"));
+        assertEquals("NgModule", ordersModuleEntity.metadata().get("angularDecorator"));
+        assertEquals("module", ordersModuleEntity.metadata().get("angularKind"));
+        assertEquals(List.of("CommonModule", "RouterModule.forChild(routes)"), ordersModuleEntity.metadata().get("angularImports"));
+        assertEquals(List.of("OrderListComponent", "FocusDirective"), ordersModuleEntity.metadata().get("angularDeclarations"));
+        assertEquals(List.of("OrderListComponent"), ordersModuleEntity.metadata().get("angularExports"));
+        assertEquals(List.of("OrderFacade", "provideHttpClient()"), ordersModuleEntity.metadata().get("angularProviders"));
+        assertEquals(List.of("OrderListComponent"), ordersModuleEntity.metadata().get("angularBootstrap"));
+
+        var orderServiceEntity = entity(result, EntityKind.CLASS, "OrderService");
+        assertEquals("Injectable", orderServiceEntity.metadata().get("angularDecorator"));
+        assertEquals("injectable", orderServiceEntity.metadata().get("angularKind"));
+        assertEquals("root", orderServiceEntity.metadata().get("angularProvidedIn"));
+    }
+
+    @Test
     void resolvesLocalDeclaredTypesForTypeScriptHierarchyRelationships() {
         String source = """
             export interface BaseContract {}
@@ -628,6 +790,321 @@ class TypeScriptStructuralExtractorSafetyNetTest {
             && userContractEntity.id().equals(rel.toEntityId())
             && "UserContract".equals(rel.label())));
     }
+
+    @Test
+    void extractsAngularModuleAndStandaloneFrameworkRelationshipsFromDecoratorPayloads() {
+        String source = """
+            @Component({ standalone: true, imports: [SharedCardComponent, CommonModule], providers: [OrderFacade] })
+            export class OrdersComponent {}
+
+            @Directive({ standalone: true })
+            export class SharedCardComponent {}
+
+            @NgModule({
+              declarations: [OrdersComponent],
+              imports: [SharedModule, OrdersComponent],
+              exports: [OrdersComponent],
+              bootstrap: [OrdersComponent],
+              providers: [OrdersFacade, provideHttpClient()]
+            })
+            export class OrdersModule {}
+
+            export class SharedModule {}
+            export class OrderFacade {}
+            """;
+
+        SyntaxNode ordersComponent = new SyntaxNode("class_declaration", true, 0, 140, 0, 0, 1, 31, false, false,
+            """
+            @Component({ standalone: true, imports: [SharedCardComponent, CommonModule], providers: [OrderFacade] })
+            export class OrdersComponent {}
+            """.strip(), List.of(
+                new SyntaxNode("decorator", true, 0, 109, 0, 0, 0, 109, false, false,
+                    "@Component({ standalone: true, imports: [SharedCardComponent, CommonModule], providers: [OrderFacade] })", List.of()),
+                new SyntaxNode("type_identifier", true, 123, 138, 1, 13, 1, 28, false, false, "OrdersComponent", List.of())
+            ));
+        SyntaxNode sharedCardComponent = new SyntaxNode("class_declaration", true, 142, 220, 3, 0, 4, 35, false, false,
+            """
+            @Directive({ standalone: true })
+            export class SharedCardComponent {}
+            """.strip(), List.of(
+                new SyntaxNode("decorator", true, 142, 173, 3, 0, 3, 31, false, false,
+                    "@Directive({ standalone: true })", List.of()),
+                new SyntaxNode("type_identifier", true, 187, 206, 4, 13, 4, 32, false, false, "SharedCardComponent", List.of())
+            ));
+        SyntaxNode ordersModule = new SyntaxNode("class_declaration", true, 222, 478, 6, 0, 13, 28, false, false,
+            """
+            @NgModule({
+              declarations: [OrdersComponent],
+              imports: [SharedModule, OrdersComponent],
+              exports: [OrdersComponent],
+              bootstrap: [OrdersComponent],
+              providers: [OrderFacade, provideHttpClient()]
+            })
+            export class OrdersModule {}
+            """.strip(), List.of(
+                new SyntaxNode("decorator", true, 222, 448, 6, 0, 12, 2, false, false,
+                    """
+                    @NgModule({
+                      declarations: [OrdersComponent],
+                      imports: [SharedModule, OrdersComponent],
+                      exports: [OrdersComponent],
+                      bootstrap: [OrdersComponent],
+                      providers: [OrderFacade, provideHttpClient()]
+                    })
+                    """.strip(), List.of()),
+                new SyntaxNode("type_identifier", true, 462, 474, 13, 13, 13, 25, false, false, "OrdersModule", List.of())
+            ));
+        SyntaxNode sharedModule = new SyntaxNode("class_declaration", true, 480, 507, 15, 0, 15, 27, false, false,
+            "export class SharedModule {}", List.of(
+                new SyntaxNode("type_identifier", true, 493, 505, 15, 13, 15, 25, false, false, "SharedModule", List.of())
+            ));
+        SyntaxNode orderFacade = new SyntaxNode("class_declaration", true, 509, source.length(), 16, 0, 16, 27, false, false,
+            "export class OrderFacade {}", List.of(
+                new SyntaxNode("type_identifier", true, 522, 533, 16, 13, 16, 24, false, false, "OrderFacade", List.of())
+            ));
+
+        StructuralExtractionResult result = extract("src/app/orders.angular.ts", source,
+            program(source, ordersComponent, sharedCardComponent, ordersModule, sharedModule, orderFacade));
+
+        var ordersModuleEntity = entity(result, EntityKind.CLASS, "OrdersModule");
+        var ordersComponentEntity = entity(result, EntityKind.CLASS, "OrdersComponent");
+        var sharedCardEntity = entity(result, EntityKind.CLASS, "SharedCardComponent");
+        var sharedModuleEntity = entity(result, EntityKind.CLASS, "SharedModule");
+        var orderFacadeEntity = entity(result, EntityKind.CLASS, "OrderFacade");
+        var provideHttpClientEntity = entity(result, EntityKind.FUNCTION, "provideHttpClient");
+
+        assertAngularFrameworkRelationship(result, ordersModuleEntity.id(), ordersComponentEntity.id(), "OrdersComponent", "declares");
+        assertAngularFrameworkRelationship(result, ordersModuleEntity.id(), sharedModuleEntity.id(), "SharedModule", "imports");
+        assertAngularFrameworkRelationship(result, ordersModuleEntity.id(), ordersComponentEntity.id(), "OrdersComponent", "exports");
+        assertAngularFrameworkRelationship(result, ordersModuleEntity.id(), ordersComponentEntity.id(), "OrdersComponent", "bootstraps");
+        assertAngularFrameworkRelationship(result, ordersModuleEntity.id(), orderFacadeEntity.id(), "OrderFacade", "provides");
+        assertAngularFrameworkRelationship(result, ordersModuleEntity.id(), provideHttpClientEntity.id(), "provideHttpClient()", "provides");
+        assertAngularFrameworkRelationship(result, ordersComponentEntity.id(), sharedCardEntity.id(), "SharedCardComponent", "imports");
+        assertAngularFrameworkRelationship(result, ordersComponentEntity.id(), orderFacadeEntity.id(), "OrderFacade", "provides");
+    }
+
+    @Test
+    void extractsAngularInjectableProvidedByApplicationScopeRelationship() {
+        String source = """
+            @Injectable({ providedIn: 'root' })
+            export class OrdersService {}
+            """;
+        SyntaxNode service = new SyntaxNode("class_declaration", true, 0, source.length(), 0, 0, 1, 29, false, false,
+            """
+            @Injectable({ providedIn: 'root' })
+            export class OrdersService {}
+            """.strip(), List.of(
+                new SyntaxNode("decorator", true, 0, 35, 0, 0, 0, 35, false, false,
+                    "@Injectable({ providedIn: 'root' })", List.of()),
+                new SyntaxNode("type_identifier", true, 49, 62, 1, 13, 1, 26, false, false, "OrdersService", List.of())
+            ));
+
+        StructuralExtractionResult result = extract("src/app/orders.service.ts", source, program(source, service));
+
+        var ordersServiceEntity = entity(result, EntityKind.CLASS, "OrdersService");
+        var applicationScopeEntity = entity(result, EntityKind.MODULE, "application:root");
+        assertAngularFrameworkRelationship(result, ordersServiceEntity.id(), applicationScopeEntity.id(), "root", "providedBy");
+    }
+
+    @Test
+    void extractsReactJsxCompositionRelationshipsFromCommonTsxPatterns() {
+        String source = """
+            export function OrdersPage() {
+              return <PageLayout><OrdersTable /><OrderSummary /></PageLayout>;
+            }
+
+            export const PageLayout = () => <section><Toolbar /></section>;
+
+            export function OrdersTable() { return <table />; }
+            export class OrderSummary {}
+            export function Toolbar() { return <header />; }
+            """;
+
+        SyntaxNode ordersPage = new SyntaxNode("function_declaration", true, 0, 101, 0, 0, 2, 1, false, false,
+            """
+            export function OrdersPage() {
+              return <PageLayout><OrdersTable /><OrderSummary /></PageLayout>;
+            }
+            """.strip(), List.of(
+                new SyntaxNode("identifier", true, 16, 26, 0, 16, 0, 26, false, false, "OrdersPage", List.of())
+            ));
+        SyntaxNode pageLayout = new SyntaxNode("variable_declarator", true, 103, 166, 4, 13, 4, 76, false, false,
+            "PageLayout = () => <section><Toolbar /></section>", List.of(
+                new SyntaxNode("identifier", true, 103, 113, 4, 13, 4, 23, false, false, "PageLayout", List.of()),
+                new SyntaxNode("arrow_function", true, 116, 166, 4, 26, 4, 76, false, false,
+                    "() => <section><Toolbar /></section>", List.of())
+            ));
+        SyntaxNode ordersTable = new SyntaxNode("function_declaration", true, 168, 216, 6, 0, 6, 48, false, false,
+            "export function OrdersTable() { return <table />; }", List.of(
+                new SyntaxNode("identifier", true, 184, 195, 6, 16, 6, 27, false, false, "OrdersTable", List.of())
+            ));
+        SyntaxNode orderSummary = new SyntaxNode("class_declaration", true, 217, 246, 7, 0, 7, 29, false, false,
+            "export class OrderSummary {}", List.of(
+                new SyntaxNode("type_identifier", true, 230, 242, 7, 13, 7, 25, false, false, "OrderSummary", List.of())
+            ));
+        SyntaxNode toolbar = new SyntaxNode("function_declaration", true, 247, source.length(), 8, 0, 8, 45, false, false,
+            "export function Toolbar() { return <header />; }", List.of(
+                new SyntaxNode("identifier", true, 263, 270, 8, 16, 8, 23, false, false, "Toolbar", List.of())
+            ));
+
+        StructuralExtractionResult result = extract("src/app/orders/OrdersPage.tsx", source,
+            program(source, ordersPage, pageLayout, ordersTable, orderSummary, toolbar));
+
+        var ordersPageEntity = entity(result, EntityKind.FUNCTION, "OrdersPage");
+        var pageLayoutEntity = entity(result, EntityKind.FUNCTION, "PageLayout");
+        var ordersTableEntity = entity(result, EntityKind.FUNCTION, "OrdersTable");
+        var orderSummaryEntity = entity(result, EntityKind.CLASS, "OrderSummary");
+        var toolbarEntity = entity(result, EntityKind.FUNCTION, "Toolbar");
+
+        assertReactFrameworkRelationship(result, ordersPageEntity.id(), pageLayoutEntity.id(), "PageLayout", true);
+        assertReactFrameworkRelationship(result, ordersPageEntity.id(), ordersTableEntity.id(), "OrdersTable", true);
+        assertReactFrameworkRelationship(result, ordersPageEntity.id(), orderSummaryEntity.id(), "OrderSummary", true);
+        assertReactFrameworkRelationship(result, pageLayoutEntity.id(), toolbarEntity.id(), "Toolbar", true);
+        assertFalse(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && ordersPageEntity.id().equals(rel.fromEntityId())
+            && "main".equals(rel.label())));
+    }
+
+    @Test
+    void extractsAngularFrontendRoutesIncludingNestedLazyGuardsAndResolvers() {
+        String source = """
+            import { Routes } from '@angular/router';
+
+            export const routes: Routes = [
+              {
+                path: 'orders',
+                component: OrdersPageComponent,
+                canActivate: [AuthGuard],
+                resolve: { initial: OrdersResolver },
+                children: [
+                  {
+                    path: 'details',
+                    loadChildren: () => import('./order-details.module').then(m => m.OrderDetailsModule)
+                  }
+                ]
+              }
+            ];
+
+            export class OrdersPageComponent {}
+            export class AuthGuard {}
+            export class OrdersResolver {}
+            export class OrderDetailsModule {}
+            """;
+
+        SyntaxNode ordersPage = classDeclaration(0, 0, 15, "OrdersPageComponent", List.of());
+        SyntaxNode authGuard = classDeclaration(0, 0, 16, "AuthGuard", List.of());
+        SyntaxNode ordersResolver = classDeclaration(0, 0, 17, "OrdersResolver", List.of());
+        SyntaxNode detailsModule = classDeclaration(0, 0, 18, "OrderDetailsModule", List.of());
+
+        StructuralExtractionResult result = extract("src/app/app.routes.ts", source,
+            program(source, ordersPage, authGuard, ordersResolver, detailsModule));
+
+        var ordersRoute = entity(result, EntityKind.UI_MODULE, "angular-route:/orders");
+        var detailsRoute = entity(result, EntityKind.UI_MODULE, "angular-route:/orders/details");
+        var ordersPageEntity = entity(result, EntityKind.CLASS, "OrdersPageComponent");
+        var authGuardEntity = entity(result, EntityKind.CLASS, "AuthGuard");
+        var ordersResolverEntity = entity(result, EntityKind.CLASS, "OrdersResolver");
+        var detailsModuleEntity = entity(result, EntityKind.CLASS, "OrderDetailsModule");
+
+        assertFrontendRouteRelationship(result, ordersRoute.id(), ordersPageEntity.id(), "OrdersPageComponent", "angular", "targets", true);
+        assertFrontendRouteRelationship(result, ordersRoute.id(), authGuardEntity.id(), "AuthGuard", "angular", "guards", true);
+        assertFrontendRouteRelationship(result, ordersRoute.id(), ordersResolverEntity.id(), "OrdersResolver", "angular", "resolves", true);
+        assertFrontendRouteRelationship(result, detailsRoute.id(), detailsModuleEntity.id(), "OrderDetailsModule", "angular", "lazyLoads", true);
+        assertFrontendRouteRelationship(result, detailsRoute.id(), ordersRoute.id(), "details", "angular", "childOf", true);
+        assertEquals("/orders", ordersRoute.metadata().get("routeFullPath"));
+        assertEquals("/orders/details", detailsRoute.metadata().get("routeFullPath"));
+    }
+
+    @Test
+    void extractsReactFrontendRoutesFromObjectAndJsxRouteDeclarations() {
+        String source = """
+            import { createBrowserRouter, Route, Routes } from 'react-router-dom';
+
+            export const router = createBrowserRouter([
+              {
+                path: '/',
+                element: <AppShell />,
+                children: [
+                  {
+                    path: 'orders',
+                    element: <OrdersPage />
+                  }
+                ]
+              }
+            ]);
+
+            export function AppRoutes() {
+              return <Routes><Route path="reports" element={<ReportsPage />} /></Routes>;
+            }
+
+            export function AppShell() { return <main />; }
+            export function OrdersPage() { return <section />; }
+            export function ReportsPage() { return <article />; }
+            """;
+
+        SyntaxNode appRoutes = new SyntaxNode("function_declaration", true, 0, 0, 14, 0, 16, 1, false, false,
+            "export function AppRoutes() { return <Routes><Route path=\"reports\" element={<ReportsPage />} /></Routes>; }", List.of(
+                new SyntaxNode("identifier", true, 0, 0, 14, 16, 14, 25, false, false, "AppRoutes", List.of())
+            ));
+        SyntaxNode appShell = new SyntaxNode("function_declaration", true, 0, 0, 18, 0, 18, 47, false, false,
+            "export function AppShell() { return <main />; }", List.of(
+                new SyntaxNode("identifier", true, 0, 0, 18, 16, 18, 24, false, false, "AppShell", List.of())
+            ));
+        SyntaxNode ordersPage = new SyntaxNode("function_declaration", true, 0, 0, 19, 0, 19, 50, false, false,
+            "export function OrdersPage() { return <section />; }", List.of(
+                new SyntaxNode("identifier", true, 0, 0, 19, 16, 19, 26, false, false, "OrdersPage", List.of())
+            ));
+        SyntaxNode reportsPage = new SyntaxNode("function_declaration", true, 0, 0, 20, 0, 20, 51, false, false,
+            "export function ReportsPage() { return <article />; }", List.of(
+                new SyntaxNode("identifier", true, 0, 0, 20, 16, 20, 27, false, false, "ReportsPage", List.of())
+            ));
+
+        StructuralExtractionResult result = extract("src/app/router.tsx", source,
+            program(source, appRoutes, appShell, ordersPage, reportsPage));
+
+        var rootRoute = entity(result, EntityKind.UI_MODULE, "react-route:/");
+        var ordersRoute = entity(result, EntityKind.UI_MODULE, "react-route:/orders");
+        var reportsRoute = entity(result, EntityKind.UI_MODULE, "react-route:/reports");
+        var appShellEntity = entity(result, EntityKind.FUNCTION, "AppShell");
+        var ordersPageEntity = entity(result, EntityKind.FUNCTION, "OrdersPage");
+        var reportsPageEntity = entity(result, EntityKind.FUNCTION, "ReportsPage");
+
+        assertFrontendRouteRelationship(result, rootRoute.id(), appShellEntity.id(), "AppShell", "react", "targets", true);
+        assertFrontendRouteRelationship(result, ordersRoute.id(), ordersPageEntity.id(), "OrdersPage", "react", "targets", true);
+        assertFrontendRouteRelationship(result, ordersRoute.id(), rootRoute.id(), "orders", "react", "childOf", true);
+        assertFrontendRouteRelationship(result, reportsRoute.id(), reportsPageEntity.id(), "ReportsPage", "react", "targets", true);
+    }
+
+    @Test
+    void infersReactJsxCompositionTargetsWhenRenderedComponentIsNotDeclaredInSameFile() {
+        String source = """
+            export function OrdersPage() {
+              return <PageLayout><OrdersTable /></PageLayout>;
+            }
+            """;
+
+        SyntaxNode ordersPage = new SyntaxNode("function_declaration", true, 0, source.length(), 0, 0, 2, 1, false, false,
+            """
+            export function OrdersPage() {
+              return <PageLayout><OrdersTable /></PageLayout>;
+            }
+            """.strip(), List.of(
+                new SyntaxNode("identifier", true, 16, 26, 0, 16, 0, 26, false, false, "OrdersPage", List.of())
+            ));
+
+        StructuralExtractionResult result = extract("src/app/orders/OrdersPage.tsx", source, program(source, ordersPage));
+
+        var ordersPageEntity = entity(result, EntityKind.FUNCTION, "OrdersPage");
+        var pageLayoutEntity = entity(result, EntityKind.UI_MODULE, "PageLayout");
+        var ordersTableEntity = entity(result, EntityKind.UI_MODULE, "OrdersTable");
+
+        assertReactFrameworkRelationship(result, ordersPageEntity.id(), pageLayoutEntity.id(), "PageLayout", false);
+        assertReactFrameworkRelationship(result, ordersPageEntity.id(), ordersTableEntity.id(), "OrdersTable", false);
+        assertEquals("react-component-target", pageLayoutEntity.metadata().get("targetClassification"));
+        assertEquals(Boolean.FALSE, pageLayoutEntity.metadata().get("external"));
+    }
+
+
     private static StructuralExtractionResult extract(String relativePath, String source, SyntaxNode root) {
         SourceParseResult parseResult = new SourceParseResult(
             new SourceParseRequest(Path.of(relativePath), relativePath, ParseLanguage.TYPESCRIPT, source),
@@ -655,6 +1132,60 @@ class TypeScriptStructuralExtractorSafetyNetTest {
         return new SyntaxNode("class_declaration", true, startIndex, endIndex, startLine, startColumn, startLine, endColumn, false, false,
             "export class " + name + " {}", List.copyOf(children));
     }
+
+
+    private static void assertAngularFrameworkRelationship(StructuralExtractionResult result, String fromId, String toId, String label, String frameworkRelationship) {
+        var relationship = result.relationships().stream()
+            .filter(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+                && fromId.equals(rel.fromEntityId())
+                && toId.equals(rel.toEntityId())
+                && label.equals(rel.label())
+                && "angular".equals(rel.metadata().get("framework"))
+                && frameworkRelationship.equals(rel.metadata().get("frameworkRelationship")))
+            .findFirst()
+            .orElse(null);
+        assertNotNull(relationship);
+        assertEquals("angular:" + frameworkRelationship, relationship.metadata().get("dependencySource"));
+    }
+
+    private static void assertFrontendRouteRelationship(
+        StructuralExtractionResult result,
+        String fromId,
+        String toId,
+        String label,
+        String framework,
+        String frameworkRelationship,
+        boolean resolved
+    ) {
+        var relationship = result.relationships().stream()
+            .filter(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+                && fromId.equals(rel.fromEntityId())
+                && toId.equals(rel.toEntityId())
+                && label.equals(rel.label())
+                && framework.equals(rel.metadata().get("framework"))
+                && frameworkRelationship.equals(rel.metadata().get("frameworkRelationship")))
+            .findFirst()
+            .orElse(null);
+        assertNotNull(relationship);
+        assertEquals(framework + ":route-" + frameworkRelationship, relationship.metadata().get("dependencySource"));
+        assertEquals(resolved, relationship.metadata().get("resolvedFromRouteExtraction"));
+    }
+
+    private static void assertReactFrameworkRelationship(StructuralExtractionResult result, String fromId, String toId, String label, boolean resolved) {
+        var relationship = result.relationships().stream()
+            .filter(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+                && fromId.equals(rel.fromEntityId())
+                && toId.equals(rel.toEntityId())
+                && label.equals(rel.label())
+                && "react".equals(rel.metadata().get("framework"))
+                && "renders".equals(rel.metadata().get("frameworkRelationship")))
+            .findFirst()
+            .orElse(null);
+        assertNotNull(relationship);
+        assertEquals("react:jsx-renders", relationship.metadata().get("dependencySource"));
+        assertEquals(resolved, relationship.metadata().get("resolvedFromJsxComposition"));
+    }
+
 
     private static ExtractedEntityFact entity(StructuralExtractionResult result, EntityKind kind, String name) {
         return result.entities().stream()

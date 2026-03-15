@@ -416,6 +416,15 @@ class TypeScriptArchitectureFixtureRegressionTest {
     private static ArchitectureEntity entity(ArchitectureIndexDocument document, EntityKind kind, String name) {
         return document.entities().stream()
             .filter(entity -> entity.kind() == kind && name.equals(entity.name()))
+            .sorted((left, right) -> {
+                int originCompare = Boolean.compare(left.origin() == EntityOrigin.OBSERVED, right.origin() == EntityOrigin.OBSERVED);
+                if (originCompare != 0) {
+                    return -originCompare;
+                }
+                boolean leftHasDeclarationKind = left.metadata() != null && left.metadata().get("declarationKind") != null;
+                boolean rightHasDeclarationKind = right.metadata() != null && right.metadata().get("declarationKind") != null;
+                return -Boolean.compare(leftHasDeclarationKind, rightHasDeclarationKind);
+            })
             .findFirst()
             .orElseThrow();
     }
