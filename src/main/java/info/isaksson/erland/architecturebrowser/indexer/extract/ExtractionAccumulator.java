@@ -40,9 +40,56 @@ public final class ExtractionAccumulator {
     }
 
     public void addEntity(ExtractedEntityFact entity) {
-        if (entity != null) {
-            entitiesById.putIfAbsent(entity.id(), entity);
+        if (entity == null) {
+            return;
         }
+        ExtractedEntityFact existing = entitiesById.get(entity.id());
+        if (existing == null) {
+            entitiesById.put(entity.id(), entity);
+            return;
+        }
+        entitiesById.put(entity.id(), mergeEntity(existing, entity));
+    }
+
+    private static ExtractedEntityFact mergeEntity(ExtractedEntityFact existing, ExtractedEntityFact candidate) {
+        java.util.LinkedHashMap<String, Object> metadata = new java.util.LinkedHashMap<>(existing.metadata());
+        metadata.putAll(candidate.metadata());
+
+        java.util.ArrayList<info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference> sourceRefs = new java.util.ArrayList<>(existing.sourceRefs());
+        for (info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference sourceRef : candidate.sourceRefs()) {
+            if (!sourceRefs.contains(sourceRef)) {
+                sourceRefs.add(sourceRef);
+            }
+        }
+
+        return new ExtractedEntityFact(
+            existing.id(),
+            existing.kind() != null ? existing.kind() : candidate.kind(),
+            preferOrigin(existing.origin(), candidate.origin()),
+            preferredString(existing.name(), candidate.name()),
+            preferredString(existing.displayName(), candidate.displayName()),
+            preferredString(existing.scopeId(), candidate.scopeId()),
+            sourceRefs,
+            metadata
+        );
+    }
+
+    private static info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityOrigin preferOrigin(
+        info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityOrigin existing,
+        info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityOrigin candidate
+    ) {
+        if (existing == info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityOrigin.OBSERVED
+            || candidate == info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityOrigin.OBSERVED) {
+            return info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityOrigin.OBSERVED;
+        }
+        return candidate != null ? candidate : existing;
+    }
+
+    private static String preferredString(String existing, String candidate) {
+        if (existing != null && !existing.isBlank()) {
+            return existing;
+        }
+        return candidate;
     }
 
     public void addRelationship(ExtractedRelationshipFact relationship) {

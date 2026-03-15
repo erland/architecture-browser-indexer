@@ -1105,6 +1105,70 @@ class TypeScriptStructuralExtractorSafetyNetTest {
     }
 
 
+    @Test
+    void extractsReactContextProviderAndConsumerRelationships() {
+        String source = """
+            import React, { createContext, useContext } from 'react';
+
+            export const AuthContext = createContext(null);
+
+            export function AuthProvider({ children }) {
+              return <AuthContext.Provider value={{ user: 'alice' }}>{children}</AuthContext.Provider>;
+            }
+
+            export function useAuth() {
+              return useContext(AuthContext);
+            }
+
+            export function OrdersPage() {
+              const auth = useContext(AuthContext);
+              return <section>{auth?.user}</section>;
+            }
+            """;
+
+        SyntaxNode authProvider = new SyntaxNode("function_declaration", true, 0, 0, 4, 0, 6, 1, false, false,
+            """
+            export function AuthProvider({ children }) {
+              return <AuthContext.Provider value={{ user: 'alice' }}>{children}</AuthContext.Provider>;
+            }
+            """.strip(), List.of(
+                new SyntaxNode("identifier", true, 0, 0, 4, 16, 4, 28, false, false, "AuthProvider", List.of())
+            ));
+        SyntaxNode useAuth = new SyntaxNode("function_declaration", true, 0, 0, 8, 0, 10, 1, false, false,
+            """
+            export function useAuth() {
+              return useContext(AuthContext);
+            }
+            """.strip(), List.of(
+                new SyntaxNode("identifier", true, 0, 0, 8, 16, 8, 23, false, false, "useAuth", List.of())
+            ));
+        SyntaxNode ordersPage = new SyntaxNode("function_declaration", true, 0, 0, 12, 0, 15, 1, false, false,
+            """
+            export function OrdersPage() {
+              const auth = useContext(AuthContext);
+              return <section>{auth?.user}</section>;
+            }
+            """.strip(), List.of(
+                new SyntaxNode("identifier", true, 0, 0, 12, 16, 12, 26, false, false, "OrdersPage", List.of())
+            ));
+
+        StructuralExtractionResult result = extract("src/context/AuthProvider.tsx", source,
+            program(source, authProvider, useAuth, ordersPage));
+
+        var authContext = entity(result, EntityKind.UI_MODULE, "AuthContext");
+        var authProviderEntity = entity(result, EntityKind.FUNCTION, "AuthProvider");
+        var useAuthEntity = entity(result, EntityKind.FUNCTION, "useAuth");
+        var ordersPageEntity = entity(result, EntityKind.FUNCTION, "OrdersPage");
+
+        assertEquals(Boolean.TRUE, authContext.metadata().get("reactContext"));
+        assertEquals(Boolean.TRUE, authContext.metadata().get("declaredReactContext"));
+        assertEquals(Boolean.FALSE, authContext.metadata().get("external"));
+        assertReactContextRelationship(result, authProviderEntity.id(), authContext.id(), "AuthContext", "providesContext", true);
+        assertReactContextRelationship(result, useAuthEntity.id(), authContext.id(), "AuthContext", "consumesContext", true);
+        assertReactContextRelationship(result, ordersPageEntity.id(), authContext.id(), "AuthContext", "consumesContext", true);
+    }
+
+
     private static StructuralExtractionResult extract(String relativePath, String source, SyntaxNode root) {
         SourceParseResult parseResult = new SourceParseResult(
             new SourceParseRequest(Path.of(relativePath), relativePath, ParseLanguage.TYPESCRIPT, source),
@@ -1187,10 +1251,48 @@ class TypeScriptStructuralExtractorSafetyNetTest {
     }
 
 
+    private static void assertReactContextRelationship(
+        StructuralExtractionResult result,
+        String fromId,
+        String toId,
+        String label,
+        String frameworkRelationship,
+        boolean resolved
+    ) {
+        var relationship = result.relationships().stream()
+            .filter(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+                && fromId.equals(rel.fromEntityId())
+                && toId.equals(rel.toEntityId())
+                && label.equals(rel.label())
+                && "react".equals(rel.metadata().get("framework"))
+                && frameworkRelationship.equals(rel.metadata().get("frameworkRelationship")))
+            .findFirst()
+            .orElse(null);
+        assertNotNull(relationship);
+        assertEquals("providesContext".equals(frameworkRelationship) ? "react:provides-context" : "react:consumes-context", relationship.metadata().get("dependencySource"));
+        assertEquals(resolved, relationship.metadata().get("resolvedFromReactContextExtraction"));
+    }
+
+
     private static ExtractedEntityFact entity(StructuralExtractionResult result, EntityKind kind, String name) {
         return result.entities().stream()
             .filter(entity -> entity.kind() == kind && name.equals(entity.name()))
+            .sorted((left, right) -> Integer.compare(entityScore(right), entityScore(left)))
             .findFirst()
             .orElseThrow();
+    }
+
+    private static int entityScore(ExtractedEntityFact entity) {
+        int score = 0;
+        if (Boolean.TRUE.equals(entity.metadata().get("reactContext"))) {
+            score += 10;
+        }
+        if (Boolean.TRUE.equals(entity.metadata().get("declaredReactContext"))) {
+            score += 5;
+        }
+        if (Boolean.FALSE.equals(entity.metadata().get("external"))) {
+            score += 2;
+        }
+        return score;
     }
 }
