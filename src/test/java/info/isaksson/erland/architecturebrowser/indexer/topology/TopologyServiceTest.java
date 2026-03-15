@@ -141,4 +141,83 @@ class TopologyServiceTest {
         assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.USES && "module-module".equals(rel.metadata().get("rollup"))));
     }
 
+    @Test
+    void rollsUpTypeScriptTypeDependenciesAcrossPackagesAndSourceRoots() {
+        String pagePath = "src/app/pages/OrdersPage.tsx";
+        String servicePath = "src/services/core/OrderService.ts";
+        SourceReference pageRef = new SourceReference(pagePath, 3, 3, "export function OrdersPage() { return null; }", Map.of());
+        SourceReference serviceRef = new SourceReference(servicePath, 1, 1, "export class OrderService {}", Map.of());
+
+        StructuralExtractionResult extraction = new StructuralExtractionResult(
+            List.of(),
+            List.of(
+                new ExtractedEntityFact("entity:file:page", EntityKind.MODULE, EntityOrigin.OBSERVED, pagePath, pagePath, "scope:file:page", List.of(pageRef), Map.of("language", "typescript", "relativePath", pagePath)),
+                new ExtractedEntityFact("entity:file:service", EntityKind.MODULE, EntityOrigin.OBSERVED, servicePath, servicePath, "scope:file:service", List.of(serviceRef), Map.of("language", "typescript", "relativePath", servicePath)),
+                new ExtractedEntityFact("entity:type:page", EntityKind.FUNCTION, EntityOrigin.OBSERVED, "OrdersPage", "OrdersPage", "scope:file:page", List.of(pageRef), Map.of("language", "typescript", "qualifiedName", "OrdersPage", "declarationKind", "function")),
+                new ExtractedEntityFact("entity:type:service", EntityKind.CLASS, EntityOrigin.OBSERVED, "OrderService", "OrderService", "scope:file:service", List.of(serviceRef), Map.of("language", "typescript", "qualifiedName", "OrderService", "declarationKind", "class"))
+            ),
+            List.of(
+                new ExtractedRelationshipFact("rel:dep:typed", RelationshipKind.DEPENDS_ON, "entity:type:page", "entity:type:service", "OrderService", List.of(pageRef), Map.of("language", "typescript", "dependencySource", "returnType", "targetClassification", "observed-source-type")),
+                new ExtractedRelationshipFact("rel:dep:import", RelationshipKind.DEPENDS_ON, "entity:file:page", "entity:external:ts:service", "../../services/core/OrderService", List.of(pageRef), Map.of("language", "typescript", "dependencySource", "import", "targetClassification", "inferred-internal-type"))
+            ),
+            List.of(),
+            new ExtractionSummary(2, 2, Map.of("typescript", 2), Map.of("SYNTAX_TREE", 2), 4, 2)
+        );
+
+        FileInventory inventory = new FileInventory(
+            List.of(
+                new FileInventoryEntry(pagePath, 100, "tsx", "source", "typescript", false, List.of("react")),
+                new FileInventoryEntry(servicePath, 100, "ts", "source", "typescript", false, List.of("react"))
+            ),
+            2, 2, 0, Set.of("typescript"), Set.of("react")
+        );
+
+        var result = new TopologyService().infer(inventory, extraction, new InterpretationResult(List.of(), List.of(), List.of(), new InterpretationSummary(Map.of(), Map.of(), Map.of())));
+        assertTrue(result.scopes().stream().anyMatch(scope -> scope.kind() == ScopeKind.MODULE && "src/app".equals(scope.name())));
+        assertTrue(result.scopes().stream().anyMatch(scope -> scope.kind() == ScopeKind.MODULE && "src/services".equals(scope.name())));
+        assertTrue(result.scopes().stream().anyMatch(scope -> scope.kind() == ScopeKind.PACKAGE && "src/app/pages".equals(scope.name())));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.USES && "package-package".equals(rel.metadata().get("rollup"))
+            && rel.fromEntityId().equals(info.isaksson.erland.architecturebrowser.indexer.extract.IdUtils.externalEntityId("logical-package", "src/app/pages"))
+            && rel.toEntityId().equals(info.isaksson.erland.architecturebrowser.indexer.extract.IdUtils.externalEntityId("logical-package", "src/services/core"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.USES && "module-module".equals(rel.metadata().get("rollup"))
+            && rel.fromEntityId().equals(info.isaksson.erland.architecturebrowser.indexer.extract.IdUtils.externalEntityId("logical-module", "src/app"))
+            && rel.toEntityId().equals(info.isaksson.erland.architecturebrowser.indexer.extract.IdUtils.externalEntityId("logical-module", "src/services"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.USES && "file-evidence".equals(rel.metadata().get("rollup"))
+            && "../../services/core/OrderService".equals(rel.label())));
+    }
+
+    @Test
+    void keepsTypeScriptImportDependenciesAsEvidenceNotPrimaryRollups() {
+        String pagePath = "src/app/pages/OrdersPage.tsx";
+        String servicePath = "src/services/core/OrderService.ts";
+        SourceReference pageRef = new SourceReference(pagePath, 2, 2, "import { OrderService } from '../../services/core/OrderService';", Map.of());
+        SourceReference serviceRef = new SourceReference(servicePath, 1, 1, "export class OrderService {}", Map.of());
+
+        StructuralExtractionResult extraction = new StructuralExtractionResult(
+            List.of(),
+            List.of(
+                new ExtractedEntityFact("entity:file:page", EntityKind.MODULE, EntityOrigin.OBSERVED, pagePath, pagePath, "scope:file:page", List.of(pageRef), Map.of("language", "typescript", "relativePath", pagePath)),
+                new ExtractedEntityFact("entity:file:service", EntityKind.MODULE, EntityOrigin.OBSERVED, servicePath, servicePath, "scope:file:service", List.of(serviceRef), Map.of("language", "typescript", "relativePath", servicePath))
+            ),
+            List.of(
+                new ExtractedRelationshipFact("rel:dep:import-only", RelationshipKind.DEPENDS_ON, "entity:file:page", "entity:file:service", "../../services/core/OrderService", List.of(pageRef), Map.of("language", "typescript", "dependencySource", "import"))
+            ),
+            List.of(),
+            new ExtractionSummary(2, 2, Map.of("typescript", 2), Map.of("SYNTAX_TREE", 2), 2, 1)
+        );
+
+        FileInventory inventory = new FileInventory(
+            List.of(
+                new FileInventoryEntry(pagePath, 100, "tsx", "source", "typescript", false, List.of("react")),
+                new FileInventoryEntry(servicePath, 100, "ts", "source", "typescript", false, List.of("react"))
+            ),
+            2, 2, 0, Set.of("typescript"), Set.of("react")
+        );
+
+        var result = new TopologyService().infer(inventory, extraction, new InterpretationResult(List.of(), List.of(), List.of(), new InterpretationSummary(Map.of(), Map.of(), Map.of())));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.USES && "file-evidence".equals(rel.metadata().get("rollup"))));
+        assertTrue(result.relationships().stream().noneMatch(rel -> "package-package".equals(rel.metadata().get("rollup"))));
+        assertTrue(result.relationships().stream().noneMatch(rel -> "module-module".equals(rel.metadata().get("rollup"))));
+    }
+
 }

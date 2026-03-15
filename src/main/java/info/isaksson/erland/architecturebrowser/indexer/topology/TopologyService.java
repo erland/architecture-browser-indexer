@@ -12,6 +12,7 @@ import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.LogicalScope;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ScopeKind;
+import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
 import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventory;
 import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventoryEntry;
 import info.isaksson.erland.architecturebrowser.indexer.topology.model.TopologyResult;
@@ -84,6 +85,8 @@ public final class TopologyService {
             packageScopeToEntityId.put(scope.id(), packageEntity.id());
         }
 
+        inferTypeScriptPackageScopes(inventory, inferredScopes, packageScopesById, packageScopeToEntityId, inferredEntities);
+
         // Build contains relations module->top-level package/file, package->subpackage and package->file.
         for (LogicalScope packageScope : packageScopesById.values()) {
             LogicalScope parentPackageScope = packageScopesById.get(packageScope.parentScopeId());
@@ -138,7 +141,7 @@ public final class TopologyService {
         }
 
         for (ExtractedEntityFact fileEntity : fileModuleEntities(extractionResult.entities())) {
-            String packageScopeId = packageScopeIdForFile(fileEntity, extractionResult.scopes());
+            String packageScopeId = packageScopeIdForFile(fileEntity, packageScopesById.values());
             String packageEntityId = packageScopeId == null ? null : packageScopeToEntityId.get(packageScopeId);
             if (packageEntityId != null) {
                 inferredRelationships.putIfAbsent(
@@ -148,12 +151,9 @@ public final class TopologyService {
             }
         }
 
-        // Resolve internal Java entities from qualified names.
-        Map<String, ExtractedEntityFact> javaTypesByQualifiedName = extractionResult.entities().stream()
-            .filter(entity -> {
-                String lang = String.valueOf(entity.metadata().getOrDefault("language", ""));
-                return "java".equalsIgnoreCase(lang) && isJavaStructuralEntity(entity.kind());
-            })
+        // Resolve internal Java/TypeScript entities from qualified names.
+        Map<String, ExtractedEntityFact> structuralTypesByQualifiedName = extractionResult.entities().stream()
+            .filter(entity -> isStructuralTypeEntity(entity))
             .filter(entity -> entity.metadata().get("qualifiedName") != null)
             .collect(Collectors.toMap(entity -> String.valueOf(entity.metadata().get("qualifiedName")), entity -> entity, (left, right) -> left, LinkedHashMap::new));
 
@@ -178,22 +178,33 @@ public final class TopologyService {
                 continue;
             }
 
-            Optional<ExtractedEntityFact> resolvedTarget = resolveInternalTarget(relationship, fromPath, extractedEntitiesById, javaTypesByQualifiedName, fileModulesByPath);
+            Optional<ExtractedEntityFact> resolvedTarget = resolveInternalTarget(relationship, fromPath, extractedEntitiesById, structuralTypesByQualifiedName, fileModulesByPath);
             if (resolvedTarget.isEmpty()) {
                 continue;
             }
 
             ExtractedEntityFact targetEntity = resolvedTarget.get();
-            String rollup = fromEntity.kind() == EntityKind.MODULE ? "file-internal" : "entity-internal";
+            boolean evidenceImport = isTypeScriptImportEvidenceRelationship(relationship);
+            String rollup = evidenceImport
+                ? (fromEntity.kind() == EntityKind.MODULE ? "file-evidence" : "entity-evidence")
+                : (fromEntity.kind() == EntityKind.MODULE ? "file-internal" : "entity-internal");
+            Map<String, Object> directMetadata = new LinkedHashMap<>(topologyMetadata(relationship, Map.of("rollup", rollup, "sourceRelationshipId", relationship.id())));
+            if (evidenceImport) {
+                directMetadata.put("dependencyPriority", "evidence");
+            }
             ArchitectureRelationship directRelationship = switch (relationship.kind()) {
-                case EXTENDS -> TopologySupport.typedRelationship(RelationshipKind.EXTENDS, fromEntity.id(), targetEntity.id(), relationship.label(), relationship.sourceRefs(), Map.of("rollup", rollup, "sourceRelationshipId", relationship.id()));
-                case IMPLEMENTS -> TopologySupport.typedRelationship(RelationshipKind.IMPLEMENTS, fromEntity.id(), targetEntity.id(), relationship.label(), relationship.sourceRefs(), Map.of("rollup", rollup, "sourceRelationshipId", relationship.id()));
-                default -> TopologySupport.uses(fromEntity.id(), targetEntity.id(), relationship.label(), relationship.sourceRefs(), Map.of("rollup", rollup, "sourceRelationshipId", relationship.id()));
+                case EXTENDS -> TopologySupport.typedRelationship(RelationshipKind.EXTENDS, fromEntity.id(), targetEntity.id(), relationship.label(), relationship.sourceRefs(), directMetadata);
+                case IMPLEMENTS -> TopologySupport.typedRelationship(RelationshipKind.IMPLEMENTS, fromEntity.id(), targetEntity.id(), relationship.label(), relationship.sourceRefs(), directMetadata);
+                default -> TopologySupport.uses(fromEntity.id(), targetEntity.id(), relationship.label(), relationship.sourceRefs(), directMetadata);
             };
             inferredRelationships.putIfAbsent(directRelationship.id(), directRelationship);
 
-            String fromPackageScopeId = packageScopeIdForEntity(fromEntity, extractionResult.scopes());
-            String toPackageScopeId = packageScopeIdForEntity(targetEntity, extractionResult.scopes());
+            if (evidenceImport) {
+                continue;
+            }
+
+            String fromPackageScopeId = packageScopeIdForEntity(fromEntity, packageScopesById.values());
+            String toPackageScopeId = packageScopeIdForEntity(targetEntity, packageScopesById.values());
             String fromPackageEntityId = fromPackageScopeId == null ? null : packageScopeToEntityId.get(fromPackageScopeId);
             String toPackageEntityId = toPackageScopeId == null ? null : packageScopeToEntityId.get(toPackageScopeId);
             if (fromPackageEntityId != null && toPackageEntityId != null && !fromPackageEntityId.equals(toPackageEntityId)) {
@@ -283,7 +294,7 @@ private static java.util.List<ExtractedEntityFact> fileModuleEntities(java.util.
     return entities.stream().filter(entity -> entity.kind() == EntityKind.MODULE).toList();
 }
 
-private static String packageScopeIdForFile(ExtractedEntityFact fileEntity, java.util.List<LogicalScope> scopes) {
+private static String packageScopeIdForFile(ExtractedEntityFact fileEntity, java.util.Collection<LogicalScope> scopes) {
     String filePath = TopologySupport.primaryPath(fileEntity);
     if (filePath == null) {
         return null;
@@ -291,6 +302,7 @@ private static String packageScopeIdForFile(ExtractedEntityFact fileEntity, java
     return scopes.stream()
         .filter(scope -> scope.kind() == ScopeKind.PACKAGE)
         .filter(scope -> scope.sourceRefs().stream().anyMatch(ref -> filePath.equals(ref.path())))
+        .sorted(Comparator.comparingInt((LogicalScope scope) -> scope.name() == null ? 0 : scope.name().length()).reversed())
         .map(LogicalScope::id)
         .findFirst()
         .orElse(null);
@@ -310,28 +322,28 @@ private Optional<ExtractedEntityFact> resolveInternalTarget(
     ExtractedRelationshipFact relationship,
     String fromPath,
     Map<String, ExtractedEntityFact> extractedEntitiesById,
-    Map<String, ExtractedEntityFact> javaTypesByQualifiedName,
+    Map<String, ExtractedEntityFact> structuralTypesByQualifiedName,
     Map<String, ExtractedEntityFact> fileModulesByPath
 ) {
     ExtractedEntityFact direct = extractedEntitiesById.get(relationship.toEntityId());
     if (direct != null) {
         return Optional.of(direct);
     }
-    return relationshipResolver.resolveInternalTarget(relationship, fromPath, javaTypesByQualifiedName, fileModulesByPath);
+    return relationshipResolver.resolveInternalTarget(relationship, fromPath, structuralTypesByQualifiedName, fileModulesByPath);
 }
 
-private static String packageScopeIdForEntity(ExtractedEntityFact entity, java.util.List<LogicalScope> scopes) {
+private static String packageScopeIdForEntity(ExtractedEntityFact entity, java.util.Collection<LogicalScope> scopes) {
     if (entity == null) {
         return null;
     }
-    if (entity.kind() == EntityKind.CLASS || entity.kind() == EntityKind.INTERFACE) {
+    String language = String.valueOf(entity.metadata().getOrDefault("language", "java"));
+    if ((entity.kind() == EntityKind.CLASS || entity.kind() == EntityKind.INTERFACE) && !"typescript".equalsIgnoreCase(language)) {
         return entity.scopeId();
     }
     String ownerQualifiedName = String.valueOf(entity.metadata().getOrDefault("ownerQualifiedName", ""));
     if (!ownerQualifiedName.isBlank()) {
         String ownerPackage = parentQualifiedName(ownerQualifiedName);
         if (ownerPackage != null && !ownerPackage.isBlank()) {
-            String language = String.valueOf(entity.metadata().getOrDefault("language", "java"));
             String expectedScopeId = IdUtils.scopeId(language + "-package", ownerPackage);
             if (scopes.stream().anyMatch(scope -> expectedScopeId.equals(scope.id()))) {
                 return expectedScopeId;
@@ -360,6 +372,9 @@ private static String moduleRoot(String relativePath) {
     String[] parts = relativePath.split("/");
     if (parts.length >= 3 && "src".equals(parts[0]) && ("main".equals(parts[1]) || "test".equals(parts[1]))) {
         return parts[0] + "/" + parts[1] + "/" + parts[2];
+    }
+    if (parts.length >= 2 && "src".equals(parts[0]) && !("main".equals(parts[1]) || "test".equals(parts[1]))) {
+        return parts[0] + "/" + parts[1];
     }
     return parts.length > 0 ? parts[0] : null;
 }
@@ -423,10 +438,87 @@ private static String moduleRoot(String relativePath) {
     }
 
     private static String parentPackageName(String packageName) {
-        if (packageName == null || packageName.isBlank() || !packageName.contains(".")) {
+        if (packageName == null || packageName.isBlank()) {
+            return null;
+        }
+        if (packageName.contains("/")) {
+            return packageName.contains("/") ? parentPath(packageName) : null;
+        }
+        if (!packageName.contains(".")) {
             return null;
         }
         return packageName.substring(0, packageName.lastIndexOf('.'));
+    }
+
+    private static boolean isStructuralTypeEntity(ExtractedEntityFact entity) {
+        if (entity == null) {
+            return false;
+        }
+        String lang = String.valueOf(entity.metadata().getOrDefault("language", ""));
+        return ("java".equalsIgnoreCase(lang) && isJavaStructuralEntity(entity.kind()))
+            || ("typescript".equalsIgnoreCase(lang) && (entity.kind() == EntityKind.CLASS || entity.kind() == EntityKind.INTERFACE));
+    }
+
+    private static boolean isTypeScriptImportEvidenceRelationship(ExtractedRelationshipFact relationship) {
+        if (relationship == null) {
+            return false;
+        }
+        String language = String.valueOf(relationship.metadata().getOrDefault("language", ""));
+        String dependencySource = String.valueOf(relationship.metadata().getOrDefault("dependencySource", ""));
+        return "typescript".equalsIgnoreCase(language) && "import".equalsIgnoreCase(dependencySource);
+    }
+
+    private static Map<String, Object> topologyMetadata(ExtractedRelationshipFact relationship, Map<String, Object> additions) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        if (relationship != null && relationship.metadata() != null) {
+            metadata.putAll(relationship.metadata());
+        }
+        if (additions != null) {
+            metadata.putAll(additions);
+        }
+        return Map.copyOf(metadata);
+    }
+
+    private static void inferTypeScriptPackageScopes(
+        FileInventory inventory,
+        Map<String, LogicalScope> inferredScopes,
+        Map<String, LogicalScope> packageScopesById,
+        Map<String, String> packageScopeToEntityId,
+        Map<String, ArchitectureEntity> inferredEntities
+    ) {
+        for (FileInventoryEntry entry : inventory.entries()) {
+            if (entry.ignored()) {
+                continue;
+            }
+            String language = entry.detectedLanguage();
+            if (!"typescript".equalsIgnoreCase(language)) {
+                continue;
+            }
+            String relativePath = entry.relativePath();
+            String moduleRoot = moduleRoot(relativePath);
+            String directoryPath = parentPath(relativePath);
+            if (directoryPath == null || moduleRoot == null || directoryPath.equals(moduleRoot)) {
+                continue;
+            }
+            List<String> packagePaths = new ArrayList<>();
+            String current = directoryPath;
+            while (current != null && !current.isBlank() && !current.equals(moduleRoot)) {
+                packagePaths.add(0, current);
+                current = parentPath(current);
+            }
+            SourceReference fileRef = new SourceReference(relativePath, null, null, null, Map.of("language", "typescript", "scopeKind", "package"));
+            for (String packagePath : packagePaths) {
+                String parentScopeId = moduleRoot.equals(parentPath(packagePath))
+                    ? IdUtils.scopeId("module", moduleRoot)
+                    : IdUtils.scopeId("typescript-package", parentPath(packagePath));
+                LogicalScope scope = TopologySupport.packageScope(packagePath, parentScopeId, "typescript", List.of(fileRef));
+                packageScopesById.merge(scope.id(), scope, TopologyService::mergePackageScopes);
+                inferredScopes.putIfAbsent(scope.id(), scope);
+                ArchitectureEntity packageEntity = TopologySupport.packageEntity(scope);
+                inferredEntities.putIfAbsent(packageEntity.id(), packageEntity);
+                packageScopeToEntityId.put(scope.id(), packageEntity.id());
+            }
+        }
     }
 
     private static <T, K extends Enum<K>> Map<String, Integer> countsByKind(Collection<T> values, java.util.function.Function<T, K> classifier) {

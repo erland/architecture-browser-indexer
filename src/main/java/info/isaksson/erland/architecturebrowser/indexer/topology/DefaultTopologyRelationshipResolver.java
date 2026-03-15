@@ -13,15 +13,15 @@ final class DefaultTopologyRelationshipResolver implements TopologyRelationshipR
     public Optional<ExtractedEntityFact> resolveInternalTarget(
         ExtractedRelationshipFact relationship,
         String fromPath,
-        Map<String, ExtractedEntityFact> javaTypesByQualifiedName,
+        Map<String, ExtractedEntityFact> typesByQualifiedName,
         Map<String, ExtractedEntityFact> fileModulesByPath
     ) {
         String label = relationship.label();
         if (label == null || label.isBlank()) {
             return Optional.empty();
         }
-        if (javaTypesByQualifiedName.containsKey(label)) {
-            return Optional.of(javaTypesByQualifiedName.get(label));
+        if (typesByQualifiedName.containsKey(label)) {
+            return Optional.of(typesByQualifiedName.get(label));
         }
         if (label.startsWith("./") || label.startsWith("../")) {
             String resolved = resolveRelativePath(fromPath, label);

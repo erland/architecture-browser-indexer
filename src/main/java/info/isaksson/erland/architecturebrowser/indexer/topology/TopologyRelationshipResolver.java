@@ -10,7 +10,7 @@ public interface TopologyRelationshipResolver {
     Optional<ExtractedEntityFact> resolveInternalTarget(
         ExtractedRelationshipFact relationship,
         String fromPath,
-        Map<String, ExtractedEntityFact> javaTypesByQualifiedName,
+        Map<String, ExtractedEntityFact> typesByQualifiedName,
         Map<String, ExtractedEntityFact> fileModulesByPath
     );
 }
