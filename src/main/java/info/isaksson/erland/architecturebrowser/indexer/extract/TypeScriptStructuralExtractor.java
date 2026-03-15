@@ -80,8 +80,28 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
         }
 
         Map<String, ExtractedEntityFact> declaredTypes = new LinkedHashMap<>();
+        for (SyntaxNode typeAliasNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("type_alias_declaration"))) {
+            ExtractedEntityFact typeEntity = addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, typeAliasNode, EntityKind.INTERFACE, "type_alias_declaration", "typeAlias", extractionMode);
+            if (typeEntity != null) {
+                declaredTypes.putIfAbsent(typeEntity.name(), typeEntity);
+                Object qualifiedName = typeEntity.metadata().get("qualifiedName");
+                if (qualifiedName instanceof String qualified && !qualified.isBlank()) {
+                    declaredTypes.putIfAbsent(qualified, typeEntity);
+                }
+            }
+        }
+        for (SyntaxNode enumNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("enum_declaration"))) {
+            ExtractedEntityFact typeEntity = addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, enumNode, EntityKind.CLASS, "enum_declaration", "enum", extractionMode);
+            if (typeEntity != null) {
+                declaredTypes.putIfAbsent(typeEntity.name(), typeEntity);
+                Object qualifiedName = typeEntity.metadata().get("qualifiedName");
+                if (qualifiedName instanceof String qualified && !qualified.isBlank()) {
+                    declaredTypes.putIfAbsent(qualified, typeEntity);
+                }
+            }
+        }
         for (SyntaxNode classNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("class_declaration"))) {
-            ExtractedEntityFact typeEntity = addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, classNode, EntityKind.CLASS, "class_declaration", extractionMode);
+            ExtractedEntityFact typeEntity = addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, classNode, EntityKind.CLASS, "class_declaration", "class", extractionMode);
             if (typeEntity != null) {
                 declaredTypes.putIfAbsent(typeEntity.name(), typeEntity);
                 Object qualifiedName = typeEntity.metadata().get("qualifiedName");
@@ -91,7 +111,7 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
             }
         }
         for (SyntaxNode interfaceNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("interface_declaration"))) {
-            ExtractedEntityFact typeEntity = addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, interfaceNode, EntityKind.INTERFACE, "interface_declaration", extractionMode);
+            ExtractedEntityFact typeEntity = addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, interfaceNode, EntityKind.INTERFACE, "interface_declaration", "interface", extractionMode);
             if (typeEntity != null) {
                 declaredTypes.putIfAbsent(typeEntity.name(), typeEntity);
                 Object qualifiedName = typeEntity.metadata().get("qualifiedName");
@@ -115,11 +135,11 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
             }
         }
         for (SyntaxNode functionNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("function_declaration"))) {
-            addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, functionNode, EntityKind.FUNCTION, "function_declaration", extractionMode);
+            addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, functionNode, EntityKind.FUNCTION, "function_declaration", "function", extractionMode);
         }
         for (SyntaxNode variableDeclarator : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("variable_declarator"))) {
             if (SyntaxTreeExtractionSupport.containsDescendantType(variableDeclarator, "arrow_function")) {
-                addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, variableDeclarator, EntityKind.FUNCTION, "arrow_function", extractionMode);
+                addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, variableDeclarator, EntityKind.FUNCTION, "arrow_function", "function", extractionMode);
             }
         }
         return accumulator;
@@ -259,6 +279,7 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
         SyntaxNode node,
         EntityKind kind,
         String matchedKind,
+        String declarationKind,
         ExtractionMode extractionMode
     ) {
         String name = SyntaxTreeExtractionSupport.declarationName(node);
@@ -273,6 +294,7 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
             .toList();
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("language", "typescript");
+        metadata.put("declarationKind", declarationKind);
         metadata.put("decorators", decorators);
         metadata.put("parseStatus", parseResult.status().name());
         metadata.put("extractionMode", extractionMode.name());
