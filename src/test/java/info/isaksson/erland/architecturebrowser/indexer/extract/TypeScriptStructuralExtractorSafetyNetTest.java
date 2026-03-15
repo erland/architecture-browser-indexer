@@ -150,7 +150,7 @@ class TypeScriptStructuralExtractorSafetyNetTest {
     }
 
     @Test
-    void documentsCurrentGapThatTypeMembersAndPropertiesAreNotYetExtracted() {
+    void classOwnsMethodsAndProperties() {
         String source = """
             export class UserService {
               constructor(private readonly api: ApiClient) {}
@@ -174,9 +174,61 @@ class TypeScriptStructuralExtractorSafetyNetTest {
         StructuralExtractionResult result = extract("src/app/user.service.ts", source, program(source, classNode));
 
         var userService = entity(result, EntityKind.CLASS, "UserService");
+        var getUser = entity(result, EntityKind.FUNCTION, "getUser");
+        var currentUser = entity(result, EntityKind.FIELD, "currentUser");
+
         assertNotNull(userService);
-        assertFalse(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.FUNCTION && "getUser".equals(entity.name())));
-        assertFalse(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.FIELD && "currentUser".equals(entity.name())));
+        assertEquals("UserService", getUser.metadata().get("ownerQualifiedName"));
+        assertEquals("class", getUser.metadata().get("ownerDeclarationKind"));
+        assertEquals("UserService", currentUser.metadata().get("ownerQualifiedName"));
+        assertEquals("class", currentUser.metadata().get("ownerDeclarationKind"));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.CONTAINS
+            && userService.id().equals(rel.fromEntityId())
+            && getUser.id().equals(rel.toEntityId())));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.CONTAINS
+            && userService.id().equals(rel.fromEntityId())
+            && currentUser.id().equals(rel.toEntityId())));
+    }
+
+    @Test
+    void interfaceOwnsMethodSignaturesAndPropertySignatures() {
+        String source = """
+            export interface UserContract {
+              getUser(id: string): User;
+              currentUser: User;
+            }
+            """;
+        SyntaxNode interfaceNode = new SyntaxNode("interface_declaration", true, 0, source.length(), 0, 0, 3, 1, false, false,
+            source.strip(), List.of(
+                new SyntaxNode("type_identifier", true, 17, 29, 0, 17, 0, 29, false, false, "UserContract", List.of()),
+                new SyntaxNode("method_signature", true, 34, 60, 1, 2, 1, 28, false, false,
+                    "getUser(id: string): User;", List.of(
+                        new SyntaxNode("property_identifier", true, 34, 41, 1, 2, 1, 9, false, false, "getUser", List.of()),
+                        new SyntaxNode("formal_parameters", true, 41, 53, 1, 9, 1, 21, false, false, "(id: string)", List.of())
+                    )),
+                new SyntaxNode("property_signature", true, 63, 81, 2, 2, 2, 20, false, false,
+                    "currentUser: User;", List.of(
+                        new SyntaxNode("property_identifier", true, 63, 74, 2, 2, 2, 13, false, false, "currentUser", List.of())
+                    ))
+            ));
+
+        StructuralExtractionResult result = extract("src/app/user-contract.ts", source, program(source, interfaceNode));
+
+        var userContract = entity(result, EntityKind.INTERFACE, "UserContract");
+        var getUser = entity(result, EntityKind.FUNCTION, "getUser");
+        var currentUser = entity(result, EntityKind.FIELD, "currentUser");
+
+        assertEquals("UserContract", getUser.metadata().get("ownerQualifiedName"));
+        assertEquals("interface", getUser.metadata().get("ownerDeclarationKind"));
+        assertEquals("(id: string)", getUser.metadata().get("parameters"));
+        assertEquals("UserContract", currentUser.metadata().get("ownerQualifiedName"));
+        assertEquals("interface", currentUser.metadata().get("ownerDeclarationKind"));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.CONTAINS
+            && userContract.id().equals(rel.fromEntityId())
+            && getUser.id().equals(rel.toEntityId())));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.CONTAINS
+            && userContract.id().equals(rel.fromEntityId())
+            && currentUser.id().equals(rel.toEntityId())));
     }
 
     @Test

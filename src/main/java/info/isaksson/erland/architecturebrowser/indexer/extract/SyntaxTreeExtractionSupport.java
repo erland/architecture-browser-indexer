@@ -245,6 +245,18 @@ final class SyntaxTreeExtractionSupport {
         return params.isEmpty() ? methodName : methodName + params;
     }
 
+    static boolean isTypeScriptMethodLikeDeclaration(SyntaxNode node) {
+        return node != null && Set.of(
+            "method_definition", "method_signature", "abstract_method_signature"
+        ).contains(node.type());
+    }
+
+    static boolean isTypeScriptPropertyLikeDeclaration(SyntaxNode node) {
+        return node != null && Set.of(
+            "public_field_definition", "property_signature", "abstract_property_signature", "field_definition"
+        ).contains(node.type());
+    }
+
     static boolean containsDescendantType(SyntaxNode node, String type) {
         return firstDescendantByType(node, Set.of(type)).isPresent();
     }

@@ -11,6 +11,7 @@ import info.isaksson.erland.architecturebrowser.indexer.parse.SourceParseResult;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxNode;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxTree;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -79,10 +80,16 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
         }
 
         for (SyntaxNode classNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("class_declaration"))) {
-            addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, classNode, EntityKind.CLASS, "class_declaration", extractionMode);
+            ExtractedEntityFact typeEntity = addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, classNode, EntityKind.CLASS, "class_declaration", extractionMode);
+            if (typeEntity != null) {
+                addOwnedMembers(parseResult, accumulator, typeEntity, relativePath, classNode, extractionMode, "class");
+            }
         }
         for (SyntaxNode interfaceNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("interface_declaration"))) {
-            addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, interfaceNode, EntityKind.INTERFACE, "interface_declaration", extractionMode);
+            ExtractedEntityFact typeEntity = addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, interfaceNode, EntityKind.INTERFACE, "interface_declaration", extractionMode);
+            if (typeEntity != null) {
+                addOwnedMembers(parseResult, accumulator, typeEntity, relativePath, interfaceNode, extractionMode, "interface");
+            }
         }
         for (SyntaxNode functionNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("function_declaration"))) {
             addNamedEntityFromNode(parseResult, accumulator, fileEntity.id(), relativePath, functionNode, EntityKind.FUNCTION, "function_declaration", extractionMode);
@@ -95,10 +102,43 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
         return accumulator;
     }
 
-    private static void addNamedEntityFromNode(
+    private static void addOwnedMembers(
         SourceParseResult parseResult,
         ExtractionAccumulator accumulator,
-        String fileEntityId,
+        ExtractedEntityFact ownerEntity,
+        String relativePath,
+        SyntaxNode ownerNode,
+        ExtractionMode extractionMode,
+        String ownerDeclarationKind
+    ) {
+        String ownerQualifiedName = String.valueOf(ownerEntity.metadata().getOrDefault("qualifiedName", ownerEntity.name()));
+        for (SyntaxNode memberNode : ownerNode.children()) {
+            if (SyntaxTreeExtractionSupport.isTypeScriptMethodLikeDeclaration(memberNode)) {
+                ExtractedEntityFact methodEntity = toTypeScriptMethodEntity(parseResult, relativePath, extractionMode, ownerEntity.scopeId(), memberNode, ownerQualifiedName, ownerDeclarationKind);
+                if (methodEntity != null) {
+                    accumulator.addEntity(methodEntity);
+                    SourceReference ref = methodEntity.sourceRefs().isEmpty()
+                        ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(memberNode), memberNode.textSnippet(), Map.of("language", "typescript", "kind", memberNode.type()))
+                        : methodEntity.sourceRefs().getFirst();
+                    accumulator.addRelationship(ExtractionSupport.containsRelationship(ownerEntity.id(), methodEntity.id(), ref));
+                }
+            } else if (SyntaxTreeExtractionSupport.isTypeScriptPropertyLikeDeclaration(memberNode)) {
+                ExtractedEntityFact propertyEntity = toTypeScriptPropertyEntity(parseResult, relativePath, extractionMode, ownerEntity.scopeId(), memberNode, ownerQualifiedName, ownerDeclarationKind);
+                if (propertyEntity != null) {
+                    accumulator.addEntity(propertyEntity);
+                    SourceReference ref = propertyEntity.sourceRefs().isEmpty()
+                        ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(memberNode), memberNode.textSnippet(), Map.of("language", "typescript", "kind", memberNode.type()))
+                        : propertyEntity.sourceRefs().getFirst();
+                    accumulator.addRelationship(ExtractionSupport.containsRelationship(ownerEntity.id(), propertyEntity.id(), ref));
+                }
+            }
+        }
+    }
+
+    private static ExtractedEntityFact addNamedEntityFromNode(
+        SourceParseResult parseResult,
+        ExtractionAccumulator accumulator,
+        String parentEntityId,
         String relativePath,
         SyntaxNode node,
         EntityKind kind,
@@ -107,7 +147,7 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
     ) {
         String name = SyntaxTreeExtractionSupport.declarationName(node);
         if (name == null || name.isBlank()) {
-            return;
+            return null;
         }
         int line = SyntaxTreeExtractionSupport.oneBasedLine(node);
         SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, node.textSnippet(), Map.of("language", "typescript", "kind", matchedKind));
@@ -115,23 +155,107 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
             .flatMap(candidate -> SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(candidate.textSnippet()).stream())
             .distinct()
             .toList();
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("language", "typescript");
+        metadata.put("decorators", decorators);
+        metadata.put("parseStatus", parseResult.status().name());
+        metadata.put("extractionMode", extractionMode.name());
+        if (kind == EntityKind.CLASS || kind == EntityKind.INTERFACE) {
+            metadata.put("qualifiedName", name);
+        }
         ExtractedEntityFact entity = new ExtractedEntityFact(
             IdUtils.scopedEntityId("typescript", relativePath, name, line),
             kind,
             EntityOrigin.OBSERVED,
-            DisplayNamePolicy.entityDisplayName(kind, name, "typescript"),
             name,
+            DisplayNamePolicy.entityDisplayName(kind, name, "typescript"),
             IdUtils.scopeId("file", relativePath),
+            List.of(ref),
+            Map.copyOf(metadata)
+        );
+        accumulator.addEntity(entity);
+        accumulator.addRelationship(ExtractionSupport.containsRelationship(parentEntityId, entity.id(), ref));
+        return entity;
+    }
+
+    private static ExtractedEntityFact toTypeScriptMethodEntity(
+        SourceParseResult parseResult,
+        String relativePath,
+        ExtractionMode extractionMode,
+        String fileScopeId,
+        SyntaxNode methodNode,
+        String ownerQualifiedName,
+        String ownerDeclarationKind
+    ) {
+        String methodName = SyntaxTreeExtractionSupport.declarationName(methodNode);
+        if (methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        String parameterSnippet = SyntaxTreeExtractionSupport.parameterSnippet(methodNode);
+        int line = SyntaxTreeExtractionSupport.oneBasedLine(methodNode);
+        SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, methodNode.textSnippet(), Map.of("language", "typescript", "kind", methodNode.type()));
+        List<String> decorators = SyntaxTreeExtractionSupport.descendantsByType(methodNode, Set.of("decorator")).stream()
+            .flatMap(node -> SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(node.textSnippet()).stream())
+            .distinct()
+            .toList();
+        String canonicalName = ownerQualifiedName == null || ownerQualifiedName.isBlank() ? methodName : ownerQualifiedName + "#" + methodName;
+        return new ExtractedEntityFact(
+            IdUtils.scopedEntityId("typescript", relativePath, canonicalName, line),
+            EntityKind.FUNCTION,
+            EntityOrigin.OBSERVED,
+            methodName,
+            DisplayNamePolicy.entityDisplayName(EntityKind.FUNCTION, canonicalName, "typescript"),
+            fileScopeId,
             List.of(ref),
             Map.of(
                 "language", "typescript",
+                "parameters", parameterSnippet,
                 "decorators", decorators,
+                "ownerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName,
+                "ownerDeclarationKind", ownerDeclarationKind == null ? "" : ownerDeclarationKind,
                 "parseStatus", parseResult.status().name(),
                 "extractionMode", extractionMode.name()
             )
         );
-        accumulator.addEntity(entity);
-        accumulator.addRelationship(ExtractionSupport.containsRelationship(fileEntityId, entity.id(), ref));
+    }
+
+    private static ExtractedEntityFact toTypeScriptPropertyEntity(
+        SourceParseResult parseResult,
+        String relativePath,
+        ExtractionMode extractionMode,
+        String fileScopeId,
+        SyntaxNode propertyNode,
+        String ownerQualifiedName,
+        String ownerDeclarationKind
+    ) {
+        String propertyName = SyntaxTreeExtractionSupport.declarationName(propertyNode);
+        if (propertyName == null || propertyName.isBlank()) {
+            return null;
+        }
+        int line = SyntaxTreeExtractionSupport.oneBasedLine(propertyNode);
+        SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, propertyNode.textSnippet(), Map.of("language", "typescript", "kind", propertyNode.type()));
+        List<String> decorators = SyntaxTreeExtractionSupport.descendantsByType(propertyNode, Set.of("decorator")).stream()
+            .flatMap(node -> SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(node.textSnippet()).stream())
+            .distinct()
+            .toList();
+        String canonicalName = ownerQualifiedName == null || ownerQualifiedName.isBlank() ? propertyName : ownerQualifiedName + "#" + propertyName;
+        return new ExtractedEntityFact(
+            IdUtils.scopedEntityId("typescript", relativePath, canonicalName, line),
+            EntityKind.FIELD,
+            EntityOrigin.OBSERVED,
+            propertyName,
+            DisplayNamePolicy.entityDisplayName(EntityKind.FIELD, canonicalName, "typescript"),
+            fileScopeId,
+            List.of(ref),
+            Map.of(
+                "language", "typescript",
+                "decorators", decorators,
+                "ownerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName,
+                "ownerDeclarationKind", ownerDeclarationKind == null ? "" : ownerDeclarationKind,
+                "parseStatus", parseResult.status().name(),
+                "extractionMode", extractionMode.name()
+            )
+        );
     }
 
     private static String importFromSnippet(String snippet) {
