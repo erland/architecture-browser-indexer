@@ -142,6 +142,18 @@ final class TopologySupport {
         );
     }
 
+    static ArchitectureRelationship typedRelationship(RelationshipKind kind, String fromId, String toId, String label, List<SourceReference> refs, Map<String, Object> metadata) {
+        return new ArchitectureRelationship(
+            IdUtils.relationshipId("topology-" + kind.name().toLowerCase(), fromId, toId, label == null ? "" : label),
+            kind,
+            fromId,
+            toId,
+            label,
+            refs == null ? List.of() : refs,
+            metadata == null ? Map.of() : metadata
+        );
+    }
+
     static Diagnostic warning(String code, String message, String path, List<SourceReference> refs) {
         return new Diagnostic(
             "diag:topology:" + IdUtils.stableToken(code + ":" + path + ":" + message),

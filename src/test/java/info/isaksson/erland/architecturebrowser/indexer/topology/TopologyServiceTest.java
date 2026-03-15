@@ -100,4 +100,45 @@ class TopologyServiceTest {
         var result = new TopologyService().infer(inventory, extraction, new InterpretationResult(List.of(), List.of(), List.of(), new InterpretationSummary(Map.of(), Map.of(), Map.of())));
         assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.USES && "./http-client".equals(rel.label())));
     }
+
+    @Test
+    void rollsUpJavaTypeRelationshipsAcrossPackagesAndModules() {
+        String servicePath = "src/main/java/com/example/order/OrderService.java";
+        String repoPath = "src/main/java/com/example/shared/CustomerRepository.java";
+        SourceReference serviceRef = new SourceReference(servicePath, 5, 5, "class OrderService extends BaseService implements CustomerRepository {}", Map.of());
+        SourceReference repoRef = new SourceReference(repoPath, 4, 4, "interface CustomerRepository {}", Map.of());
+
+        StructuralExtractionResult extraction = new StructuralExtractionResult(
+            List.of(
+                new info.isaksson.erland.architecturebrowser.indexer.ir.model.LogicalScope("scope:pkg:order", ScopeKind.PACKAGE, "com.example.order", "com.example.order", "scope:repo", List.of(serviceRef), Map.of("language", "java")),
+                new info.isaksson.erland.architecturebrowser.indexer.ir.model.LogicalScope("scope:pkg:shared", ScopeKind.PACKAGE, "com.example.shared", "com.example.shared", "scope:repo", List.of(repoRef), Map.of("language", "java"))
+            ),
+            List.of(
+                new ExtractedEntityFact("entity:file:service", EntityKind.MODULE, EntityOrigin.OBSERVED, servicePath, servicePath, "scope:file:service", List.of(serviceRef), Map.of("language", "java", "relativePath", servicePath)),
+                new ExtractedEntityFact("entity:file:repo", EntityKind.MODULE, EntityOrigin.OBSERVED, repoPath, repoPath, "scope:file:repo", List.of(repoRef), Map.of("language", "java", "relativePath", repoPath)),
+                new ExtractedEntityFact("entity:class:service", EntityKind.CLASS, EntityOrigin.OBSERVED, "OrderService", "com.example.order.OrderService", "scope:pkg:order", List.of(serviceRef), Map.of("language", "java", "qualifiedName", "com.example.order.OrderService", "declarationKind", "class")),
+                new ExtractedEntityFact("entity:interface:repo", EntityKind.INTERFACE, EntityOrigin.OBSERVED, "CustomerRepository", "com.example.shared.CustomerRepository", "scope:pkg:shared", List.of(repoRef), Map.of("language", "java", "qualifiedName", "com.example.shared.CustomerRepository", "declarationKind", "interface"))
+            ),
+            List.of(
+                new ExtractedRelationshipFact("rel:implements", RelationshipKind.IMPLEMENTS, "entity:class:service", "entity:interface:repo", "com.example.shared.CustomerRepository", List.of(serviceRef), Map.of("language", "java")),
+                new ExtractedRelationshipFact("rel:depends", RelationshipKind.DEPENDS_ON, "entity:class:service", "entity:interface:repo", "com.example.shared.CustomerRepository", List.of(serviceRef), Map.of("language", "java", "dependencySource", "field"))
+            ),
+            List.of(),
+            new ExtractionSummary(2, 2, Map.of("java", 2), Map.of("SYNTAX_TREE", 2), 4, 2)
+        );
+
+        FileInventory inventory = new FileInventory(
+            List.of(
+                new FileInventoryEntry(servicePath, 100, "java", "source", "java", false, List.of("spring")),
+                new FileInventoryEntry(repoPath, 100, "java", "source", "java", false, List.of("spring"))
+            ),
+            2, 2, 0, Set.of("java"), Set.of("spring")
+        );
+
+        var result = new TopologyService().infer(inventory, extraction, new InterpretationResult(List.of(), List.of(), List.of(), new InterpretationSummary(Map.of(), Map.of(), Map.of())));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.IMPLEMENTS && "entity:class:service".equals(rel.fromEntityId()) && "entity:interface:repo".equals(rel.toEntityId())));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.IMPLEMENTS && "package-package".equals(rel.metadata().get("rollup"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.USES && "module-module".equals(rel.metadata().get("rollup"))));
+    }
+
 }

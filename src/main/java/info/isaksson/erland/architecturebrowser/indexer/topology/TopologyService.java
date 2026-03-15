@@ -10,6 +10,7 @@ import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureRel
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.Diagnostic;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.LogicalScope;
+import info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ScopeKind;
 import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventory;
 import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventoryEntry;
@@ -147,11 +148,11 @@ public final class TopologyService {
             }
         }
 
-        // Resolve internal Java dependencies from qualified names.
+        // Resolve internal Java entities from qualified names.
         Map<String, ExtractedEntityFact> javaTypesByQualifiedName = extractionResult.entities().stream()
             .filter(entity -> {
                 String lang = String.valueOf(entity.metadata().getOrDefault("language", ""));
-                return "java".equalsIgnoreCase(lang) && (entity.kind() == EntityKind.CLASS || entity.kind() == EntityKind.INTERFACE);
+                return "java".equalsIgnoreCase(lang) && isJavaStructuralEntity(entity.kind());
             })
             .filter(entity -> entity.metadata().get("qualifiedName") != null)
             .collect(Collectors.toMap(entity -> String.valueOf(entity.metadata().get("qualifiedName")), entity -> entity, (left, right) -> left, LinkedHashMap::new));
@@ -160,16 +161,16 @@ public final class TopologyService {
         Map<String, ExtractedEntityFact> fileModulesByPath = fileModuleEntities(extractionResult.entities()).stream()
             .collect(Collectors.toMap(ExtractedEntityFact::name, entity -> entity, (left, right) -> left, LinkedHashMap::new));
 
-        // Roll-up package/package and module/module relationships.
+        // Roll-up internal relationships across files, types, and members.
         Set<String> seenPackageUses = new LinkedHashSet<>();
         Set<String> seenModuleUses = new LinkedHashSet<>();
 
         for (ExtractedRelationshipFact relationship : extractionResult.relationships()) {
-            if (relationship.kind() != info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.DEPENDS_ON) {
+            if (!isTopologyRelevantRelationship(relationship.kind())) {
                 continue;
             }
             ExtractedEntityFact fromEntity = extractedEntitiesById.get(relationship.fromEntityId());
-            if (fromEntity == null || fromEntity.kind() != EntityKind.MODULE) {
+            if (fromEntity == null) {
                 continue;
             }
             String fromPath = TopologySupport.primaryPath(fromEntity);
@@ -177,40 +178,47 @@ public final class TopologyService {
                 continue;
             }
 
-            Optional<ExtractedEntityFact> resolvedTarget = relationshipResolver.resolveInternalTarget(relationship, fromPath, javaTypesByQualifiedName, fileModulesByPath);
+            Optional<ExtractedEntityFact> resolvedTarget = resolveInternalTarget(relationship, fromPath, extractedEntitiesById, javaTypesByQualifiedName, fileModulesByPath);
             if (resolvedTarget.isEmpty()) {
                 continue;
             }
 
             ExtractedEntityFact targetEntity = resolvedTarget.get();
-            inferredRelationships.putIfAbsent(
-                IdUtils.relationshipId("topology-uses", fromEntity.id(), targetEntity.id(), relationship.label()),
-                TopologySupport.uses(fromEntity.id(), targetEntity.id(), relationship.label(), relationship.sourceRefs(), Map.of("rollup", "file-internal", "sourceRelationshipId", relationship.id()))
-            );
+            String rollup = fromEntity.kind() == EntityKind.MODULE ? "file-internal" : "entity-internal";
+            ArchitectureRelationship directRelationship = switch (relationship.kind()) {
+                case EXTENDS -> TopologySupport.typedRelationship(RelationshipKind.EXTENDS, fromEntity.id(), targetEntity.id(), relationship.label(), relationship.sourceRefs(), Map.of("rollup", rollup, "sourceRelationshipId", relationship.id()));
+                case IMPLEMENTS -> TopologySupport.typedRelationship(RelationshipKind.IMPLEMENTS, fromEntity.id(), targetEntity.id(), relationship.label(), relationship.sourceRefs(), Map.of("rollup", rollup, "sourceRelationshipId", relationship.id()));
+                default -> TopologySupport.uses(fromEntity.id(), targetEntity.id(), relationship.label(), relationship.sourceRefs(), Map.of("rollup", rollup, "sourceRelationshipId", relationship.id()));
+            };
+            inferredRelationships.putIfAbsent(directRelationship.id(), directRelationship);
 
-            String fromPackageScopeId = packageScopeIdForFile(fromEntity, extractionResult.scopes());
-            String toPackageScopeId = packageScopeIdForFile(targetEntity, extractionResult.scopes());
+            String fromPackageScopeId = packageScopeIdForEntity(fromEntity, extractionResult.scopes());
+            String toPackageScopeId = packageScopeIdForEntity(targetEntity, extractionResult.scopes());
             String fromPackageEntityId = fromPackageScopeId == null ? null : packageScopeToEntityId.get(fromPackageScopeId);
             String toPackageEntityId = toPackageScopeId == null ? null : packageScopeToEntityId.get(toPackageScopeId);
             if (fromPackageEntityId != null && toPackageEntityId != null && !fromPackageEntityId.equals(toPackageEntityId)) {
-                String key = fromPackageEntityId + "->" + toPackageEntityId;
+                String key = relationship.kind().name() + ":" + fromPackageEntityId + "->" + toPackageEntityId;
                 if (seenPackageUses.add(key)) {
-                    inferredRelationships.putIfAbsent(
-                        IdUtils.relationshipId("topology-uses", fromPackageEntityId, toPackageEntityId, relationship.label()),
-                        TopologySupport.uses(fromPackageEntityId, toPackageEntityId, relationship.label(), relationship.sourceRefs(), Map.of("rollup", "package-package"))
-                    );
+                    ArchitectureRelationship pkgRelationship = switch (relationship.kind()) {
+                        case EXTENDS -> TopologySupport.typedRelationship(RelationshipKind.EXTENDS, fromPackageEntityId, toPackageEntityId, relationship.label(), relationship.sourceRefs(), Map.of("rollup", "package-package"));
+                        case IMPLEMENTS -> TopologySupport.typedRelationship(RelationshipKind.IMPLEMENTS, fromPackageEntityId, toPackageEntityId, relationship.label(), relationship.sourceRefs(), Map.of("rollup", "package-package"));
+                        default -> TopologySupport.uses(fromPackageEntityId, toPackageEntityId, relationship.label(), relationship.sourceRefs(), Map.of("rollup", "package-package"));
+                    };
+                    inferredRelationships.putIfAbsent(pkgRelationship.id(), pkgRelationship);
                 }
             }
 
             String fromModuleEntityId = sourceRootEntityId(fromPath);
             String toModuleEntityId = sourceRootEntityId(TopologySupport.primaryPath(targetEntity));
             if (fromModuleEntityId != null && toModuleEntityId != null && !fromModuleEntityId.equals(toModuleEntityId)) {
-                String key = fromModuleEntityId + "->" + toModuleEntityId;
+                String key = relationship.kind().name() + ":" + fromModuleEntityId + "->" + toModuleEntityId;
                 if (seenModuleUses.add(key)) {
-                    inferredRelationships.putIfAbsent(
-                        IdUtils.relationshipId("topology-uses", fromModuleEntityId, toModuleEntityId, relationship.label()),
-                        TopologySupport.uses(fromModuleEntityId, toModuleEntityId, relationship.label(), relationship.sourceRefs(), Map.of("rollup", "module-module"))
-                    );
+                    ArchitectureRelationship moduleRelationship = switch (relationship.kind()) {
+                        case EXTENDS -> TopologySupport.typedRelationship(RelationshipKind.EXTENDS, fromModuleEntityId, toModuleEntityId, relationship.label(), relationship.sourceRefs(), Map.of("rollup", "module-module"));
+                        case IMPLEMENTS -> TopologySupport.typedRelationship(RelationshipKind.IMPLEMENTS, fromModuleEntityId, toModuleEntityId, relationship.label(), relationship.sourceRefs(), Map.of("rollup", "module-module"));
+                        default -> TopologySupport.uses(fromModuleEntityId, toModuleEntityId, relationship.label(), relationship.sourceRefs(), Map.of("rollup", "module-module"));
+                    };
+                    inferredRelationships.putIfAbsent(moduleRelationship.id(), moduleRelationship);
                 }
             }
         }
@@ -279,6 +287,58 @@ private static String packageScopeIdForFile(ExtractedEntityFact fileEntity, java
         .map(LogicalScope::id)
         .findFirst()
         .orElse(null);
+}
+
+private static boolean isJavaStructuralEntity(EntityKind kind) {
+    return kind == EntityKind.CLASS || kind == EntityKind.INTERFACE || kind == EntityKind.FIELD || kind == EntityKind.FUNCTION;
+}
+
+private static boolean isTopologyRelevantRelationship(info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind kind) {
+    return kind == info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.DEPENDS_ON
+        || kind == info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.EXTENDS
+        || kind == info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.IMPLEMENTS;
+}
+
+private Optional<ExtractedEntityFact> resolveInternalTarget(
+    ExtractedRelationshipFact relationship,
+    String fromPath,
+    Map<String, ExtractedEntityFact> extractedEntitiesById,
+    Map<String, ExtractedEntityFact> javaTypesByQualifiedName,
+    Map<String, ExtractedEntityFact> fileModulesByPath
+) {
+    ExtractedEntityFact direct = extractedEntitiesById.get(relationship.toEntityId());
+    if (direct != null) {
+        return Optional.of(direct);
+    }
+    return relationshipResolver.resolveInternalTarget(relationship, fromPath, javaTypesByQualifiedName, fileModulesByPath);
+}
+
+private static String packageScopeIdForEntity(ExtractedEntityFact entity, java.util.List<LogicalScope> scopes) {
+    if (entity == null) {
+        return null;
+    }
+    if (entity.kind() == EntityKind.CLASS || entity.kind() == EntityKind.INTERFACE) {
+        return entity.scopeId();
+    }
+    String ownerQualifiedName = String.valueOf(entity.metadata().getOrDefault("ownerQualifiedName", ""));
+    if (!ownerQualifiedName.isBlank()) {
+        String ownerPackage = parentQualifiedName(ownerQualifiedName);
+        if (ownerPackage != null && !ownerPackage.isBlank()) {
+            String language = String.valueOf(entity.metadata().getOrDefault("language", "java"));
+            String expectedScopeId = IdUtils.scopeId(language + "-package", ownerPackage);
+            if (scopes.stream().anyMatch(scope -> expectedScopeId.equals(scope.id()))) {
+                return expectedScopeId;
+            }
+        }
+    }
+    return packageScopeIdForFile(entity, scopes);
+}
+
+private static String parentQualifiedName(String qualifiedName) {
+    if (qualifiedName == null || qualifiedName.isBlank() || !qualifiedName.contains(".")) {
+        return null;
+    }
+    return qualifiedName.substring(0, qualifiedName.lastIndexOf('.'));
 }
 
 private static String sourceRootEntityId(String filePath) {

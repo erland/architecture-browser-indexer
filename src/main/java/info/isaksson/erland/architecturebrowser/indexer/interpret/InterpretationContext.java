@@ -7,6 +7,7 @@ import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
 
 import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -72,6 +73,35 @@ final class InterpretationContext {
 
     Optional<ExtractedEntityFact> entityById(String id) {
         return Optional.ofNullable(entitiesById.get(id));
+    }
+
+    Optional<ExtractedEntityFact> javaTypeByQualifiedName(String qualifiedName) {
+        if (qualifiedName == null || qualifiedName.isBlank()) {
+            return Optional.empty();
+        }
+        return extractionResult.entities().stream()
+            .filter(entity -> (entity.kind() == EntityKind.CLASS || entity.kind() == EntityKind.INTERFACE)
+                && "java".equalsIgnoreCase(String.valueOf(entity.metadata().getOrDefault("language", ""))))
+            .filter(entity -> qualifiedName.equals(String.valueOf(entity.metadata().get("qualifiedName"))))
+            .findFirst();
+    }
+
+    Optional<ExtractedEntityFact> ownerType(ExtractedEntityFact entity) {
+        return javaTypeByQualifiedName(stringMetadata(entity, "ownerQualifiedName"));
+    }
+
+    List<ExtractedEntityFact> relationshipsFrom(String entityId, info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind kind) {
+        List<ExtractedEntityFact> result = new ArrayList<>();
+        for (ExtractedRelationshipFact relationship : extractionResult.relationships()) {
+            if (!entityId.equals(relationship.fromEntityId()) || relationship.kind() != kind) {
+                continue;
+            }
+            ExtractedEntityFact target = entitiesById.get(relationship.toEntityId());
+            if (target != null) {
+                result.add(target);
+            }
+        }
+        return List.copyOf(result);
     }
 
     static String language(ExtractedEntityFact entity) {
