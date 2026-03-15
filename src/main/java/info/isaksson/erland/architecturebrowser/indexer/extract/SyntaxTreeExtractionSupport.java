@@ -245,6 +245,67 @@ final class SyntaxTreeExtractionSupport {
         return params.isEmpty() ? methodName : methodName + params;
     }
 
+
+
+    static String typeScriptDeclaredType(SyntaxNode node) {
+        if (node == null || node.textSnippet() == null || node.textSnippet().isBlank()) {
+            return "";
+        }
+        String snippet = node.textSnippet().replace('\n', ' ').replace('\r', ' ').trim();
+        snippet = snippet.replaceAll("@[A-Za-z_][\\w.]*\\s*(\\([^)]*\\))?", " ");
+        int colon = snippet.indexOf(':');
+        if (colon < 0) {
+            return "";
+        }
+        String tail = snippet.substring(colon + 1);
+        int cut = tail.length();
+        for (String marker : new String[]{"=", ";", "{", "}"}) {
+            int idx = tail.indexOf(marker);
+            if (idx >= 0) {
+                cut = Math.min(cut, idx);
+            }
+        }
+        return tail.substring(0, cut)
+            .replaceAll("\\s+", " ")
+            .trim();
+    }
+
+    static List<String> typeScriptModifiers(SyntaxNode node) {
+        if (node == null || node.textSnippet() == null || node.textSnippet().isBlank()) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        Matcher matcher = Pattern.compile("\\b(public|private|protected|static|abstract|readonly|declare|override|export)\\b").matcher(node.textSnippet());
+        while (matcher.find()) {
+            result.add(matcher.group(1));
+        }
+        return result.stream().distinct().toList();
+    }
+
+    static String typeScriptAccessibility(SyntaxNode node) {
+        if (node == null || node.textSnippet() == null || node.textSnippet().isBlank()) {
+            return "";
+        }
+        Matcher matcher = Pattern.compile("\\b(public|private|protected)\\b").matcher(node.textSnippet());
+        return matcher.find() ? matcher.group(1) : "";
+    }
+
+    static boolean typeScriptOptional(SyntaxNode node) {
+        if (node == null || node.textSnippet() == null || node.textSnippet().isBlank()) {
+            return false;
+        }
+        String name = declarationName(node);
+        if (name == null || name.isBlank()) {
+            return false;
+        }
+        String snippet = node.textSnippet().replace('\n', ' ').replace('\r', ' ');
+        return Pattern.compile("\\b" + Pattern.quote(name) + "\\s*\\?").matcher(snippet).find();
+    }
+
+    static boolean typeScriptReadonly(SyntaxNode node) {
+        return typeScriptModifiers(node).contains("readonly");
+    }
+
     static boolean isTypeScriptMethodLikeDeclaration(SyntaxNode node) {
         return node != null && Set.of(
             "method_definition", "method_signature", "abstract_method_signature"

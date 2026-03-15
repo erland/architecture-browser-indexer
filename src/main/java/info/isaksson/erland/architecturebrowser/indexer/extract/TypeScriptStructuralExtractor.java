@@ -351,7 +351,24 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
             .flatMap(node -> SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(node.textSnippet()).stream())
             .distinct()
             .toList();
+        String declaredType = SyntaxTreeExtractionSupport.typeScriptDeclaredType(propertyNode);
+        List<String> modifiers = SyntaxTreeExtractionSupport.typeScriptModifiers(propertyNode);
+        boolean optional = SyntaxTreeExtractionSupport.typeScriptOptional(propertyNode);
+        boolean readonly = SyntaxTreeExtractionSupport.typeScriptReadonly(propertyNode);
+        String accessibility = SyntaxTreeExtractionSupport.typeScriptAccessibility(propertyNode);
         String canonicalName = ownerQualifiedName == null || ownerQualifiedName.isBlank() ? propertyName : ownerQualifiedName + "#" + propertyName;
+        java.util.Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+        metadata.put("language", "typescript");
+        metadata.put("declaredType", declaredType);
+        metadata.put("optional", optional);
+        metadata.put("readonly", readonly);
+        metadata.put("accessibility", accessibility);
+        metadata.put("modifiers", modifiers);
+        metadata.put("decorators", decorators);
+        metadata.put("ownerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName);
+        metadata.put("ownerDeclarationKind", ownerDeclarationKind == null ? "" : ownerDeclarationKind);
+        metadata.put("parseStatus", parseResult.status().name());
+        metadata.put("extractionMode", extractionMode.name());
         return new ExtractedEntityFact(
             IdUtils.scopedEntityId("typescript", relativePath, canonicalName, line),
             EntityKind.FIELD,
@@ -360,14 +377,7 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
             DisplayNamePolicy.entityDisplayName(EntityKind.FIELD, canonicalName, "typescript"),
             fileScopeId,
             List.of(ref),
-            Map.of(
-                "language", "typescript",
-                "decorators", decorators,
-                "ownerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName,
-                "ownerDeclarationKind", ownerDeclarationKind == null ? "" : ownerDeclarationKind,
-                "parseStatus", parseResult.status().name(),
-                "extractionMode", extractionMode.name()
-            )
+            Map.copyOf(metadata)
         );
     }
 
