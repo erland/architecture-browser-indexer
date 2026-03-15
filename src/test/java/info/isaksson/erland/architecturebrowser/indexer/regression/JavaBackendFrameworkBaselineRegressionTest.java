@@ -80,12 +80,16 @@ class JavaBackendFrameworkBaselineRegressionTest {
         assertTrue(recommendedEntryPoints.contains("moduleDependencies"));
         assertTrue(recommendedEntryPoints.contains("evidenceDependencies"));
 
-        // Baseline limitations intentionally locked before Java framework semantics phase 1:
-        // - JAX-RS resources/endpoints are not yet exported as first-class Java backend browser views.
-        // - JPA annotations are still supporting evidence rather than a dedicated entity-model graph.
-        // - CDI observers are still visible through structural imports/types, not a dedicated observer topology.
-        // - Entity write paths are not yet modeled as explicit architecture relationships.
-        assertFalse(document.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.ENDPOINT));
+        // Step 2 introduces first-class observed JAX-RS endpoints. The most stable end-to-end
+        // contract at this stage is the presence of architect-facing endpoint entities and expose
+        // relationships, not that the resource class itself is exported with a particular metadata
+        // shape after interpretation/topology normalization.
+        assertTrue(document.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.ENDPOINT && "GET /orders".equals(entity.name())),
+            () -> "Expected GET endpoint. Entities=" + summarizeEntities(document));
+        assertTrue(document.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.ENDPOINT && "POST /orders".equals(entity.name())),
+            () -> "Expected POST endpoint. Entities=" + summarizeEntities(document));
+        assertTrue(document.relationships().stream().anyMatch(relationship -> relationship.kind().name().equals("EXPOSES") && "GET /orders".equals(relationship.label())),
+            () -> "Expected EXPOSES relationship for GET /orders. Relationships=" + summarizeRelationships(document));
         assertFalse(dependencyViews.containsKey("javaBackendBrowserViews"));
     }
 
@@ -127,6 +131,20 @@ class JavaBackendFrameworkBaselineRegressionTest {
 
     private static boolean usesRealTreeSitterBackend(SourceParseResult result) {
         return "tree-sitter-jtreesitter".equals(String.valueOf(result.metadata().get("parserBackend")));
+    }
+
+    private static String summarizeEntities(ArchitectureIndexDocument document) {
+        return document.entities().stream()
+            .map(entity -> entity.kind() + ":" + entity.name() + " metadata=" + entity.metadata())
+            .toList()
+            .toString();
+    }
+
+    private static String summarizeRelationships(ArchitectureIndexDocument document) {
+        return document.relationships().stream()
+            .map(relationship -> relationship.kind() + ":" + relationship.label() + " metadata=" + relationship.metadata())
+            .toList()
+            .toString();
     }
 
     private static String summarizeFailures(ParseBatchResult parseBatch) {

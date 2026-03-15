@@ -14,6 +14,7 @@ import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxTree;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -102,6 +103,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
             root,
             null,
             null,
+            null,
             importsBySimpleName,
             declaredTypes
         );
@@ -120,6 +122,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         SyntaxNode node,
         String owningTypeEntityId,
         String owningQualifiedName,
+        String owningTypeSnippet,
         Map<String, String> importsBySimpleName,
         Map<String, DeclaredJavaType> declaredTypes
     ) {
@@ -129,6 +132,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
 
         String currentOwningTypeEntityId = owningTypeEntityId;
         String currentOwningQualifiedName = owningQualifiedName;
+        String currentOwningTypeSnippet = owningTypeSnippet;
         if (isJavaTypeDeclaration(node)) {
             ExtractedEntityFact typeEntity = toTypeEntity(parseResult, relativePath, packageName, extractionMode, packageScopeId, node, owningQualifiedName);
             if (typeEntity != null) {
@@ -136,7 +140,9 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                 SourceReference ref = typeEntity.sourceRefs().isEmpty() ? null : typeEntity.sourceRefs().getFirst();
                 accumulator.addRelationship(ExtractionSupport.containsRelationship(fileEntityId, typeEntity.id(), ref));
                 addTypeRelationships(accumulator, relativePath, packageName, node, typeEntity, importsBySimpleName, declaredTypes);
+                addJaxRsResourceMetadata(accumulator, relativePath, node, typeEntity);
                 currentOwningTypeEntityId = typeEntity.id();
+                currentOwningTypeSnippet = node.textSnippet();
                 Object qualifiedName = typeEntity.metadata().get("qualifiedName");
                 currentOwningQualifiedName = qualifiedName == null ? owningQualifiedName : String.valueOf(qualifiedName);
             }
@@ -205,6 +211,15 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                         dependencyMetadata(isConstructor(methodEntity) ? "constructorParameter" : "parameterType", "api")
                     );
                 }
+                addJaxRsEndpointFacts(
+                    accumulator,
+                    relativePath,
+                    node,
+                    currentOwningTypeEntityId,
+                    currentOwningQualifiedName,
+                    currentOwningTypeSnippet,
+                    methodEntity
+                );
             }
         }
 
@@ -221,12 +236,123 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                 child,
                 currentOwningTypeEntityId,
                 currentOwningQualifiedName,
+                currentOwningTypeSnippet,
                 importsBySimpleName,
                 declaredTypes
             );
         }
     }
 
+
+
+    private void addJaxRsResourceMetadata(
+        ExtractionAccumulator accumulator,
+        String relativePath,
+        SyntaxNode typeNode,
+        ExtractedEntityFact typeEntity
+    ) {
+        if (typeEntity == null || typeEntity.kind() != EntityKind.CLASS || !isJaxRsResource(typeEntity)) {
+            return;
+        }
+        String basePath = extractJaxRsPath(typeEntity.sourceRefs().isEmpty() ? (typeNode == null ? "" : typeNode.textSnippet()) : typeEntity.sourceRefs().getFirst().snippet())
+            .orElse("/");
+        LinkedHashMap<String, Object> metadata = new LinkedHashMap<>(typeEntity.metadata());
+        metadata.put("framework", "jax-rs");
+        metadata.put("jaxRsResource", true);
+        metadata.put("jaxRsBasePath", normalizeJaxRsPath(basePath));
+        metadata.put("jaxRsResourceQualifiedName", String.valueOf(typeEntity.metadata().getOrDefault("qualifiedName", typeEntity.name())));
+        SourceReference ref = typeEntity.sourceRefs().isEmpty()
+            ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(typeNode), typeNode.textSnippet(), Map.of("language", "java", "kind", "class_declaration"))
+            : typeEntity.sourceRefs().getFirst();
+        accumulator.addEntity(new ExtractedEntityFact(
+            typeEntity.id(),
+            typeEntity.kind(),
+            typeEntity.origin(),
+            typeEntity.name(),
+            typeEntity.displayName(),
+            typeEntity.scopeId(),
+            List.of(ref),
+            Map.copyOf(metadata)
+        ));
+    }
+
+    private void addJaxRsEndpointFacts(
+        ExtractionAccumulator accumulator,
+        String relativePath,
+        SyntaxNode methodNode,
+        String ownerTypeEntityId,
+        String ownerQualifiedName,
+        String ownerTypeSnippet,
+        ExtractedEntityFact methodEntity
+    ) {
+        if (methodEntity == null || ownerTypeEntityId == null || ownerQualifiedName == null || ownerQualifiedName.isBlank()) {
+            return;
+        }
+        List<String> annotations = metadataStringList(methodEntity.metadata().get("annotations"));
+        String httpMethod = jaxRsHttpMethod(annotations).orElse(null);
+        if (httpMethod == null) {
+            return;
+        }
+        SourceReference methodRef = methodEntity.sourceRefs().isEmpty()
+            ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(methodNode), methodNode.textSnippet(), Map.of("language", "java", "kind", methodNode.type()))
+            : methodEntity.sourceRefs().getFirst();
+        String classSnippet = ownerTypeSnippet == null ? "" : ownerTypeSnippet;
+        String classPath = extractJaxRsPath(classSnippet).orElse("");
+        String methodPath = extractJaxRsPath(methodRef.snippet()).orElse("");
+        String resolvedPath = normalizeJaxRsEndpointPath(classPath, methodPath);
+        String endpointName = httpMethod + " " + resolvedPath;
+        int endpointLine = methodRef.startLine() == null ? SyntaxTreeExtractionSupport.oneBasedLine(methodNode) : methodRef.startLine();
+        String endpointId = IdUtils.scopedEntityId("java-endpoint", relativePath, ownerQualifiedName + "#" + endpointName, endpointLine);
+        List<Map<String, String>> parameterDetails = extractJaxRsParameterDetails(String.valueOf(methodEntity.metadata().getOrDefault("parameters", "()")));
+        LinkedHashMap<String, Object> endpointMetadata = new LinkedHashMap<>();
+        endpointMetadata.put("language", "java");
+        endpointMetadata.put("framework", "jax-rs");
+        endpointMetadata.put("httpMethod", httpMethod);
+        endpointMetadata.put("path", resolvedPath);
+        endpointMetadata.put("classLevelPath", normalizeJaxRsPath(classPath));
+        endpointMetadata.put("methodLevelPath", normalizeJaxRsPath(methodPath));
+        endpointMetadata.put("resourceQualifiedName", ownerQualifiedName);
+        endpointMetadata.put("methodName", methodEntity.name());
+        endpointMetadata.put("methodQualifiedName", ownerQualifiedName + "#" + methodEntity.name());
+        endpointMetadata.put("parameterDetails", parameterDetails);
+        endpointMetadata.put("annotations", annotations);
+        accumulator.addEntity(new ExtractedEntityFact(
+            endpointId,
+            EntityKind.ENDPOINT,
+            EntityOrigin.OBSERVED,
+            endpointName,
+            endpointName,
+            methodEntity.scopeId(),
+            List.of(methodRef),
+            Map.copyOf(endpointMetadata)
+        ));
+        accumulator.addRelationship(ExtractionSupport.typedRelationship(
+            info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.EXPOSES,
+            "exposes-jaxrs-endpoint",
+            ownerTypeEntityId,
+            endpointId,
+            endpointName,
+            methodRef,
+            "java",
+            Map.of("framework", "jax-rs", "httpMethod", httpMethod, "path", resolvedPath)
+        ));
+        LinkedHashMap<String, Object> methodMetadata = new LinkedHashMap<>(methodEntity.metadata());
+        methodMetadata.put("framework", "jax-rs");
+        methodMetadata.put("jaxRsEndpoint", true);
+        methodMetadata.put("httpMethod", httpMethod);
+        methodMetadata.put("path", resolvedPath);
+        methodMetadata.put("parameterDetails", parameterDetails);
+        accumulator.addEntity(new ExtractedEntityFact(
+            methodEntity.id(),
+            methodEntity.kind(),
+            methodEntity.origin(),
+            methodEntity.name(),
+            methodEntity.displayName(),
+            methodEntity.scopeId(),
+            List.of(methodRef),
+            Map.copyOf(methodMetadata)
+        ));
+    }
 
     private void addTypeRelationships(
         ExtractionAccumulator accumulator,
@@ -616,6 +742,167 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         return node != null && Set.of("method_declaration", "constructor_declaration").contains(node.type());
     }
 
+
+
+    private static boolean isJaxRsResource(ExtractedEntityFact entity) {
+        return metadataStringList(entity.metadata().get("annotations")).stream()
+            .map(value -> value.toLowerCase(Locale.ROOT))
+            .anyMatch(value -> value.endsWith("path"));
+    }
+
+    private static Optional<String> jaxRsHttpMethod(List<String> annotations) {
+        for (String annotation : annotations) {
+            String value = annotation.toLowerCase(Locale.ROOT);
+            if (value.endsWith("get")) return Optional.of("GET");
+            if (value.endsWith("post")) return Optional.of("POST");
+            if (value.endsWith("put")) return Optional.of("PUT");
+            if (value.endsWith("delete")) return Optional.of("DELETE");
+            if (value.endsWith("patch")) return Optional.of("PATCH");
+            if (value.endsWith("head")) return Optional.of("HEAD");
+            if (value.endsWith("options")) return Optional.of("OPTIONS");
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<String> extractJaxRsPath(String snippet) {
+        if (snippet == null || snippet.isBlank()) {
+            return Optional.empty();
+        }
+        Matcher valueMatcher = Pattern.compile("@(?:[A-Za-z_][\\w.]*\\.)?Path\\s*\\(\\s*(?:value\\s*=\\s*)?\"([^\"]*)\"").matcher(snippet);
+        if (valueMatcher.find()) {
+            return Optional.ofNullable(valueMatcher.group(1));
+        }
+        Matcher bareMatcher = Pattern.compile("@(?:[A-Za-z_][\\w.]*\\.)?Path\\s*\\(\\s*\\)").matcher(snippet);
+        if (bareMatcher.find()) {
+            return Optional.of("/");
+        }
+        return Optional.empty();
+    }
+
+    private static String normalizeJaxRsPath(String value) {
+        if (value == null || value.isBlank()) {
+            return "/";
+        }
+        String normalized = value.strip();
+        if (!normalized.startsWith("/")) {
+            normalized = "/" + normalized;
+        }
+        normalized = normalized.replaceAll("//+", "/");
+        if (normalized.length() > 1 && normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
+    private static String normalizeJaxRsEndpointPath(String classPath, String methodPath) {
+        String base = normalizeJaxRsPath(classPath);
+        String method = normalizeJaxRsPath(methodPath);
+        if ("/".equals(base) && "/".equals(method)) {
+            return "/";
+        }
+        if ("/".equals(base)) {
+            return method;
+        }
+        if ("/".equals(method)) {
+            return base;
+        }
+        return (base.endsWith("/") ? base.substring(0, base.length() - 1) : base)
+            + (method.startsWith("/") ? method : "/" + method);
+    }
+
+    private static List<Map<String, String>> extractJaxRsParameterDetails(String parameterSnippet) {
+        if (parameterSnippet == null || parameterSnippet.isBlank() || "()".equals(parameterSnippet.strip())) {
+            return List.of();
+        }
+        String inner = parameterSnippet.strip();
+        if (inner.startsWith("(")) {
+            inner = inner.substring(1);
+        }
+        if (inner.endsWith(")")) {
+            inner = inner.substring(0, inner.length() - 1);
+        }
+        if (inner.isBlank()) {
+            return List.of();
+        }
+        List<Map<String, String>> result = new ArrayList<>();
+        for (String part : splitTopLevelCommaSeparated(inner)) {
+            String snippet = part.strip();
+            if (snippet.isBlank()) {
+                continue;
+            }
+            LinkedHashMap<String, String> detail = new LinkedHashMap<>();
+            detail.put("name", extractParameterName(snippet));
+            detail.put("declaredType", extractParameterDeclaredType(snippet));
+            detail.put("parameterKind", classifyJaxRsParameter(snippet));
+            result.add(Map.copyOf(detail));
+        }
+        return List.copyOf(result);
+    }
+
+    private static List<String> splitTopLevelCommaSeparated(String value) {
+        List<String> result = new ArrayList<>();
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        int depth = 0;
+        StringBuilder current = new StringBuilder();
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            if (ch == '<' || ch == '(' || ch == '[') {
+                depth++;
+            } else if (ch == '>' || ch == ')' || ch == ']') {
+                depth = Math.max(0, depth - 1);
+            } else if (ch == ',' && depth == 0) {
+                String part = current.toString().trim();
+                if (!part.isEmpty()) {
+                    result.add(part);
+                }
+                current.setLength(0);
+                continue;
+            }
+            current.append(ch);
+        }
+        String tail = current.toString().trim();
+        if (!tail.isEmpty()) {
+            result.add(tail);
+        }
+        return List.copyOf(result);
+    }
+
+    private static String extractParameterName(String snippet) {
+        Matcher matcher = Pattern.compile("([A-Za-z_$][\\w$]*)\\s*$").matcher(snippet);
+        return matcher.find() ? matcher.group(1) : "";
+    }
+
+    private static String extractParameterDeclaredType(String snippet) {
+        String value = snippet == null ? "" : snippet
+            .replaceAll("@[A-Za-z_][\\w.]*\\s*(\\([^)]*\\))?", " ")
+            .replaceAll("\\bfinal\\b", " ")
+            .trim();
+        Matcher matcher = Pattern.compile("([A-Za-z_$][\\w.$]*(?:\\s*<[^>{}]+>)?(?:\\s*\\[\\])*)\\s+[A-Za-z_$][\\w$]*$").matcher(value);
+        return matcher.find() ? matcher.group(1).replaceAll("\\s+", " ").trim() : "";
+    }
+
+    private static String classifyJaxRsParameter(String snippet) {
+        String lower = snippet == null ? "" : snippet.toLowerCase(Locale.ROOT);
+        if (lower.contains("@pathparam")) return "PATH";
+        if (lower.contains("@queryparam")) return "QUERY";
+        if (lower.contains("@headerparam")) return "HEADER";
+        if (lower.contains("@cookieparam")) return "COOKIE";
+        if (lower.contains("@matrixparam")) return "MATRIX";
+        if (lower.contains("@formparam")) return "FORM";
+        if (lower.contains("@beanparam")) return "BEAN";
+        if (lower.contains("@context")) return "CONTEXT";
+        return "BODY";
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> metadataStringList(Object value) {
+        if (value instanceof List<?> list) {
+            return list.stream().map(String::valueOf).toList();
+        }
+        return List.of();
+    }
 
     private static int lineOf(SourceReference ref, SyntaxNode fallbackNode) {
         return ref != null && ref.startLine() != null ? ref.startLine() : SyntaxTreeExtractionSupport.oneBasedLine(fallbackNode);
