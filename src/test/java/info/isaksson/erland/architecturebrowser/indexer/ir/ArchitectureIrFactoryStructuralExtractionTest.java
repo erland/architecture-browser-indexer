@@ -150,11 +150,14 @@ class ArchitectureIrFactoryStructuralExtractionTest {
             relationship.kind().name().equals("DEPENDS_ON")
                 && "type".equals(relationship.metadata().get("dependencyView"))
                 && "parameterType".equals(relationship.metadata().get("dependencySource"))
+                && "external".equals(relationship.metadata().get("dependencyTargetBoundary"))
+                && "external-or-inferred-type".equals(relationship.metadata().get("dependencyTargetClassification"))
         ));
         assertTrue(document.relationships().stream().anyMatch(relationship ->
             relationship.kind().name().equals("DEPENDS_ON")
                 && "evidence".equals(relationship.metadata().get("dependencyView"))
                 && "import".equals(relationship.metadata().get("dependencySource"))
+                && "external".equals(relationship.metadata().get("dependencyTargetBoundary"))
         ));
 
         @SuppressWarnings("unchecked")
@@ -164,12 +167,18 @@ class ArchitectureIrFactoryStructuralExtractionTest {
         assertTrue(typeDependencies.stream().anyMatch(dep ->
             "DEPENDS_ON".equals(dep.get("relationshipKind"))
                 && Boolean.TRUE.equals(dep.get("externalTarget"))
+                && "external".equals(dep.get("targetBoundary"))
+                && "external-or-inferred-type".equals(dep.get("targetClassification"))
                 && ((List<?>) dep.get("dependencySources")).contains("field")
                 && ((List<?>) dep.get("dependencySources")).contains("constructorParameter")
                 && ((List<?>) dep.get("dependencySources")).contains("parameterType")
                 && ((List<?>) dep.get("dependencySources")).contains("returnType")
                 && Integer.valueOf(4).equals(dep.get("evidenceRelationshipCount"))
         ));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> boundarySummary = (Map<String, Object>) dependencyViews.get("boundarySummary");
+        assertEquals(0, boundarySummary.get("typeInternalCount"));
+        assertEquals(1, boundarySummary.get("typeExternalCount"));
     }
 
     @Test
@@ -299,9 +308,15 @@ class ArchitectureIrFactoryStructuralExtractionTest {
                 && "com.example.api".equals(dep.get("sourcePackageName"))
                 && "org.springframework.web.context.request".equals(dep.get("targetPackageName"))
                 && Boolean.TRUE.equals(dep.get("externalTarget"))
+                && "external".equals(dep.get("targetBoundary"))
+                && "external-package".equals(dep.get("targetPackageClassification"))
                 && ((List<?>) dep.get("dependencySources")).contains("field")
                 && Integer.valueOf(1).equals(dep.get("underlyingRelationshipCount"))
         ));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> boundarySummary = (Map<String, Object>) dependencyViews.get("boundarySummary");
+        assertEquals(1, boundarySummary.get("packageInternalCount"));
+        assertEquals(1, boundarySummary.get("packageExternalCount"));
     }
 
 }
