@@ -20,6 +20,7 @@ import java.util.regex.Pattern;
 
 final class TypeScriptStructuralExtractor implements StructuralExtractor {
     private static final Pattern IMPORT_FROM_SNIPPET = Pattern.compile("from\\s+['\\\"]([^'\\\"]+)['\\\"]");
+    private static final Pattern IMPORT_SIDE_EFFECT_SNIPPET = Pattern.compile("^import\s+[\'\"]([^\'\"]+)[\'\"];?$");
 
     @Override
     public ParseLanguage language() {
@@ -70,12 +71,16 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
                 continue;
             }
             int line = SyntaxTreeExtractionSupport.oneBasedLine(importNode);
-            var external = ExtractionSupport.externalDependencyEntity("typescript", imported, relativePath, line);
-            accumulator.addEntity(external);
+            ImportClassification classification = classifyImport(importNode.textSnippet(), imported);
+            var target = classification.internalTarget()
+                ? ExtractionSupport.internalDependencyEntity("typescript", imported, relativePath, line, classification.targetMetadata())
+                : ExtractionSupport.externalDependencyEntity("typescript", imported, relativePath, line, classification.targetMetadata());
+            accumulator.addEntity(target);
             accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
-                fileEntity.id(), external.id(), imported,
+                fileEntity.id(), target.id(), imported,
                 ExtractionSupport.sourceRef(relativePath, line, importNode.textSnippet(), Map.of("language", "typescript", "kind", "import")),
-                "typescript"
+                "typescript",
+                classification.relationshipMetadata()
             ));
         }
 
@@ -219,6 +224,10 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
         if (resolved == null || sourceType.id().equals(resolved.entityId())) {
             return;
         }
+        java.util.Map<String, Object> relationshipMetadata = enrichResolvedTargetMetadata(
+            dependencyMetadata(relationshipPrefix, "hierarchy"),
+            resolved
+        );
         accumulator.addRelationship(ExtractionSupport.typedRelationship(
             relationshipKind,
             relationshipPrefix,
@@ -227,7 +236,7 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
             resolved.label(),
             ref,
             "typescript",
-            dependencyMetadata(relationshipPrefix, "hierarchy")
+            relationshipMetadata
         ));
         accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
             sourceType.id(),
@@ -235,7 +244,7 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
             resolved.label(),
             ref,
             "typescript",
-            dependencyMetadata(relationshipPrefix, "hierarchy")
+            relationshipMetadata
         ));
     }
 
@@ -254,21 +263,38 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
         ExtractedEntityFact declared = declaredTypes.get(normalized);
         if (declared != null) {
             String declaredQualifiedName = String.valueOf(declared.metadata().getOrDefault("qualifiedName", declared.name()));
-            return new ResolvedTypeScriptType(declared.id(), declaredQualifiedName, declared.kind());
+            return new ResolvedTypeScriptType(declared.id(), declaredQualifiedName, declared.kind(), "observed-source-type", "internal");
         }
-        var inferred = ExtractionSupport.inferredTypeEntity(
-            "typescript",
-            fallbackTargetKind,
-            normalized,
-            relativePath,
-            line,
-            Map.of(
-                "resolvedFrom", normalized,
-                "resolution", "unresolved-or-external"
+        boolean internalCandidate = isInternalTypeReference(normalized);
+        var inferred = internalCandidate
+            ? ExtractionSupport.inferredTypeEntity(
+                "typescript",
+                fallbackTargetKind,
+                normalized,
+                relativePath,
+                line,
+                Map.of(
+                    "resolvedFrom", normalized,
+                    "resolution", "inferred-internal",
+                    "external", false,
+                    "inferredInternal", true,
+                    "targetClassification", "inferred-internal-type"
+                )
             )
-        );
+            : ExtractionSupport.inferredTypeEntity(
+                "typescript",
+                fallbackTargetKind,
+                normalized,
+                relativePath,
+                line,
+                Map.of(
+                    "resolvedFrom", normalized,
+                    "resolution", "unresolved-or-external",
+                    "targetClassification", "external-package-target"
+                )
+            );
         accumulator.addEntity(inferred);
-        return new ResolvedTypeScriptType(inferred.id(), normalized, inferred.kind());
+        return new ResolvedTypeScriptType(inferred.id(), normalized, inferred.kind(), internalCandidate ? "inferred-internal-type" : "external-package-target", internalCandidate ? "internal" : "external");
     }
 
     private static ExtractedEntityFact addNamedEntityFromNode(
@@ -498,7 +524,7 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
                     resolved.label(),
                     ref,
                     "typescript",
-                    metadata
+                    enrichResolvedTargetMetadata(metadata, resolved)
                 ));
             }
         }
@@ -563,6 +589,39 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
         return List.copyOf(result);
     }
 
+    private static ImportClassification classifyImport(String importSnippet, String imported) {
+        boolean sideEffect = isSideEffectImport(importSnippet);
+        boolean typeOnly = isTypeOnlyImport(importSnippet);
+        boolean relative = imported.startsWith("./") || imported.startsWith("../");
+        String importKind = sideEffect ? "sideEffect" : (typeOnly ? "typeOnly" : (relative ? "relative" : "package"));
+        String targetClassification = relative ? "inferred-internal-module" : "external-package-target";
+        String targetBoundary = relative ? "internal" : "external";
+        java.util.Map<String, Object> relationshipMetadata = new java.util.LinkedHashMap<>();
+        relationshipMetadata.put("importKind", importKind);
+        relationshipMetadata.put("importTargetBoundary", targetBoundary);
+        relationshipMetadata.put("targetClassification", targetClassification);
+        relationshipMetadata.put("dependencySource", "import");
+        relationshipMetadata.put("dependencyCategory", relative ? "internal-module" : "external-package");
+        java.util.Map<String, Object> targetMetadata = new java.util.LinkedHashMap<>();
+        targetMetadata.put("importKind", importKind);
+        targetMetadata.put("targetClassification", targetClassification);
+        targetMetadata.put("resolution", relative ? "relative-import" : "package-import");
+        targetMetadata.put("packageImport", !relative);
+        return new ImportClassification(importKind, relative, java.util.Map.copyOf(relationshipMetadata), java.util.Map.copyOf(targetMetadata));
+    }
+
+    private static boolean isTypeOnlyImport(String snippet) {
+        return snippet != null && snippet.strip().matches("^import\\s+type\\b.*");
+    }
+
+    private static boolean isSideEffectImport(String snippet) {
+        return snippet != null && snippet.strip().matches("^import\\s+[\'\\\"].*[\'\\\"];?$");
+    }
+
+    private static boolean isInternalTypeReference(String normalized) {
+        return normalized != null && (normalized.contains(".") || normalized.contains("/") || normalized.contains("#"));
+    }
+
     private static String normalizeTypeReference(String value) {
         if (value == null) {
             return "";
@@ -580,6 +639,18 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
         return ref == null ? SyntaxTreeExtractionSupport.oneBasedLine(fallbackNode) : java.util.Objects.requireNonNullElse(ref.startLine(), SyntaxTreeExtractionSupport.oneBasedLine(fallbackNode));
     }
 
+    private static Map<String, Object> enrichResolvedTargetMetadata(Map<String, Object> metadata, ResolvedTypeScriptType resolved) {
+        java.util.Map<String, Object> merged = new java.util.LinkedHashMap<>();
+        if (metadata != null) {
+            merged.putAll(metadata);
+        }
+        if (resolved != null) {
+            merged.put("targetClassification", resolved.targetClassification());
+            merged.put("dependencyTargetBoundary", resolved.targetBoundary());
+        }
+        return java.util.Map.copyOf(merged);
+    }
+
     private static Map<String, Object> dependencyMetadata(String dependencySource, String dependencyCategory) {
         java.util.Map<String, Object> metadata = new java.util.LinkedHashMap<>();
         metadata.put("dependencySource", dependencySource);
@@ -591,10 +662,28 @@ final class TypeScriptStructuralExtractor implements StructuralExtractor {
         if (snippet == null) {
             return null;
         }
-        Matcher matcher = IMPORT_FROM_SNIPPET.matcher(snippet);
-        return matcher.find() ? matcher.group(1) : null;
+        Matcher fromMatcher = IMPORT_FROM_SNIPPET.matcher(snippet);
+        if (fromMatcher.find()) {
+            return fromMatcher.group(1);
+        }
+        Matcher sideEffectMatcher = IMPORT_SIDE_EFFECT_SNIPPET.matcher(snippet == null ? "" : snippet.strip());
+        return sideEffectMatcher.find() ? sideEffectMatcher.group(1) : null;
     }
 
-    private record ResolvedTypeScriptType(String entityId, String label, EntityKind kind) {
+    private record ImportClassification(
+        String importKind,
+        boolean internalTarget,
+        Map<String, Object> relationshipMetadata,
+        Map<String, Object> targetMetadata
+    ) {
+    }
+
+    private record ResolvedTypeScriptType(
+        String entityId,
+        String label,
+        EntityKind kind,
+        String targetClassification,
+        String targetBoundary
+    ) {
     }
 }

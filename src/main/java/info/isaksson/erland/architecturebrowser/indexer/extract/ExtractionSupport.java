@@ -76,7 +76,19 @@ final class ExtractionSupport {
     }
 
     static ExtractedEntityFact externalDependencyEntity(String language, String qualifiedName, String relativePath, int line) {
+        return externalDependencyEntity(language, qualifiedName, relativePath, line, Map.of());
+    }
+
+    static ExtractedEntityFact externalDependencyEntity(String language, String qualifiedName, String relativePath, int line, Map<String, Object> metadata) {
         String displayName = DisplayNamePolicy.entityDisplayName(EntityKind.MODULE, qualifiedName, language);
+        java.util.Map<String, Object> merged = new java.util.LinkedHashMap<>();
+        merged.put("language", language);
+        merged.put("qualifiedName", qualifiedName);
+        merged.put("external", true);
+        merged.put("displayName", displayName);
+        if (metadata != null) {
+            merged.putAll(metadata);
+        }
         return new ExtractedEntityFact(
             IdUtils.externalEntityId(language, qualifiedName),
             EntityKind.MODULE,
@@ -85,7 +97,31 @@ final class ExtractionSupport {
             displayName,
             null,
             List.of(sourceRef(relativePath, line, qualifiedName, Map.of("language", language, "external", true, "displayName", displayName))),
-            Map.of("language", language, "qualifiedName", qualifiedName, "external", true, "displayName", displayName)
+            java.util.Map.copyOf(merged)
+        );
+    }
+
+
+    static ExtractedEntityFact internalDependencyEntity(String language, String qualifiedName, String relativePath, int line, Map<String, Object> metadata) {
+        String displayName = DisplayNamePolicy.entityDisplayName(EntityKind.MODULE, qualifiedName, language);
+        java.util.Map<String, Object> merged = new java.util.LinkedHashMap<>();
+        merged.put("language", language);
+        merged.put("qualifiedName", qualifiedName);
+        merged.put("external", false);
+        merged.put("inferredInternal", true);
+        merged.put("displayName", displayName);
+        if (metadata != null) {
+            merged.putAll(metadata);
+        }
+        return new ExtractedEntityFact(
+            IdUtils.externalEntityId(language + "-internal-module", qualifiedName),
+            EntityKind.MODULE,
+            EntityOrigin.OBSERVED,
+            qualifiedName,
+            displayName,
+            null,
+            List.of(sourceRef(relativePath, line, qualifiedName, Map.of("language", language, "external", false, "displayName", displayName))),
+            java.util.Map.copyOf(merged)
         );
     }
 
