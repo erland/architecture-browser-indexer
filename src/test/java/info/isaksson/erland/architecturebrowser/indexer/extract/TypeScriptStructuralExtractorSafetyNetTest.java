@@ -1106,6 +1106,94 @@ class TypeScriptStructuralExtractorSafetyNetTest {
 
 
     @Test
+    void extractsReactCustomHookClassificationAndUsageRelationships() {
+        String source = """
+            import { useContext } from 'react';
+            import { useQuery } from '@tanstack/react-query';
+
+            export const AuthContext = createContext(null);
+
+            export function useAuth() {
+              return useContext(AuthContext);
+            }
+
+            export function useOrdersQuery() {
+              return useQuery({ queryKey: ['orders'], queryFn: async () => [] });
+            }
+
+            export function useOrdersScreenState() {
+              const auth = useAuth();
+              const orders = useOrdersQuery();
+              return { auth, orders };
+            }
+
+            export function OrdersPage() {
+              const auth = useAuth();
+              const orders = useOrdersQuery();
+              return <section>{auth?.user}-{orders.data?.length}</section>;
+            }
+            """;
+
+        SyntaxNode useAuth = new SyntaxNode("function_declaration", true, 0, 0, 5, 0, 7, 1, false, false,
+            """
+            export function useAuth() {
+              return useContext(AuthContext);
+            }
+            """.strip(), List.of(
+                new SyntaxNode("identifier", true, 0, 0, 5, 16, 5, 23, false, false, "useAuth", List.of())
+            ));
+        SyntaxNode useOrdersQuery = new SyntaxNode("function_declaration", true, 0, 0, 9, 0, 11, 1, false, false,
+            """
+            export function useOrdersQuery() {
+              return useQuery({ queryKey: ['orders'], queryFn: async () => [] });
+            }
+            """.strip(), List.of(
+                new SyntaxNode("identifier", true, 0, 0, 9, 16, 9, 30, false, false, "useOrdersQuery", List.of())
+            ));
+        SyntaxNode useOrdersScreenState = new SyntaxNode("function_declaration", true, 0, 0, 13, 0, 17, 1, false, false,
+            """
+            export function useOrdersScreenState() {
+              const auth = useAuth();
+              const orders = useOrdersQuery();
+              return { auth, orders };
+            }
+            """.strip(), List.of(
+                new SyntaxNode("identifier", true, 0, 0, 13, 16, 13, 36, false, false, "useOrdersScreenState", List.of())
+            ));
+        SyntaxNode ordersPage = new SyntaxNode("function_declaration", true, 0, 0, 19, 0, 23, 1, false, false,
+            """
+            export function OrdersPage() {
+              const auth = useAuth();
+              const orders = useOrdersQuery();
+              return <section>{auth?.user}-{orders.data?.length}</section>;
+            }
+            """.strip(), List.of(
+                new SyntaxNode("identifier", true, 0, 0, 19, 16, 19, 26, false, false, "OrdersPage", List.of())
+            ));
+
+        StructuralExtractionResult result = extract("src/hooks/useOrders.tsx", source,
+            program(source, useAuth, useOrdersQuery, useOrdersScreenState, ordersPage));
+
+        var useAuthEntity = entity(result, EntityKind.FUNCTION, "useAuth");
+        var useOrdersQueryEntity = entity(result, EntityKind.FUNCTION, "useOrdersQuery");
+        var useOrdersScreenStateEntity = entity(result, EntityKind.FUNCTION, "useOrdersScreenState");
+        var ordersPageEntity = entity(result, EntityKind.FUNCTION, "OrdersPage");
+
+        assertEquals(Boolean.TRUE, useAuthEntity.metadata().get("reactHook"));
+        assertEquals(Boolean.TRUE, useAuthEntity.metadata().get("customHook"));
+        assertEquals("context", useAuthEntity.metadata().get("hookClassification"));
+        assertEquals(Boolean.TRUE, useAuthEntity.metadata().get("declaredReactHook"));
+
+        assertEquals(Boolean.TRUE, useOrdersQueryEntity.metadata().get("reactHook"));
+        assertEquals("data-fetch", useOrdersQueryEntity.metadata().get("hookClassification"));
+
+        assertReactHookRelationship(result, useOrdersScreenStateEntity.id(), useAuthEntity.id(), "useAuth", "hook", "context", true);
+        assertReactHookRelationship(result, useOrdersScreenStateEntity.id(), useOrdersQueryEntity.id(), "useOrdersQuery", "hook", "data-fetch", true);
+        assertReactHookRelationship(result, ordersPageEntity.id(), useAuthEntity.id(), "useAuth", "component", "context", true);
+        assertReactHookRelationship(result, ordersPageEntity.id(), useOrdersQueryEntity.id(), "useOrdersQuery", "component", "data-fetch", true);
+    }
+
+    @Test
     void extractsReactContextProviderAndConsumerRelationships() {
         String source = """
             import React, { createContext, useContext } from 'react';
@@ -1168,6 +1256,30 @@ class TypeScriptStructuralExtractorSafetyNetTest {
         assertReactContextRelationship(result, ordersPageEntity.id(), authContext.id(), "AuthContext", "consumesContext", true);
     }
 
+
+    private static void assertReactHookRelationship(
+        StructuralExtractionResult result,
+        String fromId,
+        String toId,
+        String label,
+        String consumerKind,
+        String hookClassification,
+        boolean resolved
+    ) {
+        var relationship = result.relationships().stream()
+            .filter(rel -> rel.kind() == info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.DEPENDS_ON
+                && fromId.equals(rel.fromEntityId())
+                && toId.equals(rel.toEntityId())
+                && label.equals(rel.label())
+                && "react".equals(rel.metadata().get("framework"))
+                && "usesHook".equals(rel.metadata().get("frameworkRelationship")))
+            .findFirst()
+            .orElseThrow();
+        assertEquals("react:uses-hook", relationship.metadata().get("dependencySource"));
+        assertEquals(consumerKind, relationship.metadata().get("hookConsumerKind"));
+        assertEquals(hookClassification, relationship.metadata().get("hookClassification"));
+        assertEquals(resolved, relationship.metadata().get("resolvedFromReactHookExtraction"));
+    }
 
     private static StructuralExtractionResult extract(String relativePath, String source, SyntaxNode root) {
         SourceParseResult parseResult = new SourceParseResult(
