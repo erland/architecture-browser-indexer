@@ -631,6 +631,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         }
         int line = SyntaxTreeExtractionSupport.oneBasedLine(typeNode);
         EntityKind kind = "interface_declaration".equals(typeNode.type()) ? EntityKind.INTERFACE : EntityKind.CLASS;
+        String declarationKind = javaDeclarationKind(typeNode.type());
         String qualifiedName = owningQualifiedName == null || owningQualifiedName.isBlank()
             ? (packageName == null || packageName.isBlank() ? typeName : packageName + "." + typeName)
             : owningQualifiedName + "." + typeName;
@@ -650,11 +651,23 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                 "language", "java",
                 "qualifiedName", qualifiedName,
                 "packageName", packageName,
+                "declarationKind", declarationKind,
                 "annotations", annotations,
                 "parseStatus", parseResult.status().name(),
                 "extractionMode", extractionMode.name()
             )
         );
+    }
+
+
+    private static String javaDeclarationKind(String nodeType) {
+        return switch (nodeType) {
+            case "interface_declaration" -> "interface";
+            case "enum_declaration" -> "enum";
+            case "record_declaration" -> "record";
+            case "class_declaration" -> "class";
+            default -> "type";
+        };
     }
 
     private static ExtractedEntityFact toMethodEntity(
