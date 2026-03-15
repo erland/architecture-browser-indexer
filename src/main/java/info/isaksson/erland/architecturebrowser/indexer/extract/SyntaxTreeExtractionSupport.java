@@ -96,7 +96,6 @@ final class SyntaxTreeExtractionSupport {
             .orElse("");
     }
 
-
     static List<String> javaFieldNames(SyntaxNode node) {
         List<String> result = new ArrayList<>();
         if (node == null) {
@@ -120,10 +119,10 @@ final class SyntaxTreeExtractionSupport {
             return "";
         }
         String snippet = node.textSnippet().replace('\n', ' ').replace('\r', ' ').trim();
-        snippet = snippet.replaceAll("@[A-Za-z_][\w.]*\s*(\([^)]*\))?", " " );
-        snippet = snippet.replaceAll("\b(public|protected|private|static|final|transient|volatile|abstract|synchronized|native|strictfp|default)\b", " " );
-        Matcher matcher = Pattern.compile("([A-Za-z_$][\w.$]*(?:\s*<[^;=]+>)?(?:\s*\[\])*)\s+[A-Za-z_$][\w$]*").matcher(snippet);
-        return matcher.find() ? matcher.group(1).replaceAll("\s+", " " ).trim() : "";
+        snippet = snippet.replaceAll("@[A-Za-z_][\\w.]*\\s*(\\([^)]*\\))?", " ");
+        snippet = snippet.replaceAll("\\b(public|protected|private|static|final|transient|volatile|abstract|synchronized|native|strictfp|default)\\b", " ");
+        Matcher matcher = Pattern.compile("([A-Za-z_$][\\w.$]*(?:\\s*<[^;=]+>)?(?:\\s*\\[\\])*)\\s+[A-Za-z_$][\\w$]*").matcher(snippet);
+        return matcher.find() ? matcher.group(1).replaceAll("\\s+", " ").trim() : "";
     }
 
     static List<String> javaModifiers(SyntaxNode node) {
@@ -131,7 +130,7 @@ final class SyntaxTreeExtractionSupport {
             return List.of();
         }
         List<String> result = new ArrayList<>();
-        Matcher matcher = Pattern.compile("\b(public|protected|private|static|final|transient|volatile|abstract|synchronized|native|strictfp|default)\b").matcher(node.textSnippet());
+        Matcher matcher = Pattern.compile("\\b(public|protected|private|static|final|transient|volatile|abstract|synchronized|native|strictfp|default)\\b").matcher(node.textSnippet());
         while (matcher.find()) {
             result.add(matcher.group(1));
         }
@@ -151,6 +150,91 @@ final class SyntaxTreeExtractionSupport {
             last = matcher.group(1);
         }
         return last;
+    }
+
+    static String javaMethodReturnType(SyntaxNode node) {
+        if (node == null || node.textSnippet() == null || node.textSnippet().isBlank() || !"method_declaration".equals(node.type())) {
+            return "";
+        }
+        String snippet = node.textSnippet().replace('\n', ' ').replace('\r', ' ').trim();
+        int paren = snippet.indexOf('(');
+        if (paren < 0) {
+            return "";
+        }
+        String before = snippet.substring(0, paren)
+            .replaceAll("@[A-Za-z_][\\w.]*\\s*(\\([^)]*\\))?", " ")
+            .replaceAll("<[^>]+>\\s*", " ")
+            .replaceAll("\\b(public|protected|private|static|final|transient|volatile|abstract|synchronized|native|strictfp|default)\\b", " ")
+            .trim();
+        Matcher matcher = Pattern.compile("([A-Za-z_$][\\w.$]*(?:\\s*<[^>{}]+>)?(?:\\s*\\[\\])*)\\s+[A-Za-z_$][\\w$]*$").matcher(before);
+        return matcher.find() ? matcher.group(1).replaceAll("\\s+", " ").trim() : "";
+    }
+
+    static List<String> javaMethodParameterDeclaredTypes(SyntaxNode node) {
+        String params = parameterSnippet(node);
+        if (params == null || params.isBlank() || "()".equals(params.strip())) {
+            return List.of();
+        }
+        String inner = params.strip();
+        if (inner.startsWith("(")) {
+            inner = inner.substring(1);
+        }
+        if (inner.endsWith(")")) {
+            inner = inner.substring(0, inner.length() - 1);
+        }
+        if (inner.isBlank()) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        for (String part : splitTopLevelCommaSeparated(inner)) {
+            String type = javaParameterDeclaredType(part);
+            if (!type.isBlank()) {
+                result.add(type);
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private static String javaParameterDeclaredType(String parameterSnippet) {
+        if (parameterSnippet == null || parameterSnippet.isBlank()) {
+            return "";
+        }
+        String snippet = parameterSnippet.replace('\n', ' ').replace('\r', ' ').trim();
+        snippet = snippet.replaceAll("@[A-Za-z_][\\w.]*\\s*(\\([^)]*\\))?", " ");
+        snippet = snippet.replaceAll("\\b(final)\\b", " ");
+        snippet = snippet.replace("...", "[]");
+        Matcher matcher = Pattern.compile("([A-Za-z_$][\\w.$]*(?:\\s*<[^>{}]+>)?(?:\\s*\\[\\])*)\\s+[A-Za-z_$][\\w$]*$").matcher(snippet);
+        return matcher.find() ? matcher.group(1).replaceAll("\\s+", " ").trim() : "";
+    }
+
+    private static List<String> splitTopLevelCommaSeparated(String value) {
+        List<String> result = new ArrayList<>();
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        int depth = 0;
+        StringBuilder current = new StringBuilder();
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            if (ch == '<') {
+                depth++;
+            } else if (ch == '>') {
+                depth = Math.max(0, depth - 1);
+            } else if (ch == ',' && depth == 0) {
+                String part = current.toString().trim();
+                if (!part.isEmpty()) {
+                    result.add(part);
+                }
+                current.setLength(0);
+                continue;
+            }
+            current.append(ch);
+        }
+        String tail = current.toString().trim();
+        if (!tail.isEmpty()) {
+            result.add(tail);
+        }
+        return List.copyOf(result);
     }
 
     static String javaMethodDisplayName(String methodName, String parameterSnippet) {
