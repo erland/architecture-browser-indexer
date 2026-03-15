@@ -567,7 +567,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
 
 
     private static int lineOf(SourceReference ref, SyntaxNode fallbackNode) {
-        return ref != null && ref.line() != null ? ref.line() : SyntaxTreeExtractionSupport.oneBasedLine(fallbackNode);
+        return ref != null && ref.startLine() != null ? ref.startLine() : SyntaxTreeExtractionSupport.oneBasedLine(fallbackNode);
     }
 
     private static List<ExtractedEntityFact> toFieldEntities(

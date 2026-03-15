@@ -210,13 +210,20 @@ public final class TopologyService {
 
             String fromModuleEntityId = sourceRootEntityId(fromPath);
             String toModuleEntityId = sourceRootEntityId(TopologySupport.primaryPath(targetEntity));
-            if (fromModuleEntityId != null && toModuleEntityId != null && !fromModuleEntityId.equals(toModuleEntityId)) {
+            boolean sameModule = fromModuleEntityId != null && fromModuleEntityId.equals(toModuleEntityId);
+            boolean allowModuleRollup = fromModuleEntityId != null
+                && toModuleEntityId != null
+                && (!sameModule || relationship.kind() == RelationshipKind.DEPENDS_ON);
+            if (allowModuleRollup) {
                 String key = relationship.kind().name() + ":" + fromModuleEntityId + "->" + toModuleEntityId;
                 if (seenModuleUses.add(key)) {
+                    Map<String, Object> moduleMetadata = sameModule
+                        ? Map.of("rollup", "module-module", "sameModule", true)
+                        : Map.of("rollup", "module-module");
                     ArchitectureRelationship moduleRelationship = switch (relationship.kind()) {
-                        case EXTENDS -> TopologySupport.typedRelationship(RelationshipKind.EXTENDS, fromModuleEntityId, toModuleEntityId, relationship.label(), relationship.sourceRefs(), Map.of("rollup", "module-module"));
-                        case IMPLEMENTS -> TopologySupport.typedRelationship(RelationshipKind.IMPLEMENTS, fromModuleEntityId, toModuleEntityId, relationship.label(), relationship.sourceRefs(), Map.of("rollup", "module-module"));
-                        default -> TopologySupport.uses(fromModuleEntityId, toModuleEntityId, relationship.label(), relationship.sourceRefs(), Map.of("rollup", "module-module"));
+                        case EXTENDS -> TopologySupport.typedRelationship(RelationshipKind.EXTENDS, fromModuleEntityId, toModuleEntityId, relationship.label(), relationship.sourceRefs(), moduleMetadata);
+                        case IMPLEMENTS -> TopologySupport.typedRelationship(RelationshipKind.IMPLEMENTS, fromModuleEntityId, toModuleEntityId, relationship.label(), relationship.sourceRefs(), moduleMetadata);
+                        default -> TopologySupport.uses(fromModuleEntityId, toModuleEntityId, relationship.label(), relationship.sourceRefs(), moduleMetadata);
                     };
                     inferredRelationships.putIfAbsent(moduleRelationship.id(), moduleRelationship);
                 }
