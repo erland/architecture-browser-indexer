@@ -104,4 +104,42 @@ class InterpretationServiceTest {
         assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.USES && "entity:java:service".equals(rel.fromEntityId()) && "customerRepository".equals(rel.label()) && String.valueOf(rel.metadata().get("dependencySource")).equals("field")));
     }
 
+
+    @Test
+    void infersRicherTypeScriptUiAndServiceProfiles() {
+        SourceReference angularComponentRef = new SourceReference("src/app/orders/order-list.component.ts", 4, 12, "@Component export class OrderListComponent {}", Map.of());
+        SourceReference angularDirectiveRef = new SourceReference("src/app/shared/focus.directive.ts", 2, 6, "@Directive export class FocusDirective {}", Map.of());
+        SourceReference reactComponentRef = new SourceReference("src/components/UserCard.tsx", 1, 6, "export function UserCard() { return <div />; }", Map.of());
+        SourceReference reactPageRef = new SourceReference("src/pages/OrdersPage.tsx", 1, 6, "export function OrdersPage() { return <main />; }", Map.of());
+        SourceReference contextProviderRef = new SourceReference("src/context/AuthProvider.tsx", 1, 8, "export function AuthProvider() { const value = React.createContext(null); return <AuthContext.Provider value={value} />; }", Map.of());
+        SourceReference apiClientRef = new SourceReference("src/api/orders.client.ts", 1, 6, "export function OrdersClient() { return fetch('/api/orders'); }", Map.of());
+        SourceReference stateRef = new SourceReference("src/state/session.store.ts", 1, 6, "export function sessionStore() { return {}; }", Map.of());
+
+        StructuralExtractionResult extraction = new StructuralExtractionResult(
+            List.of(),
+            List.of(
+                new ExtractedEntityFact("entity:ts:angular:component", EntityKind.CLASS, EntityOrigin.OBSERVED, "OrderListComponent", "src/app/orders/order-list.component.ts#OrderListComponent", "scope:file", List.of(angularComponentRef), Map.of("language", "typescript", "declarationKind", "class", "decorators", List.of("Component"))),
+                new ExtractedEntityFact("entity:ts:angular:directive", EntityKind.CLASS, EntityOrigin.OBSERVED, "FocusDirective", "src/app/shared/focus.directive.ts#FocusDirective", "scope:file", List.of(angularDirectiveRef), Map.of("language", "typescript", "declarationKind", "class", "decorators", List.of("Directive"))),
+                new ExtractedEntityFact("entity:ts:react:component", EntityKind.FUNCTION, EntityOrigin.OBSERVED, "UserCard", "src/components/UserCard.tsx#UserCard", "scope:file", List.of(reactComponentRef), Map.of("language", "typescript", "declarationKind", "function", "decorators", List.of())),
+                new ExtractedEntityFact("entity:ts:react:page", EntityKind.FUNCTION, EntityOrigin.OBSERVED, "OrdersPage", "src/pages/OrdersPage.tsx#OrdersPage", "scope:file", List.of(reactPageRef), Map.of("language", "typescript", "declarationKind", "function", "decorators", List.of())),
+                new ExtractedEntityFact("entity:ts:react:provider", EntityKind.FUNCTION, EntityOrigin.OBSERVED, "AuthProvider", "src/context/AuthProvider.tsx#AuthProvider", "scope:file", List.of(contextProviderRef), Map.of("language", "typescript", "declarationKind", "function", "decorators", List.of())),
+                new ExtractedEntityFact("entity:ts:service:api", EntityKind.FUNCTION, EntityOrigin.OBSERVED, "OrdersClient", "src/api/orders.client.ts#OrdersClient", "scope:file", List.of(apiClientRef), Map.of("language", "typescript", "declarationKind", "function", "decorators", List.of())),
+                new ExtractedEntityFact("entity:ts:service:state", EntityKind.FUNCTION, EntityOrigin.OBSERVED, "sessionStore", "src/state/session.store.ts#sessionStore", "scope:file", List.of(stateRef), Map.of("language", "typescript", "declarationKind", "function", "decorators", List.of()))
+            ),
+            List.of(),
+            List.of(),
+            new ExtractionSummary(7, 7, Map.of("typescript", 7), Map.of("SYNTAX_TREE", 7), 7, 7)
+        );
+
+        InterpretationResult result = new InterpretationService(InterpretationRegistry.defaultRegistry()).interpret(extraction);
+
+        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.UI_MODULE && "OrderListComponent".equals(entity.name()) && "angular-component".equals(entity.metadata().get("uiProfile"))));
+        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.UI_MODULE && "FocusDirective".equals(entity.name()) && "angular-directive".equals(entity.metadata().get("uiProfile"))));
+        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.UI_MODULE && "UserCard".equals(entity.name()) && "react-function-component".equals(entity.metadata().get("uiProfile"))));
+        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.UI_MODULE && "OrdersPage".equals(entity.name()) && "page-or-router".equals(entity.metadata().get("uiProfile"))));
+        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.UI_MODULE && "AuthProvider".equals(entity.name()) && "react-context".equals(entity.metadata().get("uiProfile"))));
+        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.SERVICE && "OrdersClient".equals(entity.name()) && "api-client-or-service".equals(entity.metadata().get("serviceProfile"))));
+        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.SERVICE && "sessionStore".equals(entity.name()) && "state-module".equals(entity.metadata().get("serviceProfile"))));
+    }
+
 }
