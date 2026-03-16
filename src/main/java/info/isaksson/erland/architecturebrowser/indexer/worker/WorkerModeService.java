@@ -1,9 +1,14 @@
 package info.isaksson.erland.architecturebrowser.indexer.worker;
 
+import info.isaksson.erland.architecturebrowser.indexer.application.IndexRunRequest;
+import info.isaksson.erland.architecturebrowser.indexer.application.IndexRunResult;
+import info.isaksson.erland.architecturebrowser.indexer.application.IndexerApplicationService;
 import info.isaksson.erland.architecturebrowser.indexer.cli.IndexerCli;
 import info.isaksson.erland.architecturebrowser.indexer.worker.model.WorkerJobRequest;
 import info.isaksson.erland.architecturebrowser.indexer.worker.model.WorkerJobResult;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
@@ -76,7 +81,20 @@ public class WorkerModeService {
             + ", sourcePath=" + safe(request.sourcePath())
             + ", outputPath=" + safe(request.outputPath()));
         try {
-            IndexerCli.main(args.toArray(String[]::new));
+            IndexRunResult runResult = new IndexerApplicationService().run(new IndexRunRequest(
+                IndexerCli.APPLICATION_VERSION,
+                request.repositoryId(),
+                request.sourcePath() == null || request.sourcePath().isBlank() ? null : Path.of(request.sourcePath()),
+                request.gitUrl(),
+                request.gitRef(),
+                null,
+                Path.of(request.outputPath()),
+                request.snapshotIn(),
+                request.snapshotOut()
+            ));
+            if (runResult.temporaryWorkspace()) {
+                deleteRecursively(runResult.acquiredRoot().getParent());
+            }
             summary.put("message", "Worker job completed");
             summary.put("elapsedMs", Duration.between(startedAt, Instant.now()).toMillis());
             LOG.info(() -> "Completed worker job: jobId=" + safe(request.jobId())
@@ -129,6 +147,23 @@ public class WorkerModeService {
             WorkerJobJson.writeResult(resultPath, result);
         }
         return result;
+    }
+
+    private static void deleteRecursively(Path path) {
+        if (path == null || !Files.exists(path)) {
+            return;
+        }
+        try (var stream = Files.walk(path)) {
+            stream.sorted(java.util.Comparator.reverseOrder()).forEach(candidate -> {
+                try {
+                    Files.deleteIfExists(candidate);
+                } catch (IOException ignored) {
+                    // Best-effort cleanup for temp Git workspaces.
+                }
+            });
+        } catch (IOException ignored) {
+            // Best-effort cleanup for temp Git workspaces.
+        }
     }
 
     private static Throwable rootCauseOf(Throwable throwable) {
