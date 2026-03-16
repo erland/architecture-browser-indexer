@@ -41,7 +41,8 @@ final class JavaSyntaxTreeExtractionStage {
     private final JavaJpaFieldSemantics jpaFieldSemantics = new JavaJpaFieldSemantics(jpaSemantics);
     private final JavaFieldExtractionFlow fieldExtractionFlow = new JavaFieldExtractionFlow(entityMapper, dependencyEmissionFlow, jpaFieldSemantics);
     private final JavaMethodExtractionFlow methodExtractionFlow = new JavaMethodExtractionFlow(entityMapper, dependencyEmissionFlow, methodSemanticsFlow);
-    private final JavaMemberExtractionFlow memberExtractionFlow = new JavaMemberExtractionFlow();
+    private final JavaTraversalNodeDispatchFlow traversalNodeDispatchFlow = new JavaTraversalNodeDispatchFlow(typeDeclarationFlow, fieldExtractionFlow, methodExtractionFlow);
+    private final JavaCompilationUnitExtractionFlow compilationUnitExtractionFlow = new JavaCompilationUnitExtractionFlow(syntaxTreeTraversal, traversalNodeDispatchFlow);
 
     ParseLanguage language() {
         return ParseLanguage.JAVA;
@@ -57,7 +58,7 @@ final class JavaSyntaxTreeExtractionStage {
             ));
             return accumulator;
         }
-        return extractFromSyntaxTree(parseResult, accumulator, parseResult.request().relativePath(), parseResult.syntaxTree());
+        return compilationUnitExtractionFlow.extractCompilationUnit(parseResult, accumulator, parseResult.request().relativePath(), parseResult.syntaxTree());
     }
 
     private ExtractionAccumulator extractFromSyntaxTree(
@@ -66,164 +67,7 @@ final class JavaSyntaxTreeExtractionStage {
         String relativePath,
         SyntaxTree syntaxTree
     ) {
-        ExtractionMode extractionMode = ExtractionMode.SYNTAX_TREE;
-        accumulator.incrementFilesExtracted("java", extractionMode);
-
-        String repositoryScopeId = "scope:repo";
-        var fileScope = ExtractionSupport.fileScope(repositoryScopeId, relativePath);
-        accumulator.addScope(fileScope);
-
-        SyntaxNode root = syntaxTree.root();
-        String packageName = SyntaxTreeExtractionSupport.findAllByType(root, Set.of("package_declaration")).stream()
-            .findFirst()
-            .flatMap(node -> SyntaxTreeExtractionSupport.extractQualifiedName(node.textSnippet()))
-            .orElse(derivePackageFromPath(relativePath));
-
-        var packageScope = ExtractionSupport.packageScope(repositoryScopeId, packageName, relativePath, "java");
-        accumulator.addScope(packageScope);
-
-        var fileEntity = ExtractionSupport.fileModuleEntity(fileScope.id(), relativePath, "java");
-        accumulator.addEntity(fileEntity);
-
-        Map<String, String> importsBySimpleName = new LinkedHashMap<>();
-        for (SyntaxNode importNode : SyntaxTreeExtractionSupport.findAllByType(root, Set.of("import_declaration"))) {
-            String imported = importQualifiedName(importNode.textSnippet()).orElse(null);
-            if (imported == null || imported.isBlank()) {
-                continue;
-            }
-            int line = SyntaxTreeExtractionSupport.oneBasedLine(importNode);
-            String simpleName = simpleName(imported);
-            if (simpleName != null && !simpleName.isBlank()) {
-                importsBySimpleName.putIfAbsent(simpleName, imported);
-            }
-            var external = ExtractionSupport.externalDependencyEntity("java", imported, relativePath, line);
-            accumulator.addEntity(external);
-            accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
-                fileEntity.id(), external.id(), imported,
-                ExtractionSupport.sourceRef(relativePath, line, importNode.textSnippet(), Map.of("language", "java", "kind", "import")),
-                "java",
-                relationshipEvidenceEmitter.dependencyMetadata("import", "evidence")
-            ));
-        }
-
-        Map<String, JavaDeclaredType> declaredTypes = JavaDeclarationDiscovery.discoverDeclaredTypes(
-            parseResult,
-            relativePath,
-            packageName,
-            extractionMode,
-            packageScope.id(),
-            root
-        );
-
-        JavaExtractionContext extractionContext = new JavaExtractionContext(
-            relativePath,
-            packageName,
-            parseResult.request() == null ? null : parseResult.request().sourceText(),
-            Map.copyOf(importsBySimpleName),
-            Map.copyOf(declaredTypes)
-        );
-
-        syntaxTreeTraversal.traverse(
-            root,
-            new JavaSyntaxTreeTraversal.JavaTraversalOwnership(null, null, null),
-            (node, ownership) -> handleTraversalNode(
-                parseResult,
-                accumulator,
-                relativePath,
-                packageName,
-                extractionMode,
-                packageScope.id(),
-                fileScope.id(),
-                fileEntity.id(),
-                node,
-                ownership,
-                importsBySimpleName,
-                declaredTypes,
-                extractionContext
-            )
-        );
-        return accumulator;
-    }
-
-    private JavaSyntaxTreeTraversal.JavaTraversalOwnership handleTraversalNode(
-        SourceParseResult parseResult,
-        ExtractionAccumulator accumulator,
-        String relativePath,
-        String packageName,
-        ExtractionMode extractionMode,
-        String packageScopeId,
-        String fileScopeId,
-        String fileEntityId,
-        SyntaxNode node,
-        JavaSyntaxTreeTraversal.JavaTraversalOwnership ownership,
-        Map<String, String> importsBySimpleName,
-        Map<String, JavaDeclaredType> declaredTypes,
-        JavaExtractionContext extractionContext
-    ) {
-        if (node == null) {
-            return ownership;
-        }        JavaOwnerContext ownerContext = JavaOwnerContext.fromTraversalOwnership(ownership);
-        JavaTypeTraversalResult typeTraversalResult = handleTypeNode(
-            new JavaTypeNodeRequest(
-                parseResult,
-                accumulator,
-                relativePath,
-                packageName,
-                extractionMode,
-                packageScopeId,
-                fileEntityId,
-                node,
-                ownerContext,
-                importsBySimpleName,
-                declaredTypes,
-                extractionContext
-            )
-        );
-        if (typeTraversalResult.handled()) {
-            return new JavaSyntaxTreeTraversal.JavaTraversalOwnership(
-                typeTraversalResult.owningTypeEntityId(),
-                typeTraversalResult.owningQualifiedName(),
-                typeTraversalResult.owningTypeSnippet()
-            );
-        }
-
-        memberExtractionFlow.handleMemberNode(
-            new JavaMemberNodeRequest(
-                parseResult,
-                accumulator,
-                relativePath,
-                packageName,
-                extractionMode,
-                fileScopeId,
-                fileEntityId,
-                node,
-                ownerContext,
-                importsBySimpleName,
-                declaredTypes,
-                extractionContext
-            )
-        );
-
-        return ownerContext.toTraversalOwnership();
-    }
-
-
-
-    private JavaTypeTraversalResult handleTypeNode(JavaTypeNodeRequest request) {
-        return typeDeclarationFlow.handleTypeNode(request);
-    }
-
-    private final class JavaMemberExtractionFlow {
-
-        JavaMemberExtractionResult handleMemberNode(JavaMemberNodeRequest request) {
-            if (isJavaFieldDeclaration(request.node())) {
-                return fieldExtractionFlow.handleFieldNode(request);
-            }
-            if (isJavaMethodLikeDeclaration(request.node())) {
-                return methodExtractionFlow.handleMethodNode(request);
-            }
-            return JavaMemberExtractionResult.notHandled();
-        }
+        return compilationUnitExtractionFlow.extractCompilationUnit(parseResult, accumulator, relativePath, syntaxTree);
     }
 
     private static List<DetectedWritePath> detectJpaWriteOperations(ExtractedEntityFact methodEntity, String snippet) {
