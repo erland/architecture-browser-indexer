@@ -7,21 +7,21 @@ import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxNode;
 import java.util.Map;
 
 final class JavaMethodSemanticsFlow {
-    private final JavaSyntaxTreeExtractionStage.JavaJaxRsSemantics jaxRsSemantics;
-    private final JavaSyntaxTreeExtractionStage.JavaJpaSemantics jpaSemantics;
-    private final JavaSyntaxTreeExtractionStage.JavaCdiSemantics cdiSemantics;
-    private final JavaSyntaxTreeExtractionStage.JavaWritePathSemantics writePathSemantics;
+    private final JavaJaxRsMethodSemantics jaxRsMethodSemantics;
+    private final JavaJpaMethodSemantics jpaMethodSemantics;
+    private final JavaCdiMethodSemantics cdiMethodSemantics;
+    private final JavaWritePathMethodSemantics writePathMethodSemantics;
 
     JavaMethodSemanticsFlow(
-        JavaSyntaxTreeExtractionStage.JavaJaxRsSemantics jaxRsSemantics,
-        JavaSyntaxTreeExtractionStage.JavaJpaSemantics jpaSemantics,
-        JavaSyntaxTreeExtractionStage.JavaCdiSemantics cdiSemantics,
-        JavaSyntaxTreeExtractionStage.JavaWritePathSemantics writePathSemantics
+        JavaJaxRsMethodSemantics jaxRsMethodSemantics,
+        JavaJpaMethodSemantics jpaMethodSemantics,
+        JavaCdiMethodSemantics cdiMethodSemantics,
+        JavaWritePathMethodSemantics writePathMethodSemantics
     ) {
-        this.jaxRsSemantics = jaxRsSemantics;
-        this.jpaSemantics = jpaSemantics;
-        this.cdiSemantics = cdiSemantics;
-        this.writePathSemantics = writePathSemantics;
+        this.jaxRsMethodSemantics = jaxRsMethodSemantics;
+        this.jpaMethodSemantics = jpaMethodSemantics;
+        this.cdiMethodSemantics = cdiMethodSemantics;
+        this.writePathMethodSemantics = writePathMethodSemantics;
     }
 
     void applyMethodSemantics(
@@ -41,10 +41,10 @@ final class JavaMethodSemanticsFlow {
             ownerQualifiedName,
             ownerTypeSnippet
         );
-        jaxRsSemantics.addJaxRsEndpointFacts(accumulator, methodContext);
-        jpaSemantics.addJpaMethodFacts(accumulator, methodContext);
-        cdiSemantics.addCdiEventFacts(accumulator, methodContext);
-        writePathSemantics.addWritePathFacts(accumulator, methodContext);
+        jaxRsMethodSemantics.apply(accumulator, methodContext);
+        jpaMethodSemantics.apply(accumulator, methodContext);
+        cdiMethodSemantics.apply(accumulator, methodContext);
+        writePathMethodSemantics.apply(accumulator, methodContext);
     }
 
     private JavaMethodContext javaMethodContext(

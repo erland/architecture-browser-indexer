@@ -33,7 +33,11 @@ final class JavaSyntaxTreeExtractionStage {
     private final JavaWritePathSemantics writePathSemantics = new JavaWritePathSemantics();
     private final JavaTypeSemanticsFlow typeSemanticsFlow = new JavaTypeSemanticsFlow(jaxRsSemantics, jpaSemantics);
     private final JavaTypeDeclarationFlow typeDeclarationFlow = new JavaTypeDeclarationFlow(entityMapper, dependencyEmissionFlow, typeSemanticsFlow);
-    private final JavaMethodSemanticsFlow methodSemanticsFlow = new JavaMethodSemanticsFlow(jaxRsSemantics, jpaSemantics, cdiSemantics, writePathSemantics);
+    private final JavaJaxRsMethodSemantics jaxRsMethodSemantics = new JavaJaxRsMethodSemantics(jaxRsSemantics);
+    private final JavaJpaMethodSemantics jpaMethodSemantics = new JavaJpaMethodSemantics(jpaSemantics);
+    private final JavaCdiMethodSemantics cdiMethodSemantics = new JavaCdiMethodSemantics(cdiSemantics);
+    private final JavaWritePathMethodSemantics writePathMethodSemantics = new JavaWritePathMethodSemantics(writePathSemantics);
+    private final JavaMethodSemanticsFlow methodSemanticsFlow = new JavaMethodSemanticsFlow(jaxRsMethodSemantics, jpaMethodSemantics, cdiMethodSemantics, writePathMethodSemantics);
     private final JavaFieldExtractionFlow fieldExtractionFlow = new JavaFieldExtractionFlow(entityMapper, dependencyEmissionFlow, jpaSemantics);
     private final JavaMethodExtractionFlow methodExtractionFlow = new JavaMethodExtractionFlow(entityMapper, dependencyEmissionFlow, methodSemanticsFlow);
     private final JavaMemberExtractionFlow memberExtractionFlow = new JavaMemberExtractionFlow();
