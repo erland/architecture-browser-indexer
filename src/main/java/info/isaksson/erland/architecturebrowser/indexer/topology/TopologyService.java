@@ -481,6 +481,7 @@ private static String moduleRoot(String relativePath) {
         addRollupSignaturePart(parts, "dependencySource", relationship.metadata().get("dependencySource"));
         addRollupSignaturePart(parts, "framework", relationship.metadata().get("framework"));
         addRollupSignaturePart(parts, "frameworkRelationship", relationship.metadata().get("frameworkRelationship"));
+        addRollupSignaturePart(parts, "relationshipType", relationship.metadata().get("relationshipType"));
         addRollupSignaturePart(parts, "hookClassification", relationship.metadata().get("hookClassification"));
         addRollupSignaturePart(parts, "dependencyCategory", relationship.metadata().get("dependencyCategory"));
         return parts.isEmpty() ? "generic" : String.join("|", parts);

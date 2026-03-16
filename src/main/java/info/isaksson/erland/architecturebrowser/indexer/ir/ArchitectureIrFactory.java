@@ -641,6 +641,14 @@ public final class ArchitectureIrFactory {
         List<Map<String, Object>> providerModuleDependencies = filterDependenciesByViewKind(moduleDependencies, "provider-di");
         List<Map<String, Object>> hookTypeDependencies = filterDependenciesByViewKind(typeDependencies, "hook");
         List<Map<String, Object>> hookModuleDependencies = filterDependenciesByViewKind(moduleDependencies, "hook");
+        List<Map<String, Object>> endpointTypeDependencies = filterDependenciesByViewKind(typeDependencies, "endpoint");
+        List<Map<String, Object>> endpointModuleDependencies = filterDependenciesByViewKind(moduleDependencies, "endpoint");
+        List<Map<String, Object>> entityModelTypeDependencies = filterDependenciesByViewKind(typeDependencies, "entity-model");
+        List<Map<String, Object>> entityModelModuleDependencies = filterDependenciesByViewKind(moduleDependencies, "entity-model");
+        List<Map<String, Object>> observerTypeDependencies = filterDependenciesByViewKind(typeDependencies, "observer-event");
+        List<Map<String, Object>> observerModuleDependencies = filterDependenciesByViewKind(moduleDependencies, "observer-event");
+        List<Map<String, Object>> writePathTypeDependencies = filterDependenciesByViewKind(typeDependencies, "write-path");
+        List<Map<String, Object>> writePathModuleDependencies = filterDependenciesByViewKind(moduleDependencies, "write-path");
         Map<String, Object> dependencyViews = new LinkedHashMap<>();
         dependencyViews.put("typeDependencies", List.copyOf(typeDependencies));
         dependencyViews.put("packageDependencies", List.copyOf(packageDependencies));
@@ -656,6 +664,14 @@ public final class ArchitectureIrFactory {
         dependencyViews.put("providerModuleDependencies", List.copyOf(providerModuleDependencies));
         dependencyViews.put("hookTypeDependencies", List.copyOf(hookTypeDependencies));
         dependencyViews.put("hookModuleDependencies", List.copyOf(hookModuleDependencies));
+        dependencyViews.put("endpointTypeDependencies", List.copyOf(endpointTypeDependencies));
+        dependencyViews.put("endpointModuleDependencies", List.copyOf(endpointModuleDependencies));
+        dependencyViews.put("entityModelTypeDependencies", List.copyOf(entityModelTypeDependencies));
+        dependencyViews.put("entityModelModuleDependencies", List.copyOf(entityModelModuleDependencies));
+        dependencyViews.put("observerTypeDependencies", List.copyOf(observerTypeDependencies));
+        dependencyViews.put("observerModuleDependencies", List.copyOf(observerModuleDependencies));
+        dependencyViews.put("writePathTypeDependencies", List.copyOf(writePathTypeDependencies));
+        dependencyViews.put("writePathModuleDependencies", List.copyOf(writePathModuleDependencies));
         dependencyViews.put("packageMetrics", List.copyOf(packageMetrics));
         dependencyViews.put("boundarySummary", buildBoundarySummary(typeDependencies, packageDependencies, moduleDependencies));
         List<String> recommendedEntryPoints = new ArrayList<>(List.of("packageDependencies", "typeDependencies", "moduleDependencies"));
@@ -668,6 +684,22 @@ public final class ArchitectureIrFactory {
             recommendedEntryPoints.add("frameworkModuleDependencies");
             primaryArchitectureViews.add("frameworkModuleDependencies");
         }
+        if (!endpointTypeDependencies.isEmpty()) {
+            recommendedEntryPoints.add("endpointTypeDependencies");
+            primaryArchitectureViews.add("endpointTypeDependencies");
+        }
+        if (!entityModelTypeDependencies.isEmpty()) {
+            recommendedEntryPoints.add("entityModelTypeDependencies");
+            primaryArchitectureViews.add("entityModelTypeDependencies");
+        }
+        if (!observerTypeDependencies.isEmpty()) {
+            recommendedEntryPoints.add("observerTypeDependencies");
+            primaryArchitectureViews.add("observerTypeDependencies");
+        }
+        if (!writePathTypeDependencies.isEmpty()) {
+            recommendedEntryPoints.add("writePathTypeDependencies");
+            primaryArchitectureViews.add("writePathTypeDependencies");
+        }
         recommendedEntryPoints.add("evidenceDependencies");
         dependencyViews.put("recommendedEntryPoints", List.copyOf(recommendedEntryPoints));
         dependencyViews.put("primaryArchitectureViews", List.copyOf(primaryArchitectureViews));
@@ -677,6 +709,12 @@ public final class ArchitectureIrFactory {
             "routing", List.of("routeTypeDependencies", "routeModuleDependencies"),
             "providerAndDi", List.of("providerTypeDependencies", "providerModuleDependencies"),
             "hooks", List.of("hookTypeDependencies", "hookModuleDependencies")
+        ));
+        dependencyViews.put("javaFrameworkArchitectureViews", Map.of(
+            "endpoints", List.of("endpointTypeDependencies", "endpointModuleDependencies"),
+            "entityModel", List.of("entityModelTypeDependencies", "entityModelModuleDependencies"),
+            "observerEvents", List.of("observerTypeDependencies", "observerModuleDependencies"),
+            "writePaths", List.of("writePathTypeDependencies", "writePathModuleDependencies")
         ));
         Map<String, Object> frontendBrowserViews = buildFrontendBrowserViews(
             compositionTypeDependencies,
@@ -732,18 +770,33 @@ public final class ArchitectureIrFactory {
         if (relationship == null || relationship.metadata() == null) {
             return;
         }
-        NormalizedTypeDependency.addIfPresent(frameworks, relationship.metadata().get("framework"));
+        Object framework = relationship.metadata().get("framework");
+        NormalizedTypeDependency.addIfPresent(frameworks, framework);
         Object frameworkRelationship = relationship.metadata().get("frameworkRelationship");
+        Object relationshipType = relationship.metadata().get("relationshipType");
         NormalizedTypeDependency.addIfPresent(frameworkRelationships, frameworkRelationship);
-        addArchitectureViewKinds(architectureViewKinds, relationship.metadata().get("dependencySource"), frameworkRelationship);
+        NormalizedTypeDependency.addIfPresent(frameworkRelationships, relationshipType);
+        addArchitectureViewKinds(architectureViewKinds, relationship.kind(), framework, relationship.metadata().get("dependencySource"), frameworkRelationship, relationshipType);
     }
 
-    private static void addArchitectureViewKinds(Set<String> sink, Object dependencySource, Object frameworkRelationship) {
+    private static void addArchitectureViewKinds(Set<String> sink, RelationshipKind relationshipKind, Object framework, Object dependencySource, Object frameworkRelationship, Object relationshipType) {
         String dependencySourceValue = dependencySource == null ? "" : String.valueOf(dependencySource).trim();
         String frameworkRelationshipValue = frameworkRelationship == null ? "" : String.valueOf(frameworkRelationship).trim();
+        String relationshipTypeValue = relationshipType == null ? "" : String.valueOf(relationshipType).trim();
+        String frameworkValue = framework == null ? "" : String.valueOf(framework).trim();
         boolean frameworkSpecificSource = dependencySourceValue.startsWith("react:") || dependencySourceValue.startsWith("angular:");
-        if (!frameworkRelationshipValue.isEmpty() || frameworkSpecificSource) {
+        boolean javaFrameworkSemantic = "jax-rs".equals(frameworkValue) || "jpa".equals(frameworkValue) || "cdi".equals(frameworkValue);
+        if (!frameworkRelationshipValue.isEmpty() || !relationshipTypeValue.isEmpty() || frameworkSpecificSource || javaFrameworkSemantic) {
             sink.add("framework");
+        }
+        if (relationshipKind == RelationshipKind.EXPOSES || "jax-rs".equals(frameworkValue) && ("endpoint".equals(relationshipTypeValue) || !String.valueOf(relationshipKind).isEmpty() && (relationshipKind == RelationshipKind.EXPOSES))) {
+            sink.add("endpoint");
+        }
+        String javaSemanticKey = !frameworkRelationshipValue.isEmpty() ? frameworkRelationshipValue : relationshipTypeValue;
+        switch (javaSemanticKey) {
+            case "publishesEvent", "observesEvent", "eventObservedBy" -> sink.add("observer-event");
+            case "hasAssociation", "embeds", "inheritsPersistenceModel" -> sink.add("entity-model");
+            case "writePath" -> sink.add("write-path");
         }
         String key = !frameworkRelationshipValue.isEmpty() ? frameworkRelationshipValue : dependencySourceValue;
         if (key.isEmpty()) {
@@ -1122,7 +1175,10 @@ public final class ArchitectureIrFactory {
     }
 
     private static boolean isDependencyRelationship(RelationshipKind kind) {
-        return kind == RelationshipKind.DEPENDS_ON || kind == RelationshipKind.EXTENDS || kind == RelationshipKind.IMPLEMENTS;
+        return kind == RelationshipKind.DEPENDS_ON
+            || kind == RelationshipKind.EXTENDS
+            || kind == RelationshipKind.IMPLEMENTS
+            || kind == RelationshipKind.EXPOSES;
     }
 
     private static boolean isTypeDependencyRelationship(
@@ -1289,7 +1345,7 @@ public final class ArchitectureIrFactory {
         if (entity == null) {
             return false;
         }
-        if (entity.kind() == EntityKind.CLASS || entity.kind() == EntityKind.INTERFACE) {
+        if (entity.kind() == EntityKind.CLASS || entity.kind() == EntityKind.INTERFACE || entity.kind() == EntityKind.ENDPOINT) {
             return true;
         }
         if (entity.kind() == EntityKind.FUNCTION || entity.kind() == EntityKind.UI_MODULE) {
