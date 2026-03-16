@@ -33,7 +33,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         String packageName,
         String sourceText,
         Map<String, String> importsBySimpleName,
-        Map<String, DeclaredJavaType> declaredTypes
+        Map<String, JavaDeclaredType> declaredTypes
     ) {}
 
     private record JavaTypeContext(
@@ -127,8 +127,14 @@ final class JavaStructuralExtractor implements StructuralExtractor {
             ));
         }
 
-        Map<String, DeclaredJavaType> declaredTypes = new LinkedHashMap<>();
-        collectDeclaredTypes(parseResult, relativePath, packageName, extractionMode, packageScope.id(), root, null, declaredTypes);
+        Map<String, JavaDeclaredType> declaredTypes = JavaDeclarationDiscovery.discoverDeclaredTypes(
+            parseResult,
+            relativePath,
+            packageName,
+            extractionMode,
+            packageScope.id(),
+            root
+        );
 
         JavaExtractionContext extractionContext = new JavaExtractionContext(
             relativePath,
@@ -172,7 +178,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         String owningQualifiedName,
         String owningTypeSnippet,
         Map<String, String> importsBySimpleName,
-        Map<String, DeclaredJavaType> declaredTypes,
+        Map<String, JavaDeclaredType> declaredTypes,
         JavaExtractionContext extractionContext
     ) {
         if (node == null) {
@@ -586,7 +592,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         SyntaxNode typeNode,
         ExtractedEntityFact typeEntity,
         Map<String, String> importsBySimpleName,
-        Map<String, DeclaredJavaType> declaredTypes
+        Map<String, JavaDeclaredType> declaredTypes
     ) {
         jpaSemantics.addJpaInheritanceFacts(accumulator, relativePath, packageName, typeNode, typeEntity, importsBySimpleName, declaredTypes);
     }
@@ -598,7 +604,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         SyntaxNode typeNode,
         ExtractedEntityFact typeEntity,
         Map<String, String> importsBySimpleName,
-        Map<String, DeclaredJavaType> declaredTypes
+        Map<String, JavaDeclaredType> declaredTypes
     ) {
         EntityKind sourceKind = typeEntity.kind();
         int line = SyntaxTreeExtractionSupport.oneBasedLine(typeNode);
@@ -676,7 +682,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         int line,
         SourceReference ref,
         Map<String, String> importsBySimpleName,
-        Map<String, DeclaredJavaType> declaredTypes,
+        Map<String, JavaDeclaredType> declaredTypes,
         Map<String, Object> metadata
     ) {
         if (sourceEntityId == null || declaredTypeTexts == null || declaredTypeTexts.isEmpty()) {
@@ -718,7 +724,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         String packageName,
         int line,
         Map<String, String> importsBySimpleName,
-        Map<String, DeclaredJavaType> declaredTypes
+        Map<String, JavaDeclaredType> declaredTypes
     ) {
         if (referencedType == null || referencedType.isBlank()) {
             return null;
@@ -727,7 +733,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         if (normalized.isBlank()) {
             return null;
         }
-        DeclaredJavaType declared = declaredTypes.get(normalized);
+        JavaDeclaredType declared = declaredTypes.get(normalized);
         if (declared != null) {
             return new ResolvedJavaType(declared.entityId(), declared.qualifiedName(), declared.kind());
         }
@@ -759,7 +765,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         int line,
         SourceReference ref,
         Map<String, String> importsBySimpleName,
-        Map<String, DeclaredJavaType> declaredTypes
+        Map<String, JavaDeclaredType> declaredTypes
     ) {
         ResolvedJavaType resolved = resolveJavaTypeReference(
             accumulator,
@@ -786,37 +792,6 @@ final class JavaStructuralExtractor implements StructuralExtractor {
             "java",
             dependencyMetadata(relationshipPrefix, "hierarchy")
         ));
-    }
-
-    private static void collectDeclaredTypes(
-        SourceParseResult parseResult,
-        String relativePath,
-        String packageName,
-        ExtractionMode extractionMode,
-        String packageScopeId,
-        SyntaxNode node,
-        String owningQualifiedName,
-        Map<String, DeclaredJavaType> declaredTypes
-    ) {
-        if (node == null) {
-            return;
-        }
-        String nextOwningQualifiedName = owningQualifiedName;
-        if (isJavaTypeDeclaration(node)) {
-            ExtractedEntityFact typeEntity = toTypeEntity(parseResult, relativePath, packageName, extractionMode, packageScopeId, node, owningQualifiedName);
-            if (typeEntity != null) {
-                String qualifiedName = String.valueOf(typeEntity.metadata().get("qualifiedName"));
-                declaredTypes.putIfAbsent(qualifiedName, new DeclaredJavaType(typeEntity.id(), qualifiedName, typeEntity.kind()));
-                String simpleName = simpleName(qualifiedName);
-                if (simpleName != null && !simpleName.isBlank()) {
-                    declaredTypes.putIfAbsent(simpleName, new DeclaredJavaType(typeEntity.id(), qualifiedName, typeEntity.kind()));
-                }
-                nextOwningQualifiedName = qualifiedName;
-            }
-        }
-        for (SyntaxNode child : node.children()) {
-            collectDeclaredTypes(parseResult, relativePath, packageName, extractionMode, packageScopeId, child, nextOwningQualifiedName, declaredTypes);
-        }
     }
 
     private static List<String> extractExtendedTypes(SyntaxNode typeNode) {
@@ -910,7 +885,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         ).contains(candidate);
     }
 
-    private static String resolveQualifiedTypeName(String reference, String packageName, Map<String, String> importsBySimpleName, Map<String, DeclaredJavaType> declaredTypes) {
+    private static String resolveQualifiedTypeName(String reference, String packageName, Map<String, String> importsBySimpleName, Map<String, JavaDeclaredType> declaredTypes) {
         if (reference == null || reference.isBlank()) {
             return "";
         }
@@ -920,7 +895,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         if (importsBySimpleName.containsKey(reference)) {
             return importsBySimpleName.get(reference);
         }
-        DeclaredJavaType declared = declaredTypes.get(reference);
+        JavaDeclaredType declared = declaredTypes.get(reference);
         if (declared != null) {
             return declared.qualifiedName();
         }
@@ -950,15 +925,12 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         return java.util.Map.copyOf(metadata);
     }
 
-    private static String simpleName(String qualifiedName) {
+    static String simpleName(String qualifiedName) {
         if (qualifiedName == null || qualifiedName.isBlank()) {
             return null;
         }
         int idx = qualifiedName.lastIndexOf('.');
         return idx >= 0 ? qualifiedName.substring(idx + 1) : qualifiedName;
-    }
-
-    private record DeclaredJavaType(String entityId, String qualifiedName, EntityKind kind) {
     }
 
     private record ResolvedJavaType(String entityId, String label, EntityKind kind) {
@@ -1133,7 +1105,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         return Optional.empty();
     }
 
-    private static boolean isJavaTypeDeclaration(SyntaxNode node) {
+    static boolean isJavaTypeDeclaration(SyntaxNode node) {
         return node != null && Set.of(
             "class_declaration", "interface_declaration", "enum_declaration", "record_declaration"
         ).contains(node.type());
@@ -1359,7 +1331,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         return List.copyOf(result);
     }
 
-    private static ExtractedEntityFact toTypeEntity(
+    static ExtractedEntityFact toTypeEntity(
         SourceParseResult parseResult,
         String relativePath,
         String packageName,
@@ -1634,7 +1606,7 @@ private void addJpaFieldFacts(
         String ownerQualifiedName = fieldContext.ownerQualifiedName();
         String ownerTypeSnippet = fieldContext.ownerTypeSnippet();
         Map<String, String> importsBySimpleName = extractionContext.importsBySimpleName();
-        Map<String, DeclaredJavaType> declaredTypes = extractionContext.declaredTypes();
+        Map<String, JavaDeclaredType> declaredTypes = extractionContext.declaredTypes();
         if (fieldEntity == null || ownerTypeEntityId == null || !isJpaPersistentType(ownerTypeSnippet, null)) {
             return;
         }
@@ -1780,7 +1752,7 @@ private void addJpaMethodFacts(
         SourceReference ref = methodContext.sourceRef();
         String snippet = methodContext.snippet();
         Map<String, String> importsBySimpleName = extractionContext.importsBySimpleName();
-        Map<String, DeclaredJavaType> declaredTypes = extractionContext.declaredTypes();
+        Map<String, JavaDeclaredType> declaredTypes = extractionContext.declaredTypes();
         if (methodEntity == null || ownerTypeEntityId == null || !isJpaPersistentType(ownerTypeSnippet, null) || isConstructor(methodEntity)) {
             return;
         }
@@ -1949,7 +1921,7 @@ private void addJpaInheritanceFacts(
         SyntaxNode typeNode,
         ExtractedEntityFact typeEntity,
         Map<String, String> importsBySimpleName,
-        Map<String, DeclaredJavaType> declaredTypes
+        Map<String, JavaDeclaredType> declaredTypes
     ) {
         String typeSnippet = typeNodeSnippet(typeNode, typeEntity);
         if (typeEntity == null || !isJpaPersistentType(typeSnippet, typeEntity)) {
@@ -1993,7 +1965,7 @@ private void addCdiEventFacts(
         SourceReference ref = methodContext.sourceRef();
         String snippet = methodContext.snippet();
         Map<String, String> importsBySimpleName = extractionContext.importsBySimpleName();
-        Map<String, DeclaredJavaType> declaredTypes = extractionContext.declaredTypes();
+        Map<String, JavaDeclaredType> declaredTypes = extractionContext.declaredTypes();
         if (methodEntity == null || ownerTypeEntityId == null || ownerQualifiedName == null || ownerQualifiedName.isBlank()) {
             return;
         }
@@ -2149,7 +2121,7 @@ private void addWritePathFacts(
         SourceReference ref = methodContext.sourceRef();
         String snippet = methodContext.snippet();
         Map<String, String> importsBySimpleName = extractionContext.importsBySimpleName();
-        Map<String, DeclaredJavaType> declaredTypes = extractionContext.declaredTypes();
+        Map<String, JavaDeclaredType> declaredTypes = extractionContext.declaredTypes();
         if (methodEntity == null || ownerTypeEntityId == null) {
             return;
         }
