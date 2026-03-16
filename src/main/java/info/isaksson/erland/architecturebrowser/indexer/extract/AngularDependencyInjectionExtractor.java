@@ -2,10 +2,10 @@ package info.isaksson.erland.architecturebrowser.indexer.extract;
 
 import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedEntityFact;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityKind;
-import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -75,7 +75,7 @@ final class AngularDependencyInjectionExtractor {
     private static boolean isAngularInjectableConsumer(ExtractedEntityFact entity) {
         return isAngularEntity(entity)
             && entity.kind() == EntityKind.CLASS
-            && !Objects.toString(primaryRef(entity, "").snippet(), "").isBlank();
+            && !Objects.toString(AngularSourceSupport.primaryRef(entity, "").snippet(), "").isBlank();
     }
 
     private static void extractProviderRelationships(
@@ -97,7 +97,7 @@ final class AngularDependencyInjectionExtractor {
                     providedEntity.id(),
                     ownerEntity.id(),
                     raw,
-                    primaryRef(ownerEntity, relativePath),
+                    AngularSourceSupport.primaryRef(ownerEntity, relativePath),
                     "typescript",
                     diRelationshipMetadata("providedBy", providedEntity.name(), true, "provider-owner")
                 ));
@@ -112,7 +112,7 @@ final class AngularDependencyInjectionExtractor {
         String providerEntry,
         Map<String, ExtractedEntityFact> namedEntities
     ) {
-        Map<String, String> fields = topLevelObjectFields(providerEntry);
+        Map<String, String> fields = AngularLiteralSupport.topLevelObjectFields(providerEntry);
         String tokenRaw = fieldReference(fields, providerEntry, "provide");
         if (tokenRaw.isBlank()) {
             return;
@@ -122,7 +122,7 @@ final class AngularDependencyInjectionExtractor {
             tokenEntity.id(),
             ownerEntity.id(),
             tokenRaw,
-            primaryRef(ownerEntity, relativePath),
+            AngularSourceSupport.primaryRef(ownerEntity, relativePath),
             "typescript",
             diRelationshipMetadata("providedBy", tokenRaw, true, "provider-owner")
         ));
@@ -134,7 +134,7 @@ final class AngularDependencyInjectionExtractor {
                 tokenEntity.id(),
                 implementationEntity.id(),
                 useClass,
-                primaryRef(ownerEntity, relativePath),
+                AngularSourceSupport.primaryRef(ownerEntity, relativePath),
                 "typescript",
                 diRelationshipMetadata("resolvesTo", tokenRaw, namedEntities.containsKey(useClass), "provider-resolution")
             ));
@@ -147,7 +147,7 @@ final class AngularDependencyInjectionExtractor {
                 tokenEntity.id(),
                 implementationEntity.id(),
                 useExisting,
-                primaryRef(ownerEntity, relativePath),
+                AngularSourceSupport.primaryRef(ownerEntity, relativePath),
                 "typescript",
                 diRelationshipMetadata("resolvesTo", tokenRaw, namedEntities.containsKey(useExisting), "provider-resolution")
             ));
@@ -160,7 +160,7 @@ final class AngularDependencyInjectionExtractor {
                 tokenEntity.id(),
                 factoryEntity.id(),
                 useFactory,
-                primaryRef(ownerEntity, relativePath),
+                AngularSourceSupport.primaryRef(ownerEntity, relativePath),
                 "typescript",
                 diRelationshipMetadata("resolvesTo", tokenRaw, namedEntities.containsKey(useFactory), "provider-resolution")
             ));
@@ -174,7 +174,7 @@ final class AngularDependencyInjectionExtractor {
                 EntityKind.MODULE,
                 valueTargetName,
                 relativePath,
-                refLine(ownerEntity),
+                AngularSourceSupport.refLine(ownerEntity),
                 Map.of(
                     "framework", "angular",
                     "angularDiValue", true,
@@ -190,7 +190,7 @@ final class AngularDependencyInjectionExtractor {
                 tokenEntity.id(),
                 valueEntity.id(),
                 rawValue,
-                primaryRef(ownerEntity, relativePath),
+                AngularSourceSupport.primaryRef(ownerEntity, relativePath),
                 "typescript",
                 diRelationshipMetadata("resolvesTo", tokenRaw, false, "provider-resolution")
             ));
@@ -203,12 +203,12 @@ final class AngularDependencyInjectionExtractor {
         ExtractedEntityFact ownerEntity,
         Map<String, ExtractedEntityFact> namedEntities
     ) {
-        String snippet = Objects.toString(primaryRef(ownerEntity, relativePath).snippet(), "");
+        String snippet = Objects.toString(AngularSourceSupport.primaryRef(ownerEntity, relativePath).snippet(), "");
         if (snippet.isBlank()) {
             return;
         }
         for (String constructorParameters : extractConstructorParameterBlocks(snippet)) {
-            for (String parameter : splitTopLevel(constructorParameters, ',')) {
+            for (String parameter : AngularLiteralSupport.splitTopLevel(constructorParameters, ',')) {
                 InjectionReference reference = parseInjectionReference(parameter);
                 if (reference == null || reference.targetName().isBlank()) {
                     continue;
@@ -224,7 +224,7 @@ final class AngularDependencyInjectionExtractor {
                     ownerEntity.id(),
                     injectedEntity.id(),
                     reference.label(),
-                    primaryRef(ownerEntity, relativePath),
+                    AngularSourceSupport.primaryRef(ownerEntity, relativePath),
                     "typescript",
                     injectionRelationshipMetadata(reference, true)
                 ));
@@ -248,7 +248,7 @@ final class AngularDependencyInjectionExtractor {
             if (parenStart < 0) {
                 break;
             }
-            int parenEnd = findMatchingParen(snippet, parenStart);
+            int parenEnd = AngularLiteralSupport.findMatchingParen(snippet, parenStart);
             if (parenEnd < 0) {
                 break;
             }
@@ -261,48 +261,6 @@ final class AngularDependencyInjectionExtractor {
         return List.copyOf(result);
     }
 
-    private static int findMatchingParen(String value, int startIndex) {
-        int depth = 0;
-        boolean inSingle = false;
-        boolean inDouble = false;
-        boolean inBacktick = false;
-        boolean escaped = false;
-        for (int i = startIndex; i < value.length(); i++) {
-            char ch = value.charAt(i);
-            if (escaped) {
-                escaped = false;
-                continue;
-            }
-            if (ch == '\\' && (inSingle || inDouble || inBacktick)) {
-                escaped = true;
-                continue;
-            }
-            if (!inDouble && !inBacktick && ch == '\'') {
-                inSingle = !inSingle;
-                continue;
-            }
-            if (!inSingle && !inBacktick && ch == '"') {
-                inDouble = !inDouble;
-                continue;
-            }
-            if (!inSingle && !inDouble && ch == '`') {
-                inBacktick = !inBacktick;
-                continue;
-            }
-            if (inSingle || inDouble || inBacktick) {
-                continue;
-            }
-            if (ch == '(') {
-                depth++;
-            } else if (ch == ')') {
-                depth--;
-                if (depth == 0) {
-                    return i;
-                }
-            }
-        }
-        return -1;
-    }
     private static InjectionReference parseInjectionReference(String parameter) {
         if (parameter == null || parameter.isBlank()) {
             return null;
@@ -310,14 +268,14 @@ final class AngularDependencyInjectionExtractor {
         String raw = parameter.strip();
         Matcher injectMatcher = INJECT_TOKEN_PATTERN.matcher(raw);
         if (injectMatcher.find()) {
-            String tokenName = normalizeAngularReference(injectMatcher.group(1));
+            String tokenName = AngularReferenceSupport.normalizeReference(injectMatcher.group(1));
             if (!tokenName.isBlank()) {
                 return new InjectionReference(tokenName, tokenName, inferTokenKind(tokenName), "token");
             }
         }
         Matcher typeMatcher = TYPE_ANNOTATION_PATTERN.matcher(raw);
         if (typeMatcher.find()) {
-            String typeName = normalizeAngularReference(typeMatcher.group(1));
+            String typeName = AngularReferenceSupport.normalizeReference(typeMatcher.group(1));
             if (!typeName.isBlank() && !IGNORED_TYPES.contains(typeName.toLowerCase(Locale.ROOT))) {
                 return new InjectionReference(typeName, typeName, inferProviderTargetKind(typeName), "type");
             }
@@ -332,7 +290,7 @@ final class AngularDependencyInjectionExtractor {
         Map<String, ExtractedEntityFact> namedEntities,
         EntityKind fallbackKind
     ) {
-        String normalized = normalizeAngularReference(rawReference);
+        String normalized = AngularReferenceSupport.normalizeReference(rawReference);
         ExtractedEntityFact existing = namedEntities.get(normalized);
         if (existing != null) {
             return existing;
@@ -423,31 +381,8 @@ final class AngularDependencyInjectionExtractor {
             : EntityKind.CLASS;
     }
 
-    private static String normalizeAngularReference(String raw) {
-        if (raw == null) {
-            return "";
-        }
-        String normalized = raw.strip();
-        normalized = normalized.replaceAll("^\\[|\\]$", "").trim();
-        normalized = normalized.replaceAll("<[^>]+>", " ");
-        Matcher matcher = Pattern.compile("([A-Za-z_$][\\w.$]*)").matcher(normalized);
-        return matcher.find() ? matcher.group(1) : "";
-    }
-
-    private static SourceReference primaryRef(ExtractedEntityFact entity, String relativePath) {
-        return entity.sourceRefs().isEmpty()
-            ? ExtractionSupport.sourceRef(relativePath, 1, entity.name(), Map.of("language", "typescript", "framework", "angular"))
-            : entity.sourceRefs().getFirst();
-    }
-
-    private static int refLine(ExtractedEntityFact entity) {
-        return entity.sourceRefs().isEmpty() || entity.sourceRefs().getFirst().startLine() == null
-            ? 1
-            : entity.sourceRefs().getFirst().startLine();
-    }
-
     private static String fieldReference(Map<String, String> fields, String providerEntry, String fieldName) {
-        String direct = normalizeAngularReference(fields.get(fieldName));
+        String direct = AngularReferenceSupport.normalizeReference(fields.get(fieldName));
         if (!direct.isBlank() && !fieldName.equals(direct)) {
             return direct;
         }
@@ -456,156 +391,12 @@ final class AngularDependencyInjectionExtractor {
         }
         Matcher matcher = Pattern.compile("\\b" + Pattern.quote(fieldName) + "\\s*:\\s*([A-Za-z_$][\\w.$]*)").matcher(providerEntry);
         if (matcher.find()) {
-            String fallback = normalizeAngularReference(matcher.group(1));
+            String fallback = AngularReferenceSupport.normalizeReference(matcher.group(1));
             if (!fallback.isBlank()) {
                 return fallback;
             }
         }
         return direct;
-    }
-
-    private static Map<String, String> topLevelObjectFields(String objectLiteral) {
-        String body = objectLiteral == null ? "" : objectLiteral.strip();
-        if (body.startsWith("{") && body.endsWith("}")) {
-            body = body.substring(1, body.length() - 1).trim();
-        }
-        if (body.isBlank()) {
-            return Map.of();
-        }
-        Map<String, String> fields = new LinkedHashMap<>();
-        for (String entry : splitTopLevel(body, ',')) {
-            int colon = firstTopLevelColon(entry);
-            if (colon < 0) {
-                continue;
-            }
-            String key = entry.substring(0, colon).trim();
-            String value = entry.substring(colon + 1).trim();
-            if (!key.isBlank() && !value.isBlank()) {
-                fields.put(key, value);
-            }
-        }
-        return Map.copyOf(fields);
-    }
-
-    private static int firstTopLevelColon(String value) {
-        int braceDepth = 0;
-        int bracketDepth = 0;
-        int parenDepth = 0;
-        boolean inSingle = false;
-        boolean inDouble = false;
-        boolean inBacktick = false;
-        boolean escaped = false;
-        for (int i = 0; i < value.length(); i++) {
-            char ch = value.charAt(i);
-            if (escaped) {
-                escaped = false;
-                continue;
-            }
-            if (ch == '\\' && (inSingle || inDouble || inBacktick)) {
-                escaped = true;
-                continue;
-            }
-            if (!inDouble && !inBacktick && ch == '\'') {
-                inSingle = !inSingle;
-                continue;
-            }
-            if (!inSingle && !inBacktick && ch == '"') {
-                inDouble = !inDouble;
-                continue;
-            }
-            if (!inSingle && !inDouble && ch == '`') {
-                inBacktick = !inBacktick;
-                continue;
-            }
-            if (inSingle || inDouble || inBacktick) {
-                continue;
-            }
-            switch (ch) {
-                case '{' -> braceDepth++;
-                case '}' -> braceDepth = Math.max(0, braceDepth - 1);
-                case '[' -> bracketDepth++;
-                case ']' -> bracketDepth = Math.max(0, bracketDepth - 1);
-                case '(' -> parenDepth++;
-                case ')' -> parenDepth = Math.max(0, parenDepth - 1);
-                case ':' -> {
-                    if (braceDepth == 0 && bracketDepth == 0 && parenDepth == 0) {
-                        return i;
-                    }
-                }
-                default -> {
-                }
-            }
-        }
-        return -1;
-    }
-
-    private static List<String> splitTopLevel(String value, char delimiter) {
-        if (value == null || value.isBlank()) {
-            return List.of();
-        }
-        List<String> result = new ArrayList<>();
-        int braceDepth = 0;
-        int bracketDepth = 0;
-        int parenDepth = 0;
-        boolean inSingle = false;
-        boolean inDouble = false;
-        boolean inBacktick = false;
-        boolean escaped = false;
-        StringBuilder current = new StringBuilder();
-        for (int i = 0; i < value.length(); i++) {
-            char ch = value.charAt(i);
-            if (escaped) {
-                current.append(ch);
-                escaped = false;
-                continue;
-            }
-            if (ch == '\\' && (inSingle || inDouble || inBacktick)) {
-                current.append(ch);
-                escaped = true;
-                continue;
-            }
-            if (!inDouble && !inBacktick && ch == '\'') {
-                inSingle = !inSingle;
-                current.append(ch);
-                continue;
-            }
-            if (!inSingle && !inBacktick && ch == '"') {
-                inDouble = !inDouble;
-                current.append(ch);
-                continue;
-            }
-            if (!inSingle && !inDouble && ch == '`') {
-                inBacktick = !inBacktick;
-                current.append(ch);
-                continue;
-            }
-            if (!inSingle && !inDouble && !inBacktick) {
-                switch (ch) {
-                    case '{' -> braceDepth++;
-                    case '}' -> braceDepth = Math.max(0, braceDepth - 1);
-                    case '[' -> bracketDepth++;
-                    case ']' -> bracketDepth = Math.max(0, bracketDepth - 1);
-                    case '(' -> parenDepth++;
-                    case ')' -> parenDepth = Math.max(0, parenDepth - 1);
-                    default -> {
-                    }
-                }
-                if (ch == delimiter && braceDepth == 0 && bracketDepth == 0 && parenDepth == 0) {
-                    String token = current.toString().trim();
-                    if (!token.isBlank()) {
-                        result.add(token);
-                    }
-                    current.setLength(0);
-                    continue;
-                }
-            }
-            current.append(ch);
-        }
-        String token = current.toString().trim();
-        if (!token.isBlank()) {
-            result.add(token);
-        }
-        return List.copyOf(result);
     }
 
     private record InjectionReference(String targetName, String label, EntityKind kind, String referenceKind) {

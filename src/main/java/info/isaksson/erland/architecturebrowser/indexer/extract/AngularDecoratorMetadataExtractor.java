@@ -2,49 +2,33 @@ package info.isaksson.erland.architecturebrowser.indexer.extract;
 
 import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxNode;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 
 final class AngularDecoratorMetadataExtractor {
-    private static final Set<String> SUPPORTED_DECORATORS = Set.of("Component", "Directive", "Pipe", "NgModule", "Injectable");
-
     private AngularDecoratorMetadataExtractor() {
     }
 
     static Map<String, Object> extract(SyntaxNode declarationNode) {
-        if (declarationNode == null) {
-            return Map.of();
-        }
-        List<SyntaxNode> decorators = SyntaxTreeExtractionSupport.descendantsByType(declarationNode, Set.of("decorator"));
-        if (decorators.isEmpty()) {
-            return Map.of();
-        }
-        for (SyntaxNode decoratorNode : decorators) {
-            String snippet = decoratorNode.textSnippet();
-            Optional<String> decoratorName = decoratorName(snippet);
-            if (decoratorName.isEmpty() || !SUPPORTED_DECORATORS.contains(decoratorName.get())) {
-                continue;
-            }
-            return switch (decoratorName.get()) {
-                case "Component" -> componentMetadata(snippet);
-                case "Directive" -> directiveMetadata(snippet);
-                case "Pipe" -> pipeMetadata(snippet);
-                case "NgModule" -> ngModuleMetadata(snippet);
-                case "Injectable" -> injectableMetadata(snippet);
-                default -> Map.of();
-            };
-        }
-        return Map.of();
+        return AngularDecoratorModelExtractor.extract(declarationNode)
+            .map(AngularDecoratorMetadataExtractor::toMetadata)
+            .orElse(Map.of());
     }
 
-    private static Map<String, Object> componentMetadata(String snippet) {
-        Map<String, String> payload = topLevelObjectFields(snippet);
-        Map<String, Object> metadata = angularMetadataBase("Component", "component");
+    private static Map<String, Object> toMetadata(AngularDecoratorModel model) {
+        return switch (model.decoratorName()) {
+            case "Component" -> componentMetadata(model);
+            case "Directive" -> directiveMetadata(model);
+            case "Pipe" -> pipeMetadata(model);
+            case "NgModule" -> ngModuleMetadata(model);
+            case "Injectable" -> injectableMetadata(model);
+            default -> Map.of();
+        };
+    }
+
+    private static Map<String, Object> componentMetadata(AngularDecoratorModel model) {
+        Map<String, String> payload = model.fields();
+        Map<String, Object> metadata = angularMetadataBase(model);
         putIfNotBlank(metadata, "angularSelector", stringLiteral(payload.get("selector")));
         putIfNotBlank(metadata, "angularTemplateUrl", stringLiteral(payload.get("templateUrl")));
         String inlineTemplate = stringLiteral(payload.get("template"));
@@ -59,26 +43,26 @@ final class AngularDecoratorMetadataExtractor {
         return Map.copyOf(metadata);
     }
 
-    private static Map<String, Object> directiveMetadata(String snippet) {
-        Map<String, String> payload = topLevelObjectFields(snippet);
-        Map<String, Object> metadata = angularMetadataBase("Directive", "directive");
+    private static Map<String, Object> directiveMetadata(AngularDecoratorModel model) {
+        Map<String, String> payload = model.fields();
+        Map<String, Object> metadata = angularMetadataBase(model);
         putIfNotBlank(metadata, "angularSelector", stringLiteral(payload.get("selector")));
         putIfPresent(metadata, "angularStandalone", booleanLiteral(payload.get("standalone")));
         putIfPresent(metadata, "angularProviders", arrayOrSingleton(payload.get("providers")));
         return Map.copyOf(metadata);
     }
 
-    private static Map<String, Object> pipeMetadata(String snippet) {
-        Map<String, String> payload = topLevelObjectFields(snippet);
-        Map<String, Object> metadata = angularMetadataBase("Pipe", "pipe");
+    private static Map<String, Object> pipeMetadata(AngularDecoratorModel model) {
+        Map<String, String> payload = model.fields();
+        Map<String, Object> metadata = angularMetadataBase(model);
         putIfNotBlank(metadata, "angularPipeName", stringLiteral(payload.get("name")));
         putIfPresent(metadata, "angularStandalone", booleanLiteral(payload.get("standalone")));
         return Map.copyOf(metadata);
     }
 
-    private static Map<String, Object> ngModuleMetadata(String snippet) {
-        Map<String, String> payload = topLevelObjectFields(snippet);
-        Map<String, Object> metadata = angularMetadataBase("NgModule", "module");
+    private static Map<String, Object> ngModuleMetadata(AngularDecoratorModel model) {
+        Map<String, String> payload = model.fields();
+        Map<String, Object> metadata = angularMetadataBase(model);
         putIfPresent(metadata, "angularImports", arrayOrSingleton(payload.get("imports")));
         putIfPresent(metadata, "angularDeclarations", arrayOrSingleton(payload.get("declarations")));
         putIfPresent(metadata, "angularExports", arrayOrSingleton(payload.get("exports")));
@@ -87,282 +71,55 @@ final class AngularDecoratorMetadataExtractor {
         return Map.copyOf(metadata);
     }
 
-    private static Map<String, Object> injectableMetadata(String snippet) {
-        Map<String, String> payload = topLevelObjectFields(snippet);
-        Map<String, Object> metadata = angularMetadataBase("Injectable", "injectable");
+    private static Map<String, Object> injectableMetadata(AngularDecoratorModel model) {
+        Map<String, String> payload = model.fields();
+        Map<String, Object> metadata = angularMetadataBase(model);
         putIfNotBlank(metadata, "angularProvidedIn", stringLiteral(payload.get("providedIn")));
         return Map.copyOf(metadata);
     }
 
-    private static Map<String, Object> angularMetadataBase(String decorator, String kind) {
+    private static Map<String, Object> angularMetadataBase(AngularDecoratorModel model) {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("framework", "angular");
-        metadata.put("angularDecorator", decorator);
-        metadata.put("angularKind", kind);
+        metadata.put("angularDecorator", model.decoratorName());
+        metadata.put("angularKind", model.angularKind());
         return metadata;
     }
 
-    private static Optional<String> decoratorName(String snippet) {
-        List<String> annotations = SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(snippet);
-        if (annotations.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.ofNullable(annotations.getFirst());
+    private static String stringLiteral(String raw) {
+        return AngularLiteralSupport.stringLiteralContent(raw);
     }
 
-    private static Map<String, String> topLevelObjectFields(String decoratorSnippet) {
-        String objectLiteral = firstObjectLiteral(decoratorSnippet);
-        if (objectLiteral.isBlank()) {
-            return Map.of();
+    private static Boolean booleanLiteral(String raw) {
+        if (raw == null) {
+            return null;
         }
-        String body = objectLiteral.substring(1, objectLiteral.length() - 1).trim();
-        if (body.isBlank()) {
-            return Map.of();
-        }
-        Map<String, String> fields = new LinkedHashMap<>();
-        for (String entry : splitTopLevel(body, ',')) {
-            int colon = firstTopLevelColon(entry);
-            if (colon < 0) {
-                continue;
-            }
-            String key = entry.substring(0, colon).trim();
-            String value = entry.substring(colon + 1).trim();
-            if (!key.isBlank() && !value.isBlank()) {
-                fields.put(key, value);
-            }
-        }
-        return Map.copyOf(fields);
+        return switch (raw.trim()) {
+            case "true" -> Boolean.TRUE;
+            case "false" -> Boolean.FALSE;
+            default -> null;
+        };
     }
 
-    private static String firstObjectLiteral(String snippet) {
-        if (snippet == null || snippet.isBlank()) {
-            return "";
+    private static Object arrayOrSingleton(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
         }
-        int start = -1;
-        int braceDepth = 0;
-        boolean inSingle = false;
-        boolean inDouble = false;
-        boolean inBacktick = false;
-        boolean escaped = false;
-        for (int i = 0; i < snippet.length(); i++) {
-            char ch = snippet.charAt(i);
-            if (escaped) {
-                escaped = false;
-                continue;
-            }
-            if (ch == '\\' && (inSingle || inDouble || inBacktick)) {
-                escaped = true;
-                continue;
-            }
-            if (!inDouble && !inBacktick && ch == '\'') {
-                inSingle = !inSingle;
-                continue;
-            }
-            if (!inSingle && !inBacktick && ch == '"') {
-                inDouble = !inDouble;
-                continue;
-            }
-            if (!inSingle && !inDouble && ch == '`') {
-                inBacktick = !inBacktick;
-                continue;
-            }
-            if (inSingle || inDouble || inBacktick) {
-                continue;
-            }
-            if (ch == '{') {
-                if (braceDepth == 0) {
-                    start = i;
-                }
-                braceDepth++;
-            } else if (ch == '}') {
-                braceDepth--;
-                if (braceDepth == 0 && start >= 0) {
-                    return snippet.substring(start, i + 1);
-                }
-            }
-        }
-        return "";
-    }
-
-    private static int firstTopLevelColon(String value) {
-        int braceDepth = 0;
-        int bracketDepth = 0;
-        int parenDepth = 0;
-        boolean inSingle = false;
-        boolean inDouble = false;
-        boolean inBacktick = false;
-        boolean escaped = false;
-        for (int i = 0; i < value.length(); i++) {
-            char ch = value.charAt(i);
-            if (escaped) {
-                escaped = false;
-                continue;
-            }
-            if (ch == '\\' && (inSingle || inDouble || inBacktick)) {
-                escaped = true;
-                continue;
-            }
-            if (!inDouble && !inBacktick && ch == '\'') {
-                inSingle = !inSingle;
-                continue;
-            }
-            if (!inSingle && !inBacktick && ch == '"') {
-                inDouble = !inDouble;
-                continue;
-            }
-            if (!inSingle && !inDouble && ch == '`') {
-                inBacktick = !inBacktick;
-                continue;
-            }
-            if (inSingle || inDouble || inBacktick) {
-                continue;
-            }
-            switch (ch) {
-                case '{' -> braceDepth++;
-                case '}' -> braceDepth = Math.max(0, braceDepth - 1);
-                case '[' -> bracketDepth++;
-                case ']' -> bracketDepth = Math.max(0, bracketDepth - 1);
-                case '(' -> parenDepth++;
-                case ')' -> parenDepth = Math.max(0, parenDepth - 1);
-                case ':' -> {
-                    if (braceDepth == 0 && bracketDepth == 0 && parenDepth == 0) {
-                        return i;
-                    }
-                }
-                default -> {
-                }
-            }
-        }
-        return -1;
-    }
-
-    private static List<String> splitTopLevel(String value, char delimiter) {
-        if (value == null || value.isBlank()) {
-            return List.of();
-        }
-        List<String> result = new ArrayList<>();
-        int braceDepth = 0;
-        int bracketDepth = 0;
-        int parenDepth = 0;
-        boolean inSingle = false;
-        boolean inDouble = false;
-        boolean inBacktick = false;
-        boolean escaped = false;
-        StringBuilder current = new StringBuilder();
-        for (int i = 0; i < value.length(); i++) {
-            char ch = value.charAt(i);
-            if (escaped) {
-                current.append(ch);
-                escaped = false;
-                continue;
-            }
-            if (ch == '\\' && (inSingle || inDouble || inBacktick)) {
-                current.append(ch);
-                escaped = true;
-                continue;
-            }
-            if (!inDouble && !inBacktick && ch == '\'') {
-                inSingle = !inSingle;
-                current.append(ch);
-                continue;
-            }
-            if (!inSingle && !inBacktick && ch == '"') {
-                inDouble = !inDouble;
-                current.append(ch);
-                continue;
-            }
-            if (!inSingle && !inDouble && ch == '`') {
-                inBacktick = !inBacktick;
-                current.append(ch);
-                continue;
-            }
-            if (!inSingle && !inDouble && !inBacktick) {
-                switch (ch) {
-                    case '{' -> braceDepth++;
-                    case '}' -> braceDepth = Math.max(0, braceDepth - 1);
-                    case '[' -> bracketDepth++;
-                    case ']' -> bracketDepth = Math.max(0, bracketDepth - 1);
-                    case '(' -> parenDepth++;
-                    case ')' -> parenDepth = Math.max(0, parenDepth - 1);
-                    default -> {
-                    }
-                }
-                if (ch == delimiter && braceDepth == 0 && bracketDepth == 0 && parenDepth == 0) {
-                    String part = current.toString().trim();
-                    if (!part.isEmpty()) {
-                        result.add(part);
-                    }
-                    current.setLength(0);
-                    continue;
-                }
-            }
-            current.append(ch);
-        }
-        String tail = current.toString().trim();
-        if (!tail.isEmpty()) {
-            result.add(tail);
-        }
-        return List.copyOf(result);
-    }
-
-    private static List<String> arrayOrSingleton(String rawValue) {
-        if (rawValue == null || rawValue.isBlank()) {
-            return List.of();
-        }
-        String value = rawValue.trim();
+        String value = raw.trim();
         if (value.startsWith("[") && value.endsWith("]")) {
             String body = value.substring(1, value.length() - 1).trim();
             if (body.isBlank()) {
-                return List.of();
+                return java.util.List.of();
             }
-            LinkedHashSet<String> items = new LinkedHashSet<>();
-            for (String part : splitTopLevel(body, ',')) {
-                String normalized = normalizeValue(part);
-                if (!normalized.isBlank()) {
-                    items.add(normalized);
-                }
+            java.util.LinkedHashSet<String> values = new java.util.LinkedHashSet<>();
+            for (String entry : AngularLiteralSupport.splitTopLevel(body, ',')) {
+                String literal = stringLiteral(entry);
+                values.add(literal.isBlank() ? entry.trim() : literal);
             }
-            return List.copyOf(items);
+            return java.util.List.copyOf(values);
         }
-        String normalized = normalizeValue(value);
-        return normalized.isBlank() ? List.of() : List.of(normalized);
-    }
-
-    private static String normalizeValue(String rawValue) {
-        if (rawValue == null || rawValue.isBlank()) {
-            return "";
-        }
-        String asLiteral = stringLiteral(rawValue);
-        return asLiteral.isBlank() ? rawValue.trim() : asLiteral;
-    }
-
-    private static Optional<Boolean> booleanLiteral(String rawValue) {
-        if (rawValue == null || rawValue.isBlank()) {
-            return Optional.empty();
-        }
-        String normalized = rawValue.trim();
-        if ("true".equals(normalized)) {
-            return Optional.of(true);
-        }
-        if ("false".equals(normalized)) {
-            return Optional.of(false);
-        }
-        return Optional.empty();
-    }
-
-    private static String stringLiteral(String rawValue) {
-        if (rawValue == null || rawValue.isBlank()) {
-            return "";
-        }
-        String value = rawValue.trim();
-        if (value.length() >= 2) {
-            char first = value.charAt(0);
-            char last = value.charAt(value.length() - 1);
-            if ((first == '\'' && last == '\'') || (first == '"' && last == '"') || (first == '`' && last == '`')) {
-                return value.substring(1, value.length() - 1);
-            }
-        }
-        return "";
+        String literal = stringLiteral(value);
+        return literal.isBlank() ? value : literal;
     }
 
     private static void putIfNotBlank(Map<String, Object> metadata, String key, String value) {
@@ -371,13 +128,13 @@ final class AngularDecoratorMetadataExtractor {
         }
     }
 
-    private static void putIfPresent(Map<String, Object> metadata, String key, Optional<Boolean> value) {
-        value.ifPresent(booleanValue -> metadata.put(key, booleanValue));
-    }
-
-    private static void putIfPresent(Map<String, Object> metadata, String key, List<String> values) {
-        if (values != null && !values.isEmpty()) {
-            metadata.put(key, values);
+    private static void putIfPresent(Map<String, Object> metadata, String key, Object value) {
+        if (value == null) {
+            return;
         }
+        if (value instanceof String s && s.isBlank()) {
+            return;
+        }
+        metadata.put(key, value);
     }
 }
