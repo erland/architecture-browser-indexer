@@ -1,12 +1,7 @@
 package info.isaksson.erland.architecturebrowser.indexer.extract;
 
 import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedEntityFact;
-import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractionMode;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
-import info.isaksson.erland.architecturebrowser.indexer.parse.SourceParseResult;
-import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxNode;
-
-import java.util.Map;
 
 final class JavaTypeDeclarationFlow {
 
@@ -24,67 +19,42 @@ final class JavaTypeDeclarationFlow {
         this.typeSemanticsFlow = typeSemanticsFlow;
     }
 
-    JavaTypeTraversalResult handleTypeNode(
-        SourceParseResult parseResult,
-        ExtractionAccumulator accumulator,
-        String relativePath,
-        String packageName,
-        ExtractionMode extractionMode,
-        String packageScopeId,
-        String fileEntityId,
-        SyntaxNode node,
-        String currentOwningTypeEntityId,
-        String currentOwningQualifiedName,
-        String currentOwningTypeSnippet,
-        Map<String, String> importsBySimpleName,
-        Map<String, JavaDeclaredType> declaredTypes,
-        JavaExtractionContext extractionContext
-    ) {
-        if (!JavaStructuralExtractor.isJavaTypeDeclaration(node)) {
-            return JavaTypeTraversalResult.notHandled(
-                currentOwningTypeEntityId,
-                currentOwningQualifiedName,
-                currentOwningTypeSnippet
-            );
+    JavaTypeTraversalResult handleTypeNode(JavaTypeNodeRequest request) {
+        if (!JavaStructuralExtractor.isJavaTypeDeclaration(request.node())) {
+            return JavaTypeTraversalResult.notHandled(request.ownerContext());
         }
         ExtractedEntityFact typeEntity = entityMapper.toTypeEntity(
-            parseResult,
-            relativePath,
-            packageName,
-            extractionMode,
-            packageScopeId,
-            node,
-            currentOwningQualifiedName
+            request.parseResult(),
+            request.relativePath(),
+            request.packageName(),
+            request.extractionMode(),
+            request.packageScopeId(),
+            request.node(),
+            request.ownerContext().owningQualifiedName()
         );
         if (typeEntity == null) {
-            return JavaTypeTraversalResult.notHandled(
-                currentOwningTypeEntityId,
-                currentOwningQualifiedName,
-                currentOwningTypeSnippet
-            );
+            return JavaTypeTraversalResult.notHandled(request.ownerContext());
         }
-        accumulator.addEntity(typeEntity);
+        request.accumulator().addEntity(typeEntity);
         SourceReference ref = typeEntity.sourceRefs().isEmpty() ? null : typeEntity.sourceRefs().getFirst();
-        accumulator.addRelationship(ExtractionSupport.containsRelationship(fileEntityId, typeEntity.id(), ref));
-        dependencyEmissionFlow.addTypeRelationships(accumulator, relativePath, packageName, node, typeEntity, importsBySimpleName, declaredTypes);
-        typeSemanticsFlow.applyTypeSemantics(accumulator, new JavaTypeContext(extractionContext, node, typeEntity));
+        request.accumulator().addRelationship(ExtractionSupport.containsRelationship(request.fileEntityId(), typeEntity.id(), ref));
+        dependencyEmissionFlow.addTypeRelationships(request.accumulator(), request.relativePath(), request.packageName(), request.node(), typeEntity, request.importsBySimpleName(), request.declaredTypes());
+        typeSemanticsFlow.applyTypeSemantics(request.accumulator(), new JavaTypeContext(request.extractionContext(), request.node(), typeEntity));
         typeSemanticsFlow.applyJpaInheritanceFacts(
-            accumulator,
-            relativePath,
-            packageName,
-            node,
+            request.accumulator(),
+            request.relativePath(),
+            request.packageName(),
+            request.node(),
             typeEntity,
-            importsBySimpleName,
-            declaredTypes
+            request.importsBySimpleName(),
+            request.declaredTypes()
         );
-        String nextOwningTypeEntityId = typeEntity.id();
-        String nextOwningTypeSnippet = node.textSnippet();
         Object qualifiedName = typeEntity.metadata().get("qualifiedName");
-        String nextOwningQualifiedName = qualifiedName == null ? currentOwningQualifiedName : String.valueOf(qualifiedName);
-        return JavaTypeTraversalResult.handled(
-            nextOwningTypeEntityId,
+        String nextOwningQualifiedName = qualifiedName == null ? request.ownerContext().owningQualifiedName() : String.valueOf(qualifiedName);
+        return JavaTypeTraversalResult.handled(new JavaOwnerContext(
+            typeEntity.id(),
             nextOwningQualifiedName,
-            nextOwningTypeSnippet
-        );
+            request.node().textSnippet()
+        ));
     }
 }

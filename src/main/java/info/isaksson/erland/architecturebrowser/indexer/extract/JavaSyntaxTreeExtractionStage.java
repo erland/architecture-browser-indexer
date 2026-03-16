@@ -162,24 +162,22 @@ final class JavaSyntaxTreeExtractionStage {
     ) {
         if (node == null) {
             return ownership;
-        }        String currentOwningTypeEntityId = ownership == null ? null : ownership.owningTypeEntityId();
-        String currentOwningQualifiedName = ownership == null ? null : ownership.owningQualifiedName();
-        String currentOwningTypeSnippet = ownership == null ? null : ownership.owningTypeSnippet();
+        }        JavaOwnerContext ownerContext = JavaOwnerContext.fromTraversalOwnership(ownership);
         JavaTypeTraversalResult typeTraversalResult = handleTypeNode(
-            parseResult,
-            accumulator,
-            relativePath,
-            packageName,
-            extractionMode,
-            packageScopeId,
-            fileEntityId,
-            node,
-            currentOwningTypeEntityId,
-            currentOwningQualifiedName,
-            currentOwningTypeSnippet,
-            importsBySimpleName,
-            declaredTypes,
-            extractionContext
+            new JavaTypeNodeRequest(
+                parseResult,
+                accumulator,
+                relativePath,
+                packageName,
+                extractionMode,
+                packageScopeId,
+                fileEntityId,
+                node,
+                ownerContext,
+                importsBySimpleName,
+                declaredTypes,
+                extractionContext
+            )
         );
         if (typeTraversalResult.handled()) {
             return new JavaSyntaxTreeTraversal.JavaTraversalOwnership(
@@ -190,118 +188,39 @@ final class JavaSyntaxTreeExtractionStage {
         }
 
         memberExtractionFlow.handleMemberNode(
-            parseResult,
-            accumulator,
-            relativePath,
-            packageName,
-            extractionMode,
-            fileScopeId,
-            fileEntityId,
-            node,
-            currentOwningTypeEntityId,
-            currentOwningQualifiedName,
-            currentOwningTypeSnippet,
-            importsBySimpleName,
-            declaredTypes,
-            extractionContext
+            new JavaMemberNodeRequest(
+                parseResult,
+                accumulator,
+                relativePath,
+                packageName,
+                extractionMode,
+                fileScopeId,
+                fileEntityId,
+                node,
+                ownerContext,
+                importsBySimpleName,
+                declaredTypes,
+                extractionContext
+            )
         );
 
-        return new JavaSyntaxTreeTraversal.JavaTraversalOwnership(
-            currentOwningTypeEntityId,
-            currentOwningQualifiedName,
-            currentOwningTypeSnippet
-        );
+        return ownerContext.toTraversalOwnership();
     }
 
 
 
-    private JavaTypeTraversalResult handleTypeNode(
-        SourceParseResult parseResult,
-        ExtractionAccumulator accumulator,
-        String relativePath,
-        String packageName,
-        ExtractionMode extractionMode,
-        String packageScopeId,
-        String fileEntityId,
-        SyntaxNode node,
-        String currentOwningTypeEntityId,
-        String currentOwningQualifiedName,
-        String currentOwningTypeSnippet,
-        Map<String, String> importsBySimpleName,
-        Map<String, JavaDeclaredType> declaredTypes,
-        JavaExtractionContext extractionContext
-    ) {
-        return typeDeclarationFlow.handleTypeNode(
-            parseResult,
-            accumulator,
-            relativePath,
-            packageName,
-            extractionMode,
-            packageScopeId,
-            fileEntityId,
-            node,
-            currentOwningTypeEntityId,
-            currentOwningQualifiedName,
-            currentOwningTypeSnippet,
-            importsBySimpleName,
-            declaredTypes,
-            extractionContext
-        );
+    private JavaTypeTraversalResult handleTypeNode(JavaTypeNodeRequest request) {
+        return typeDeclarationFlow.handleTypeNode(request);
     }
 
     private final class JavaMemberExtractionFlow {
 
-        JavaMemberExtractionResult handleMemberNode(
-            SourceParseResult parseResult,
-            ExtractionAccumulator accumulator,
-            String relativePath,
-            String packageName,
-            ExtractionMode extractionMode,
-            String fileScopeId,
-            String fileEntityId,
-            SyntaxNode node,
-            String owningTypeEntityId,
-            String owningQualifiedName,
-            String owningTypeSnippet,
-            Map<String, String> importsBySimpleName,
-            Map<String, JavaDeclaredType> declaredTypes,
-            JavaExtractionContext extractionContext
-        ) {
-            if (isJavaFieldDeclaration(node)) {
-                return fieldExtractionFlow.handleFieldNode(
-                    parseResult,
-                    accumulator,
-                    relativePath,
-                    packageName,
-                    extractionMode,
-                    fileScopeId,
-                    fileEntityId,
-                    node,
-                    owningTypeEntityId,
-                    owningQualifiedName,
-                    owningTypeSnippet,
-                    importsBySimpleName,
-                    declaredTypes,
-                    extractionContext
-                );
+        JavaMemberExtractionResult handleMemberNode(JavaMemberNodeRequest request) {
+            if (isJavaFieldDeclaration(request.node())) {
+                return fieldExtractionFlow.handleFieldNode(request);
             }
-            if (isJavaMethodLikeDeclaration(node)) {
-                return methodExtractionFlow.handleMethodNode(
-                    parseResult,
-                    accumulator,
-                    relativePath,
-                    packageName,
-                    extractionMode,
-                    fileScopeId,
-                    fileEntityId,
-                    node,
-                    owningTypeEntityId,
-                    owningQualifiedName,
-                    owningTypeSnippet,
-                    importsBySimpleName,
-                    declaredTypes,
-                    extractionContext
-                );
+            if (isJavaMethodLikeDeclaration(request.node())) {
+                return methodExtractionFlow.handleMethodNode(request);
             }
             return JavaMemberExtractionResult.notHandled();
         }

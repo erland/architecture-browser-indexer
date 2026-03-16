@@ -1,15 +1,10 @@
 package info.isaksson.erland.architecturebrowser.indexer.extract;
 
 import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedEntityFact;
-import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractionMode;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
-import info.isaksson.erland.architecturebrowser.indexer.parse.SourceParseResult;
-import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxNode;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-
 final class JavaFieldExtractionFlow {
 
     private final JavaEntityMapper entityMapper;
@@ -26,55 +21,40 @@ final class JavaFieldExtractionFlow {
         this.jpaFieldSemantics = jpaFieldSemantics;
     }
 
-    JavaMemberExtractionResult handleFieldNode(
-        SourceParseResult parseResult,
-        ExtractionAccumulator accumulator,
-        String relativePath,
-        String packageName,
-        ExtractionMode extractionMode,
-        String fileScopeId,
-        String fileEntityId,
-        SyntaxNode node,
-        String owningTypeEntityId,
-        String owningQualifiedName,
-        String owningTypeSnippet,
-        Map<String, String> importsBySimpleName,
-        Map<String, JavaDeclaredType> declaredTypes,
-        JavaExtractionContext extractionContext
-    ) {
+    JavaMemberExtractionResult handleFieldNode(JavaMemberNodeRequest request) {
         List<String> emittedEntityIds = new ArrayList<>();
         int emittedRelationshipCount = 0;
-        for (ExtractedEntityFact fieldEntity : entityMapper.toFieldEntities(parseResult, relativePath, extractionMode, fileScopeId, node, owningQualifiedName)) {
+        for (ExtractedEntityFact fieldEntity : entityMapper.toFieldEntities(request.parseResult(), request.relativePath(), request.extractionMode(), request.fileScopeId(), request.node(), request.ownerContext().owningQualifiedName())) {
             emittedEntityIds.add(fieldEntity.id());
-            accumulator.addEntity(fieldEntity);
+            request.accumulator().addEntity(fieldEntity);
             SourceReference ref = fieldEntity.sourceRefs().isEmpty() ? null : fieldEntity.sourceRefs().getFirst();
-            String dependencySourceEntityId = owningTypeEntityId == null ? fileEntityId : owningTypeEntityId;
-            accumulator.addRelationship(ExtractionSupport.containsRelationship(
+            String dependencySourceEntityId = request.ownerContext().owningTypeEntityId() == null ? request.fileEntityId() : request.ownerContext().owningTypeEntityId();
+            request.accumulator().addRelationship(ExtractionSupport.containsRelationship(
                 dependencySourceEntityId,
                 fieldEntity.id(),
                 ref
             ));
             emittedRelationshipCount++;
             dependencyEmissionFlow.addFieldDeclaredTypeDependencies(
-                accumulator,
+                request.accumulator(),
                 dependencySourceEntityId,
                 String.valueOf(fieldEntity.metadata().getOrDefault("declaredType", "")),
-                relativePath,
-                packageName,
-                JavaSyntaxTreeExtractionStage.lineOf(ref, node),
+                request.relativePath(),
+                request.packageName(),
+                JavaSyntaxTreeExtractionStage.lineOf(ref, request.node()),
                 ref,
-                importsBySimpleName,
-                declaredTypes
+                request.importsBySimpleName(),
+                request.declaredTypes()
             );
             jpaFieldSemantics.apply(
-                accumulator,
+                request.accumulator(),
                 new JavaFieldContext(
-                    extractionContext,
-                    node,
+                    request.extractionContext(),
+                    request.node(),
                     fieldEntity,
-                    owningTypeEntityId,
-                    owningQualifiedName,
-                    owningTypeSnippet
+                    request.ownerContext().owningTypeEntityId(),
+                    request.ownerContext().owningQualifiedName(),
+                    request.ownerContext().owningTypeSnippet()
                 )
             );
         }

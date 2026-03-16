@@ -1,14 +1,9 @@
 package info.isaksson.erland.architecturebrowser.indexer.extract;
 
 import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedEntityFact;
-import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractionMode;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
-import info.isaksson.erland.architecturebrowser.indexer.parse.SourceParseResult;
-import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxNode;
 
 import java.util.List;
-import java.util.Map;
-
 final class JavaMethodExtractionFlow {
 
     private final JavaEntityMapper entityMapper;
@@ -25,30 +20,15 @@ final class JavaMethodExtractionFlow {
         this.methodSemanticsFlow = methodSemanticsFlow;
     }
 
-    JavaMemberExtractionResult handleMethodNode(
-        SourceParseResult parseResult,
-        ExtractionAccumulator accumulator,
-        String relativePath,
-        String packageName,
-        ExtractionMode extractionMode,
-        String fileScopeId,
-        String fileEntityId,
-        SyntaxNode node,
-        String owningTypeEntityId,
-        String owningQualifiedName,
-        String owningTypeSnippet,
-        Map<String, String> importsBySimpleName,
-        Map<String, JavaDeclaredType> declaredTypes,
-        JavaExtractionContext extractionContext
-    ) {
-        ExtractedEntityFact methodEntity = entityMapper.toMethodEntity(parseResult, relativePath, extractionMode, fileScopeId, node, owningQualifiedName);
+    JavaMemberExtractionResult handleMethodNode(JavaMemberNodeRequest request) {
+        ExtractedEntityFact methodEntity = entityMapper.toMethodEntity(request.parseResult(), request.relativePath(), request.extractionMode(), request.fileScopeId(), request.node(), request.ownerContext().owningQualifiedName());
         if (methodEntity == null) {
             return JavaMemberExtractionResult.notHandled();
         }
-        accumulator.addEntity(methodEntity);
+        request.accumulator().addEntity(methodEntity);
         SourceReference ref = methodEntity.sourceRefs().isEmpty() ? null : methodEntity.sourceRefs().getFirst();
-        String dependencySourceEntityId = owningTypeEntityId == null ? fileEntityId : owningTypeEntityId;
-        accumulator.addRelationship(ExtractionSupport.containsRelationship(
+        String dependencySourceEntityId = request.ownerContext().owningTypeEntityId() == null ? request.fileEntityId() : request.ownerContext().owningTypeEntityId();
+        request.accumulator().addRelationship(ExtractionSupport.containsRelationship(
             dependencySourceEntityId,
             methodEntity.id(),
             ref
@@ -56,41 +36,41 @@ final class JavaMethodExtractionFlow {
         String returnType = String.valueOf(methodEntity.metadata().getOrDefault("returnType", ""));
         if (!returnType.isBlank()) {
             dependencyEmissionFlow.addMethodReturnTypeDependencies(
-                accumulator,
+                request.accumulator(),
                 dependencySourceEntityId,
                 returnType,
-                relativePath,
-                packageName,
-                JavaSyntaxTreeExtractionStage.lineOf(ref, node),
+                request.relativePath(),
+                request.packageName(),
+                JavaSyntaxTreeExtractionStage.lineOf(ref, request.node()),
                 ref,
-                importsBySimpleName,
-                declaredTypes
+                request.importsBySimpleName(),
+                request.declaredTypes()
             );
         }
         @SuppressWarnings("unchecked")
         List<String> parameterTypes = (List<String>) methodEntity.metadata().getOrDefault("parameterTypes", List.of());
         if (!parameterTypes.isEmpty()) {
             dependencyEmissionFlow.addMethodParameterDependencies(
-                accumulator,
+                request.accumulator(),
                 dependencySourceEntityId,
                 parameterTypes,
                 JavaSyntaxTreeExtractionStage.isConstructor(methodEntity),
-                relativePath,
-                packageName,
-                JavaSyntaxTreeExtractionStage.lineOf(ref, node),
+                request.relativePath(),
+                request.packageName(),
+                JavaSyntaxTreeExtractionStage.lineOf(ref, request.node()),
                 ref,
-                importsBySimpleName,
-                declaredTypes
+                request.importsBySimpleName(),
+                request.declaredTypes()
             );
         }
         methodSemanticsFlow.applyMethodSemantics(
-            accumulator,
-            extractionContext,
-            node,
+            request.accumulator(),
+            request.extractionContext(),
+            request.node(),
             methodEntity,
-            owningTypeEntityId,
-            owningQualifiedName,
-            owningTypeSnippet
+            request.ownerContext().owningTypeEntityId(),
+            request.ownerContext().owningQualifiedName(),
+            request.ownerContext().owningTypeSnippet()
         );
         return JavaMemberExtractionResult.handled(List.of(methodEntity.id()), 1);
     }

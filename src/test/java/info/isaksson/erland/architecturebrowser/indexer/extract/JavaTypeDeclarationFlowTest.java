@@ -49,7 +49,7 @@ class JavaTypeDeclarationFlowTest {
         field.setAccessible(true);
         JavaTypeDeclarationFlow flow = (JavaTypeDeclarationFlow) field.get(stage);
 
-        JavaTypeTraversalResult result = flow.handleTypeNode(
+        JavaTypeTraversalResult result = flow.handleTypeNode(new JavaTypeNodeRequest(
             parseResult,
             accumulator,
             relativePath,
@@ -58,13 +58,11 @@ class JavaTypeDeclarationFlowTest {
             "scope:package:com.example.orders",
             "entity:file:OrderService.java",
             node,
-            null,
-            null,
-            null,
+            JavaOwnerContext.root(),
             Map.of(),
             Map.of(),
             context
-        );
+        ));
 
         assertTrue(result.handled());
         assertEquals("class OrderService extends BaseService implements OrdersPort {}", result.owningTypeSnippet());

@@ -1,16 +1,26 @@
 package info.isaksson.erland.architecturebrowser.indexer.extract;
 
 record JavaTypeTraversalResult(
-    String owningTypeEntityId,
-    String owningQualifiedName,
-    String owningTypeSnippet,
+    JavaOwnerContext ownerContext,
     boolean handled
 ) {
-    static JavaTypeTraversalResult notHandled(String owningTypeEntityId, String owningQualifiedName, String owningTypeSnippet) {
-        return new JavaTypeTraversalResult(owningTypeEntityId, owningQualifiedName, owningTypeSnippet, false);
+    static JavaTypeTraversalResult notHandled(JavaOwnerContext ownerContext) {
+        return new JavaTypeTraversalResult(ownerContext, false);
     }
 
-    static JavaTypeTraversalResult handled(String owningTypeEntityId, String owningQualifiedName, String owningTypeSnippet) {
-        return new JavaTypeTraversalResult(owningTypeEntityId, owningQualifiedName, owningTypeSnippet, true);
+    static JavaTypeTraversalResult handled(JavaOwnerContext ownerContext) {
+        return new JavaTypeTraversalResult(ownerContext, true);
+    }
+
+    String owningTypeEntityId() {
+        return ownerContext == null ? null : ownerContext.owningTypeEntityId();
+    }
+
+    String owningQualifiedName() {
+        return ownerContext == null ? null : ownerContext.owningQualifiedName();
+    }
+
+    String owningTypeSnippet() {
+        return ownerContext == null ? null : ownerContext.owningTypeSnippet();
     }
 }
