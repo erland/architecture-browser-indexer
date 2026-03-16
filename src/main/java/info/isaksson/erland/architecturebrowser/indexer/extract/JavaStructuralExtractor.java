@@ -254,6 +254,18 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                     importsBySimpleName,
                     declaredTypes
                 );
+                addCdiEventFacts(
+                    accumulator,
+                    relativePath,
+                    packageName,
+                    node,
+                    methodEntity,
+                    currentOwningTypeEntityId,
+                    currentOwningQualifiedName,
+                    currentOwningTypeSnippet,
+                    importsBySimpleName,
+                    declaredTypes
+                );
             }
         }
 
@@ -758,6 +770,223 @@ final class JavaStructuralExtractor implements StructuralExtractor {
     }
 
 
+
+    private void addCdiEventFacts(
+        ExtractionAccumulator accumulator,
+        String relativePath,
+        String packageName,
+        SyntaxNode methodNode,
+        ExtractedEntityFact methodEntity,
+        String ownerTypeEntityId,
+        String ownerQualifiedName,
+        String ownerTypeSnippet,
+        Map<String, String> importsBySimpleName,
+        Map<String, DeclaredJavaType> declaredTypes
+    ) {
+        if (methodEntity == null || ownerTypeEntityId == null || ownerQualifiedName == null || ownerQualifiedName.isBlank()) {
+            return;
+        }
+        String snippet = methodEntity.sourceRefs().isEmpty() ? (methodNode == null ? "" : methodNode.textSnippet()) : methodEntity.sourceRefs().getFirst().snippet();
+        if ((snippet == null || snippet.isBlank()) && methodNode != null) {
+            snippet = methodNode.textSnippet();
+        }
+        SourceReference ref = methodEntity.sourceRefs().isEmpty()
+            ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(methodNode), snippet, Map.of("language", "java", "kind", methodNode == null ? "method_declaration" : methodNode.type()))
+            : methodEntity.sourceRefs().getFirst();
+
+        LinkedHashMap<String, Object> methodMetadata = new LinkedHashMap<>(methodEntity.metadata());
+        boolean methodChanged = false;
+
+        for (PublishedCdiEvent publication : detectCdiPublishedEvents(snippet, ownerTypeSnippet)) {
+            ResolvedJavaType target = resolveJavaTypeReference(
+                accumulator,
+                publication.eventType(),
+                EntityKind.CLASS,
+                relativePath,
+                packageName,
+                lineOf(ref, methodNode),
+                importsBySimpleName,
+                declaredTypes
+            );
+            if (target == null) {
+                continue;
+            }
+            LinkedHashMap<String, Object> relationshipMetadata = new LinkedHashMap<>();
+            relationshipMetadata.put("framework", "cdi");
+            relationshipMetadata.put("relationshipType", "publishesEvent");
+            relationshipMetadata.put("frameworkRelationship", "publishesEvent");
+            relationshipMetadata.put("eventType", target.label());
+            relationshipMetadata.put("publisherMethod", methodEntity.name());
+            relationshipMetadata.put("publisherQualifiedName", ownerQualifiedName);
+            relationshipMetadata.put("publisherAsync", publication.async());
+            if (publication.publisherField() != null && !publication.publisherField().isBlank()) {
+                relationshipMetadata.put("publisherField", publication.publisherField());
+            }
+            accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
+                ownerTypeEntityId,
+                target.entityId(),
+                target.label(),
+                ref,
+                "java",
+                Map.copyOf(relationshipMetadata)
+            ));
+            LinkedHashMap<String, Object> methodRelationshipMetadata = new LinkedHashMap<>(relationshipMetadata);
+            methodRelationshipMetadata.put("ownerMemberKind", "method");
+            methodRelationshipMetadata.put("ownerMemberName", methodEntity.name());
+            accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
+                methodEntity.id(),
+                target.entityId(),
+                target.label(),
+                ref,
+                "java",
+                Map.copyOf(methodRelationshipMetadata)
+            ));
+            methodMetadata.put("framework", "cdi");
+            methodMetadata.put("cdiEventPublisher", true);
+            methodMetadata.put("cdiPublishedEventType", target.label());
+            methodMetadata.put("cdiPublisherAsync", publication.async());
+            methodChanged = true;
+        }
+
+        Optional<ObservedCdiEvent> observer = detectCdiObservedEvent(methodEntity, snippet);
+        if (observer.isPresent()) {
+            ObservedCdiEvent observed = observer.get();
+            ResolvedJavaType target = resolveJavaTypeReference(
+                accumulator,
+                observed.eventType(),
+                EntityKind.CLASS,
+                relativePath,
+                packageName,
+                lineOf(ref, methodNode),
+                importsBySimpleName,
+                declaredTypes
+            );
+            if (target != null) {
+                LinkedHashMap<String, Object> eventToObserverMetadata = new LinkedHashMap<>();
+                eventToObserverMetadata.put("framework", "cdi");
+                eventToObserverMetadata.put("relationshipType", "eventObservedBy");
+                eventToObserverMetadata.put("frameworkRelationship", "observesEvent");
+                eventToObserverMetadata.put("eventType", target.label());
+                eventToObserverMetadata.put("observerQualifiedName", ownerQualifiedName);
+                eventToObserverMetadata.put("observerMethod", methodEntity.name());
+                eventToObserverMetadata.put("observerAsync", observed.async());
+                if (!observed.qualifiers().isEmpty()) {
+                    eventToObserverMetadata.put("observerQualifiers", observed.qualifiers());
+                }
+                accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
+                    target.entityId(),
+                    ownerTypeEntityId,
+                    ownerQualifiedName,
+                    ref,
+                    "java",
+                    Map.copyOf(eventToObserverMetadata)
+                ));
+                LinkedHashMap<String, Object> methodToEventMetadata = new LinkedHashMap<>();
+                methodToEventMetadata.put("framework", "cdi");
+                methodToEventMetadata.put("relationshipType", "observesEvent");
+                methodToEventMetadata.put("frameworkRelationship", "observesEvent");
+                methodToEventMetadata.put("eventType", target.label());
+                methodToEventMetadata.put("observerAsync", observed.async());
+                methodToEventMetadata.put("ownerMemberKind", "method");
+                methodToEventMetadata.put("ownerMemberName", methodEntity.name());
+                if (!observed.qualifiers().isEmpty()) {
+                    methodToEventMetadata.put("observerQualifiers", observed.qualifiers());
+                }
+                accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
+                    methodEntity.id(),
+                    target.entityId(),
+                    target.label(),
+                    ref,
+                    "java",
+                    Map.copyOf(methodToEventMetadata)
+                ));
+                methodMetadata.put("framework", "cdi");
+                methodMetadata.put("cdiObserver", true);
+                methodMetadata.put("cdiObservedEventType", target.label());
+                methodMetadata.put("observerAsync", observed.async());
+                methodMetadata.put("observerQualifiers", observed.qualifiers());
+                methodChanged = true;
+            }
+        }
+
+        if (methodChanged) {
+            accumulator.addEntity(new ExtractedEntityFact(
+                methodEntity.id(),
+                methodEntity.kind(),
+                methodEntity.origin(),
+                methodEntity.name(),
+                methodEntity.displayName(),
+                methodEntity.scopeId(),
+                List.of(ref),
+                Map.copyOf(methodMetadata)
+            ));
+        }
+    }
+
+    private static List<PublishedCdiEvent> detectCdiPublishedEvents(String methodSnippet, String ownerTypeSnippet) {
+        if (methodSnippet == null || methodSnippet.isBlank()) {
+            return List.of();
+        }
+        java.util.LinkedHashMap<String, PublishedCdiEvent> events = new java.util.LinkedHashMap<>();
+        Matcher matcher = Pattern.compile("([A-Za-z_$][\\w$]*)\\s*\\.\\s*(fireAsync|fire)\\s*\\((.*?)\\)", Pattern.DOTALL).matcher(methodSnippet);
+        while (matcher.find()) {
+            String publisherField = matcher.group(1);
+            boolean async = "fireAsync".equals(matcher.group(2));
+            String args = matcher.group(3) == null ? "" : matcher.group(3);
+            String eventType = extractCdiEventTypeFromField(ownerTypeSnippet, publisherField)
+                .or(() -> extractCdiEventTypeFromArguments(args))
+                .orElse(null);
+            if (eventType == null || eventType.isBlank()) {
+                continue;
+            }
+            events.putIfAbsent(publisherField + ":" + eventType + ":" + async, new PublishedCdiEvent(eventType, async, publisherField));
+        }
+        return List.copyOf(events.values());
+    }
+
+    private static Optional<String> extractCdiEventTypeFromField(String ownerTypeSnippet, String publisherField) {
+        if (ownerTypeSnippet == null || ownerTypeSnippet.isBlank() || publisherField == null || publisherField.isBlank()) {
+            return Optional.empty();
+        }
+        Matcher matcher = Pattern.compile("(?:^|[;{}\\s])(?:@[A-Za-z_][\\w.]*\\s*(?:\\([^)]*\\))?\\s*)*(?:public|protected|private)?\\s*(?:static\\s+|final\\s+|transient\\s+)*?(?:[A-Za-z_][\\w.]*\\.)?Event\\s*<\\s*([^>]+?)\\s*>\\s+" + Pattern.quote(publisherField) + "\\b", Pattern.DOTALL).matcher(ownerTypeSnippet);
+        if (matcher.find()) {
+            return Optional.ofNullable(matcher.group(1)).map(String::trim).filter(value -> !value.isBlank());
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<String> extractCdiEventTypeFromArguments(String args) {
+        if (args == null || args.isBlank()) {
+            return Optional.empty();
+        }
+        Matcher constructorMatcher = Pattern.compile("new\\s+([A-Za-z_$][\\w.$]*)\\b").matcher(args);
+        if (constructorMatcher.find()) {
+            return Optional.of(constructorMatcher.group(1));
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<ObservedCdiEvent> detectCdiObservedEvent(ExtractedEntityFact methodEntity, String snippet) {
+        String parameters = String.valueOf(methodEntity.metadata().getOrDefault("parameters", ""));
+        if (parameters == null || parameters.isBlank() || "()".equals(parameters.strip())) {
+            parameters = snippet;
+        }
+        if (parameters == null || parameters.isBlank()) {
+            return Optional.empty();
+        }
+        String normalized = parameters.replace('\n', ' ').replace('\r', ' ');
+        Matcher matcher = Pattern.compile("((?:@[A-Za-z_][\\w.]*\\s*(?:\\([^)]*\\))?\\s*)*)@(?:[A-Za-z_][\\w.]*\\.)?(ObservesAsync|Observes)\\b(?:\\s*\\([^)]*\\))?\\s+([A-Za-z_$][\\w.$<>]*)").matcher(normalized);
+        if (!matcher.find()) {
+            return Optional.empty();
+        }
+        boolean async = "ObservesAsync".equals(matcher.group(2));
+        String eventType = matcher.group(3) == null ? "" : matcher.group(3).trim();
+        String annotationPrefix = matcher.group(1) == null ? "" : matcher.group(1);
+        java.util.LinkedHashSet<String> qualifiers = new java.util.LinkedHashSet<>(SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(annotationPrefix));
+        qualifiers.removeIf(value -> value == null || value.endsWith("Observes") || value.endsWith("ObservesAsync"));
+        return eventType.isBlank() ? Optional.empty() : Optional.of(new ObservedCdiEvent(eventType, async, List.copyOf(qualifiers)));
+    }
+
     private void addJpaInheritanceFacts(
         ExtractionAccumulator accumulator,
         String relativePath,
@@ -1162,6 +1391,12 @@ final class JavaStructuralExtractor implements StructuralExtractor {
     }
 
     private record ResolvedJavaType(String entityId, String label, EntityKind kind) {
+    }
+
+    private record PublishedCdiEvent(String eventType, boolean async, String publisherField) {
+    }
+
+    private record ObservedCdiEvent(String eventType, boolean async, List<String> qualifiers) {
     }
 
 
