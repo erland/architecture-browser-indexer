@@ -31,6 +31,8 @@ final class JavaSyntaxTreeExtractionStage {
     private final JavaJpaSemantics jpaSemantics = new JavaJpaSemantics();
     private final JavaCdiSemantics cdiSemantics = new JavaCdiSemantics();
     private final JavaWritePathSemantics writePathSemantics = new JavaWritePathSemantics();
+    private final JavaTypeSemanticsFlow typeSemanticsFlow = new JavaTypeSemanticsFlow(jaxRsSemantics, jpaSemantics);
+    private final JavaMethodSemanticsFlow methodSemanticsFlow = new JavaMethodSemanticsFlow(jaxRsSemantics, jpaSemantics, cdiSemantics, writePathSemantics);
     private final JavaMemberExtractionFlow memberExtractionFlow = new JavaMemberExtractionFlow();
 
     ParseLanguage language() {
@@ -248,9 +250,8 @@ final class JavaSyntaxTreeExtractionStage {
         SourceReference ref = typeEntity.sourceRefs().isEmpty() ? null : typeEntity.sourceRefs().getFirst();
         accumulator.addRelationship(ExtractionSupport.containsRelationship(fileEntityId, typeEntity.id(), ref));
         dependencyEmissionFlow.addTypeRelationships(accumulator, relativePath, packageName, node, typeEntity, importsBySimpleName, declaredTypes);
-        addJaxRsResourceMetadata(accumulator, new JavaTypeContext(extractionContext, node, typeEntity));
-        addJpaTypeMetadata(accumulator, new JavaTypeContext(extractionContext, node, typeEntity));
-        addJpaInheritanceFacts(
+        typeSemanticsFlow.applyTypeSemantics(accumulator, new JavaTypeContext(extractionContext, node, typeEntity));
+        typeSemanticsFlow.applyJpaInheritanceFacts(
             accumulator,
             relativePath,
             packageName,
@@ -367,7 +368,7 @@ final class JavaSyntaxTreeExtractionStage {
                     importsBySimpleName,
                     declaredTypes
                 );
-                addJpaFieldFacts(
+                jpaSemantics.addJpaFieldFacts(
                     accumulator,
                     new JavaFieldContext(
                         extractionContext,
@@ -440,7 +441,8 @@ final class JavaSyntaxTreeExtractionStage {
                     declaredTypes
                 );
             }
-            JavaMethodContext methodContext = javaMethodContext(
+            methodSemanticsFlow.applyMethodSemantics(
+                accumulator,
                 extractionContext,
                 node,
                 methodEntity,
@@ -448,79 +450,8 @@ final class JavaSyntaxTreeExtractionStage {
                 owningQualifiedName,
                 owningTypeSnippet
             );
-            addJaxRsEndpointFacts(accumulator, methodContext);
-            addJpaMethodFacts(accumulator, methodContext);
-            addCdiEventFacts(accumulator, methodContext);
-            addWritePathFacts(accumulator, methodContext);
             return JavaMemberExtractionResult.handled(List.of(methodEntity.id()), 1);
         }
-    }
-
-    private void addJaxRsResourceMetadata(ExtractionAccumulator accumulator, JavaTypeContext typeContext) {
-        jaxRsSemantics.addJaxRsResourceMetadata(accumulator, typeContext);
-    }
-
-    private void addJaxRsEndpointFacts(ExtractionAccumulator accumulator, JavaMethodContext methodContext) {
-        jaxRsSemantics.addJaxRsEndpointFacts(accumulator, methodContext);
-    }
-
-    private static String typeNodeSnippet(SyntaxNode typeNode, ExtractedEntityFact typeEntity) {
-        if (typeEntity != null && !typeEntity.sourceRefs().isEmpty() && typeEntity.sourceRefs().getFirst().snippet() != null) {
-            return typeEntity.sourceRefs().getFirst().snippet();
-        }
-        return typeNode == null ? "" : typeNode.textSnippet();
-    }
-
-    private void addJpaTypeMetadata(ExtractionAccumulator accumulator, JavaTypeContext typeContext) {
-        jpaSemantics.addJpaTypeMetadata(accumulator, typeContext);
-    }
-
-    private void addJpaFieldFacts(ExtractionAccumulator accumulator, JavaFieldContext fieldContext) {
-        jpaSemantics.addJpaFieldFacts(accumulator, fieldContext);
-    }
-
-    private void addJpaMethodFacts(ExtractionAccumulator accumulator, JavaMethodContext methodContext) {
-        jpaSemantics.addJpaMethodFacts(accumulator, methodContext);
-    }
-
-    private void addCdiEventFacts(ExtractionAccumulator accumulator, JavaMethodContext methodContext) {
-        cdiSemantics.addCdiEventFacts(accumulator, methodContext);
-    }
-
-    private void addWritePathFacts(ExtractionAccumulator accumulator, JavaMethodContext methodContext) {
-        writePathSemantics.addWritePathFacts(accumulator, methodContext);
-    }
-
-    private JavaMethodContext javaMethodContext(
-        JavaExtractionContext extractionContext,
-        SyntaxNode methodNode,
-        ExtractedEntityFact methodEntity,
-        String ownerTypeEntityId,
-        String ownerQualifiedName,
-        String ownerTypeSnippet
-    ) {
-        String snippet = methodEntity.sourceRefs().isEmpty() ? (methodNode == null ? "" : methodNode.textSnippet()) : methodEntity.sourceRefs().getFirst().snippet();
-        if ((snippet == null || snippet.isBlank()) && methodNode != null) {
-            snippet = methodNode.textSnippet();
-        }
-        SourceReference ref = methodEntity.sourceRefs().isEmpty()
-            ? ExtractionSupport.sourceRef(
-                extractionContext.relativePath(),
-                SyntaxTreeExtractionSupport.oneBasedLine(methodNode),
-                snippet,
-                Map.of("language", "java", "kind", methodNode == null ? "method_declaration" : methodNode.type())
-            )
-            : methodEntity.sourceRefs().getFirst();
-        return new JavaMethodContext(
-            extractionContext,
-            methodNode,
-            methodEntity,
-            ownerTypeEntityId,
-            ownerQualifiedName,
-            ownerTypeSnippet,
-            ref,
-            snippet
-        );
     }
 
     private static List<DetectedWritePath> detectJpaWriteOperations(ExtractedEntityFact methodEntity, String snippet) {
@@ -714,18 +645,6 @@ final class JavaSyntaxTreeExtractionStage {
         java.util.LinkedHashSet<String> qualifiers = new java.util.LinkedHashSet<>(SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(annotationPrefix));
         qualifiers.removeIf(value -> value == null || value.endsWith("Observes") || value.endsWith("ObservesAsync"));
         return eventType.isBlank() ? Optional.empty() : Optional.of(new ObservedCdiEvent(eventType, async, List.copyOf(qualifiers)));
-    }
-
-    private void addJpaInheritanceFacts(
-        ExtractionAccumulator accumulator,
-        String relativePath,
-        String packageName,
-        SyntaxNode typeNode,
-        ExtractedEntityFact typeEntity,
-        Map<String, String> importsBySimpleName,
-        Map<String, JavaDeclaredType> declaredTypes
-    ) {
-        jpaSemantics.addJpaInheritanceFacts(accumulator, relativePath, packageName, typeNode, typeEntity, importsBySimpleName, declaredTypes);
     }
 
     private ResolvedJavaType resolveJavaTypeReference(
@@ -1151,8 +1070,8 @@ final class JavaSyntaxTreeExtractionStage {
     }
 
 
-    private final class JavaJaxRsSemantics {
-private void addJaxRsResourceMetadata(
+    final class JavaJaxRsSemantics {
+void addJaxRsResourceMetadata(
         ExtractionAccumulator accumulator,
         JavaTypeContext typeContext
     ) {
@@ -1184,7 +1103,7 @@ private void addJaxRsResourceMetadata(
         ));
     }
 
-private void addJaxRsEndpointFacts(
+void addJaxRsEndpointFacts(
         ExtractionAccumulator accumulator,
         JavaMethodContext methodContext
     ) {
@@ -1264,13 +1183,13 @@ private void addJaxRsEndpointFacts(
     }
     }
 
-    private final class JavaJpaSemantics {
-private void addJpaTypeMetadata(
+    final class JavaJpaSemantics {
+void addJpaTypeMetadata(
         ExtractionAccumulator accumulator,
         JavaTypeContext typeContext
     ) {
         String relativePath = typeContext.extractionContext().relativePath();
-        String typeSnippet = typeNodeSnippet(typeContext.typeNode(), typeContext.typeEntity());
+        String typeSnippet = JavaTypeSemanticsFlow.typeNodeSnippet(typeContext.typeNode(), typeContext.typeEntity());
         ExtractedEntityFact typeEntity = typeContext.typeEntity();
         if (typeEntity == null || typeEntity.kind() != EntityKind.CLASS || !isJpaPersistentType(typeSnippet, typeEntity)) {
             return;
@@ -1299,7 +1218,7 @@ private void addJpaTypeMetadata(
         ));
     }
 
-private void addJpaFieldFacts(
+void addJpaFieldFacts(
         ExtractionAccumulator accumulator,
         JavaFieldContext fieldContext
     ) {
@@ -1443,7 +1362,7 @@ private void addJpaFieldFacts(
         }
     }
 
-private void addJpaMethodFacts(
+void addJpaMethodFacts(
         ExtractionAccumulator accumulator,
         JavaMethodContext methodContext
     ) {
@@ -1620,7 +1539,7 @@ private void addJpaMethodFacts(
         }
     }
 
-private void addJpaInheritanceFacts(
+void addJpaInheritanceFacts(
         ExtractionAccumulator accumulator,
         String relativePath,
         String packageName,
@@ -1629,7 +1548,7 @@ private void addJpaInheritanceFacts(
         Map<String, String> importsBySimpleName,
         Map<String, JavaDeclaredType> declaredTypes
     ) {
-        String typeSnippet = typeNodeSnippet(typeNode, typeEntity);
+        String typeSnippet = JavaTypeSemanticsFlow.typeNodeSnippet(typeNode, typeEntity);
         if (typeEntity == null || !isJpaPersistentType(typeSnippet, typeEntity)) {
             return;
         }
@@ -1654,8 +1573,8 @@ private void addJpaInheritanceFacts(
     }
     }
 
-    private final class JavaCdiSemantics {
-private void addCdiEventFacts(
+    final class JavaCdiSemantics {
+void addCdiEventFacts(
         ExtractionAccumulator accumulator,
         JavaMethodContext methodContext
     ) {
@@ -1812,8 +1731,8 @@ private void addCdiEventFacts(
     }
     }
 
-    private final class JavaWritePathSemantics {
-private void addWritePathFacts(
+    final class JavaWritePathSemantics {
+void addWritePathFacts(
         ExtractionAccumulator accumulator,
         JavaMethodContext methodContext
     ) {

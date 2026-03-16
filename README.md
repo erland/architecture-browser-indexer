@@ -288,3 +288,12 @@ A compact summary of the completed refactoring phase is available in:
 ## Priority 3 status
 
 Priority 3 hotspot reduction is now structurally complete through Step 10. The Java extraction and IR assembly seams now have focused hardening tests and a final continuation note in `docs/priority3-step10-final-hardening.md`.
+
+
+## Priority 1 refactor status
+
+The internal hotspot cleanup now leaves the remaining large classes in a more orchestration-first shape:
+- `JavaSyntaxTreeExtractionStage` coordinates traversal, member extraction, dependency emission, and dedicated semantic flows.
+- `ArchitectureIrAssemblyCompositionSupport` coordinates dependency normalization and delegates final dependency-view shaping to a dedicated post-processor.
+
+Continuation should now focus on smaller helper reductions and test hardening rather than further broad structural moves.
