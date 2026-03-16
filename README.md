@@ -142,6 +142,33 @@ Step 12 adds worker mode and container deployment assets. The CLI can now run fr
 Step 13 expands the regression suite and hardens extension seams so extractors, interpretation rules, topology resolution, and export targets can be extended with less core-code churn.
 
 
+
+
+## Java backend semantics phase 1
+
+The repository now includes a first architect-facing Java backend semantics layer for deterministic analysis of:
+
+- JAX-RS resources and endpoints
+- JPA entity-model relationships
+- CDI event publication and observer flows
+- service/repository write paths
+- backend-specific browser/export dependency views
+
+Key regression coverage added during this phase:
+
+- `JavaBackendFrameworkBaselineRegressionTest`
+- `JavaJaxRsEndpointRegressionTest`
+- `JavaJpaEntityModelRegressionTest`
+- `JavaCdiEventGraphRegressionTest`
+- `JavaWritePathRegressionTest`
+- `JavaFrameworkTopologyRegressionTest`
+- `JavaFrameworkBrowserViewsRegressionTest`
+- `JavaBackendArchitectureEndToEndFixtureRegressionTest`
+
+A compact continuation summary is available in:
+
+- `docs/java-backend-semantics-phase1-summary.md`
+
 ## HTTP worker service
 
 Step 14 adds a thin HTTP worker wrapper around the existing worker-mode pipeline.
