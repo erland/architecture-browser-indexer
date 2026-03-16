@@ -177,7 +177,7 @@ final class ArchitectureIrAssemblyStateBuilder {
                 relationshipsById.put(relationship.id(), relationship);
             }
         }
-        List<ArchitectureRelationship> relationships = ArchitectureIrAssemblyCompositionSupport.enrichDependencyRelationshipMetadata(
+        List<ArchitectureRelationship> relationships = ArchitectureIrDependencyRelationshipEnricher.enrichDependencyRelationshipMetadata(
             List.copyOf(relationshipsById.values()),
             entitiesById,
             observedTypesByQualifiedName

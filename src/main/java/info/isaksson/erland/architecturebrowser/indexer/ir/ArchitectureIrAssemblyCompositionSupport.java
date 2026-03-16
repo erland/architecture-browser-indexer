@@ -25,96 +25,11 @@ final class ArchitectureIrAssemblyCompositionSupport {
         Map<String, ArchitectureEntity> entitiesById,
         Map<String, ArchitectureEntity> observedTypesByQualifiedName
     ) {
-        List<ArchitectureRelationship> enriched = new ArrayList<>(relationships.size());
-        for (ArchitectureRelationship relationship : relationships) {
-            ArchitectureEntity source = canonicalDependencyEntity(entitiesById.get(relationship.fromEntityId()), observedTypesByQualifiedName);
-            ArchitectureEntity target = canonicalDependencyEntity(entitiesById.get(relationship.toEntityId()), observedTypesByQualifiedName);
-            boolean packageRollup = hasRollup(relationship, "package-package");
-            boolean moduleRollup = hasRollup(relationship, "module-module");
-            boolean dependencyRelationship = isDependencyRelationship(relationship.kind());
-            boolean packageDependencyRelationship = packageRollup || isPackageDependencyRelationship(relationship, source, target);
-            boolean moduleDependencyRelationship = moduleRollup || isModuleDependencyRelationship(relationship, source, target);
-            if (!dependencyRelationship && !packageDependencyRelationship && !moduleDependencyRelationship) {
-                enriched.add(relationship);
-                continue;
-            }
-            Map<String, Object> metadata = ArchitectureIrDependencyMetadataSupport.mutableCopy(relationship.metadata());
-            if (isTypeDependencyRelationship(relationship, source, target)) {
-                metadata.put("dependencyView", "type");
-                metadata.put("dependencySourceTypeId", source == null ? relationship.fromEntityId() : source.id());
-                metadata.put("dependencyTargetTypeId", target == null ? relationship.toEntityId() : target.id());
-                metadata.put("dependencySourceBoundary", boundaryForEntity(source));
-                metadata.put("dependencyTargetBoundary", boundaryForEntity(target));
-                metadata.put("dependencyTargetInternal", isInternalEntity(target));
-                metadata.put("dependencyTargetExternal", isExternalEntity(target));
-                metadata.put("dependencyTargetClassification", typeClassificationForEntity(target));
-                String sourcePackageName = packageNameForDependencyEntity(source);
-                String targetPackageName = packageNameForDependencyEntity(target);
-                if (sourcePackageName != null) {
-                    metadata.put("dependencySourcePackageName", sourcePackageName);
-                    metadata.put("dependencySourcePackageBoundary", packageBoundaryForName(sourcePackageName, entitiesById));
-                }
-                if (targetPackageName != null) {
-                    metadata.put("dependencyTargetPackageName", targetPackageName);
-                    metadata.put("dependencyTargetPackageBoundary", packageBoundaryForName(targetPackageName, entitiesById));
-                    metadata.put("dependencyTargetPackageClassification", packageClassificationForName(targetPackageName, entitiesById));
-                }
-            } else if (packageDependencyRelationship) {
-                metadata.put("dependencyView", "package");
-                metadata.put("dependencySourcePackageId", relationship.fromEntityId());
-                metadata.put("dependencyTargetPackageId", relationship.toEntityId());
-                String sourcePackageName = source == null ? null : source.name();
-                String targetPackageName = target == null ? null : target.name();
-                if (sourcePackageName != null) {
-                    metadata.put("dependencySourcePackageName", sourcePackageName);
-                    metadata.put("dependencySourcePackageBoundary", packageBoundaryForName(sourcePackageName, entitiesById));
-                }
-                if (targetPackageName != null) {
-                    metadata.put("dependencyTargetPackageName", targetPackageName);
-                    metadata.put("dependencyTargetPackageBoundary", packageBoundaryForName(targetPackageName, entitiesById));
-                    metadata.put("dependencyTargetPackageClassification", packageClassificationForName(targetPackageName, entitiesById));
-                }
-                metadata.put("dependencyTargetBoundary", targetPackageName == null ? "unknown" : packageBoundaryForName(targetPackageName, entitiesById));
-            } else if (moduleDependencyRelationship) {
-                metadata.put("dependencyView", "module");
-                metadata.put("dependencySourceModuleId", relationship.fromEntityId());
-                metadata.put("dependencyTargetModuleId", relationship.toEntityId());
-                String sourceModuleName = source == null ? null : moduleNameForDependencyEntity(source);
-                String targetModuleName = target == null ? null : moduleNameForDependencyEntity(target);
-                if (sourceModuleName != null) {
-                    metadata.put("dependencySourceModuleName", sourceModuleName);
-                    metadata.put("dependencySourceModuleBoundary", moduleBoundaryForName(sourceModuleName, entitiesById));
-                }
-                if (targetModuleName != null) {
-                    metadata.put("dependencyTargetModuleName", targetModuleName);
-                    metadata.put("dependencyTargetModuleBoundary", moduleBoundaryForName(targetModuleName, entitiesById));
-                    metadata.put("dependencyTargetModuleClassification", moduleClassificationForName(targetModuleName, entitiesById));
-                }
-                metadata.put("dependencyTargetBoundary", targetModuleName == null ? "unknown" : moduleBoundaryForName(targetModuleName, entitiesById));
-                metadata.put("sameModule", Objects.equals(sourceModuleName, targetModuleName));
-            } else if (isImportEvidenceRelationship(relationship, source, target)) {
-                metadata = ArchitectureIrDependencyMetadataSupport.shapeImportEvidenceMetadata(
-                    relationship,
-                    source,
-                    target,
-                    metadata,
-                    isInternalEntity(target),
-                    isExternalEntity(target),
-                    boundaryForEntity(target),
-                    typeClassificationForEntity(target)
-                );
-            }
-            enriched.add(new ArchitectureRelationship(
-                relationship.id(),
-                relationship.kind(),
-                relationship.fromEntityId(),
-                relationship.toEntityId(),
-                relationship.label(),
-                relationship.sourceRefs(),
-                ArchitectureIrDependencyMetadataSupport.immutable(metadata)
-            ));
-        }
-        return List.copyOf(enriched);
+        return ArchitectureIrDependencyRelationshipEnricher.enrichDependencyRelationshipMetadata(
+            relationships,
+            entitiesById,
+            observedTypesByQualifiedName
+        );
     }
 
     static List<ArchitectureRelationship> ensurePackageDependencyRelationships(
