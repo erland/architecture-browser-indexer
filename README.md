@@ -214,3 +214,72 @@ The Maven `package` build now produces a runnable shaded jar with `IndexerCli` a
 - The HTTP worker now logs request start/success/failure details and full stack traces for both `Exception` and `Error` failures.
 - For containerized runs on Apple Silicon, the default native library directory is `lib/linux-aarch64`, matching the Linux arm64 runtime used by Docker.
 - If a worker request fails, inspect the `indexer` container logs to see the full stack trace and root-cause details.
+
+
+## Refactoring status (steps 1–10)
+
+The refactoring-analysis plan has now been implemented through Step 10.
+
+Completed structural refactors:
+- Step 1 — baseline safety net for current behavior
+- Step 2 — split `JavaStructuralExtractor` into semantic collaborators
+- Step 3 — introduce internal extraction result models for Java extraction
+- Step 4 — split `ArchitectureIrFactory` into focused assemblers/builders
+- Step 5 — modularize TypeScript/frontend extraction
+- Step 6 — introduce Angular shared support/model layer
+- Step 7 — split `TopologyService`
+- Step 8 — introduce application orchestration below CLI
+- Step 9 — clean up support/helper and interpretation classes
+- Step 10 — final cleanup, docs, and continuation notes
+
+The repository should now be read as a pipeline with thinner orchestration classes and more focused collaborators inside the heavy extraction / IR / topology / interpretation stages.
+
+Key current seams:
+- Java extraction orchestration: `extract/JavaStructuralExtractor`
+- Java extraction collaborators: `JavaJaxRsSemantics`, `JavaJpaSemantics`, `JavaCdiSemantics`, `JavaWritePathSemantics`
+- TypeScript extraction orchestration: `extract/TypeScriptStructuralExtractor`
+- TypeScript/frontend collaborators: `TypeScriptImportExtractor`, `TypeScriptDeclarationExtractor`, `TypeScriptFrontendSemanticsExtractor`
+- Angular shared helpers/models: `AngularDecoratorModel*`, `AngularLiteralSupport`, `AngularReferenceSupport`, `AngularSourceSupport`
+- IR orchestration: `ir/ArchitectureIrFactory`
+- IR helpers: `ArchitectureIrAssemblyStateBuilder`, `ArchitectureIrDiagnosticsBuilder`, `ArchitectureIrDocumentMetadataBuilder`, `ArchitectureIrRunMetadataBuilder`
+- Topology orchestration: `topology/TopologyService`
+- Topology helpers: `TopologyScopeInferenceService`, `TopologyRelationshipRollupService`
+- Application orchestration: `application/IndexerApplicationService`
+- Interpretation helpers: `JavaBackendRoleClassifier`, `JavaEndpointInterpreterSupport`, `TypeScriptFrontendClassifier`
+
+## Recommended verification after refactoring
+
+Run the full suite:
+
+```bash
+mvn test
+```
+
+Run the most load-bearing safety-net suites first when iterating locally:
+
+```bash
+mvn -Dtest=JavaJaxRsStructuralExtractionTest test
+mvn -Dtest=ArchitectureIrFactoryJavaBackendSafetyNetTest test
+mvn -Dtest=AngularSharedSupportTest test
+mvn -Dtest=InterpretationHelperClassificationTest test
+```
+
+For broader regression confidence, also run the architecture-facing fixture suites:
+
+```bash
+mvn -Dtest=JavaBackendArchitectureEndToEndFixtureRegressionTest test
+mvn -Dtest=FrontendArchitectureEndToEndFixtureRegressionTest test
+mvn -Dtest=TypeScriptArchitectureFixtureRegressionTest test
+```
+
+## Refactoring continuation guidance
+
+If a future chat continues cleanup work, prefer this order:
+1. small duplication-reduction passes inside new helper classes
+2. package/subpackage moves only when they reduce cognitive load without changing public wiring
+3. fixture expansion for any new architect-facing semantic
+4. only then consider deeper IR-model or pipeline-contract changes
+
+A compact summary of the completed refactoring phase is available in:
+- `docs/refactoring-phase-summary.md`
+- `docs/refactoring-step10-final-cleanup-and-continuation.md`
