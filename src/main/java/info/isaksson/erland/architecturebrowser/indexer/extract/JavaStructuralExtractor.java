@@ -263,6 +263,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                     currentOwningTypeEntityId,
                     currentOwningQualifiedName,
                     currentOwningTypeSnippet,
+                    parseResult.request() == null ? null : parseResult.request().sourceText(),
                     importsBySimpleName,
                     declaredTypes
                 );
@@ -792,6 +793,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         String ownerTypeEntityId,
         String ownerQualifiedName,
         String ownerTypeSnippet,
+        String sourceText,
         Map<String, String> importsBySimpleName,
         Map<String, DeclaredJavaType> declaredTypes
     ) {
@@ -801,6 +803,10 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         String snippet = methodEntity.sourceRefs().isEmpty() ? (methodNode == null ? "" : methodNode.textSnippet()) : methodEntity.sourceRefs().getFirst().snippet();
         if ((snippet == null || snippet.isBlank()) && methodNode != null) {
             snippet = methodNode.textSnippet();
+        }
+        String exactMethodSnippet = exactNodeSnippet(sourceText, methodNode);
+        if (exactMethodSnippet != null && !exactMethodSnippet.isBlank()) {
+            snippet = exactMethodSnippet;
         }
         SourceReference ref = methodEntity.sourceRefs().isEmpty()
             ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(methodNode), snippet, Map.of("language", "java", "kind", methodNode == null ? "method_declaration" : methodNode.type()))
@@ -827,6 +833,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
             relationshipMetadata.put("framework", "cdi");
             relationshipMetadata.put("relationshipType", "publishesEvent");
             relationshipMetadata.put("frameworkRelationship", "publishesEvent");
+            relationshipMetadata.put("dependencySource", "eventPublish");
             relationshipMetadata.put("eventType", target.label());
             relationshipMetadata.put("publisherMethod", methodEntity.name());
             relationshipMetadata.put("publisherQualifiedName", ownerQualifiedName);
@@ -843,6 +850,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                 Map.copyOf(relationshipMetadata)
             ));
             LinkedHashMap<String, Object> methodRelationshipMetadata = new LinkedHashMap<>(relationshipMetadata);
+            methodRelationshipMetadata.put("dependencySource", "eventPublishMethod");
             methodRelationshipMetadata.put("ownerMemberKind", "method");
             methodRelationshipMetadata.put("ownerMemberName", methodEntity.name());
             accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
@@ -1140,6 +1148,19 @@ final class JavaStructuralExtractor implements StructuralExtractor {
             }
         }
         return Optional.empty();
+    }
+
+    private static String exactNodeSnippet(String sourceText, SyntaxNode node) {
+        if (sourceText == null || sourceText.isBlank() || node == null) {
+            return null;
+        }
+        int start = Math.max(0, Math.min(node.startByte(), sourceText.length()));
+        int end = Math.max(start, Math.min(node.endByte(), sourceText.length()));
+        if (start >= end) {
+            return null;
+        }
+        String snippet = sourceText.substring(start, end);
+        return snippet.isBlank() ? null : snippet;
     }
 
     private static List<String> extractParameterNames(String parameterSnippet) {

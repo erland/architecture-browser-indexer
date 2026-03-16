@@ -1,0 +1,11 @@
+package com.example.orders.events;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.ObservesAsync;
+
+@ApplicationScoped
+public class OrderCreatedAsyncProjector {
+
+    public void onOrderCreatedAsync(@ObservesAsync OrderCreatedEvent event) {
+    }
+}
