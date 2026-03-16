@@ -19,19 +19,6 @@ final class ArchitectureIrAssemblyCompositionSupport {
     private ArchitectureIrAssemblyCompositionSupport() {
     }
 
-
-    static List<ArchitectureRelationship> enrichDependencyRelationshipMetadata(
-        List<ArchitectureRelationship> relationships,
-        Map<String, ArchitectureEntity> entitiesById,
-        Map<String, ArchitectureEntity> observedTypesByQualifiedName
-    ) {
-        return ArchitectureIrDependencyRelationshipEnricher.enrichDependencyRelationshipMetadata(
-            relationships,
-            entitiesById,
-            observedTypesByQualifiedName
-        );
-    }
-
     static List<ArchitectureRelationship> ensurePackageDependencyRelationships(
         List<ArchitectureRelationship> relationships,
         Map<String, ArchitectureEntity> entitiesById,
@@ -48,48 +35,19 @@ final class ArchitectureIrAssemblyCompositionSupport {
         Map<String, ArchitectureEntity> entitiesById,
         Map<String, Object> dependencyViews
     ) {
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> packageMetrics = dependencyViews == null
-            ? List.of()
-            : (List<Map<String, Object>>) dependencyViews.getOrDefault("packageMetrics", List.of());
-        if (packageMetrics.isEmpty()) {
-            return entitiesById;
-        }
-        Map<String, Map<String, Object>> metricsByPackageName = new LinkedHashMap<>();
-        for (Map<String, Object> metric : packageMetrics) {
-            Object packageName = metric.get("packageName");
-            if (packageName instanceof String s && !s.isBlank()) {
-                metricsByPackageName.put(s, metric);
-            }
-        }
-        Map<String, ArchitectureEntity> enriched = new LinkedHashMap<>();
-        for (ArchitectureEntity entity : entitiesById.values()) {
-            if (!isPackageEntity(entity)) {
-                enriched.put(entity.id(), entity);
-                continue;
-            }
-            Map<String, Object> metric = metricsByPackageName.get(entity.name());
-            if (metric == null) {
-                enriched.put(entity.id(), entity);
-                continue;
-            }
-            Map<String, Object> metadata = new LinkedHashMap<>();
-            if (entity.metadata() != null) {
-                metadata.putAll(entity.metadata());
-            }
-            metadata.putAll(metric);
-            enriched.put(entity.id(), new ArchitectureEntity(
-                entity.id(),
-                entity.kind(),
-                entity.origin(),
-                entity.name(),
-                entity.displayName(),
-                entity.scopeId(),
-                entity.sourceRefs(),
-                ArchitectureIrDependencyMetadataSupport.immutable(metadata)
-            ));
-        }
-        return Map.copyOf(enriched);
+        return ArchitectureIrPackageEntityEnrichmentSupport.enrichPackageEntities(entitiesById, dependencyViews);
+    }
+
+    static List<ArchitectureRelationship> enrichDependencyRelationshipMetadata(
+        List<ArchitectureRelationship> relationships,
+        Map<String, ArchitectureEntity> entitiesById,
+        Map<String, ArchitectureEntity> observedTypesByQualifiedName
+    ) {
+        return ArchitectureIrDependencyRelationshipEnricher.enrichDependencyRelationshipMetadata(
+            relationships,
+            entitiesById,
+            observedTypesByQualifiedName
+        );
     }
 
     static Map<String, Object> buildDependencyViews(
@@ -966,10 +924,7 @@ final class ArchitectureIrAssemblyCompositionSupport {
 
 
     static String normalizeScopeId(String scopeId, String repositoryScopeId) {
-        if (scopeId == null || scopeId.isBlank()) {
-            return repositoryScopeId;
-        }
-        return scopeId;
+        return ArchitectureIrScopeNormalizationSupport.normalizeScopeId(scopeId, repositoryScopeId);
     }
 
     private static String stringMetadata(ArchitectureEntity entity, String key, String defaultValue) {

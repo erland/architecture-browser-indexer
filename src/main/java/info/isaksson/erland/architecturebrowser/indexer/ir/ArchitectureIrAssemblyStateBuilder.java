@@ -30,7 +30,7 @@ final class ArchitectureIrAssemblyStateBuilder {
         Map<String, ArchitectureEntity> observedTypesByQualifiedName = ArchitectureIrAssemblyCompositionSupport.observedTypesByQualifiedName(entitiesById);
         List<ArchitectureRelationship> relationships = assembleRelationships(inputs, entitiesById, observedTypesByQualifiedName);
         Map<String, Object> dependencyViews = ArchitectureIrAssemblyCompositionSupport.buildDependencyViews(relationships, entitiesById, observedTypesByQualifiedName);
-        Map<String, ArchitectureEntity> enrichedEntitiesById = ArchitectureIrAssemblyCompositionSupport.enrichPackageEntities(entitiesById, dependencyViews);
+        Map<String, ArchitectureEntity> enrichedEntitiesById = ArchitectureIrPackageEntityEnrichmentSupport.enrichPackageEntities(entitiesById, dependencyViews);
         return new ArchitectureIrAssemblyState(
             repositoryScope,
             inventoryEntity,
@@ -110,7 +110,7 @@ final class ArchitectureIrAssemblyStateBuilder {
                     entity.origin(),
                     entity.name(),
                     entity.displayName(),
-                    ArchitectureIrAssemblyCompositionSupport.normalizeScopeId(entity.scopeId(), repositoryScope.id()),
+                    ArchitectureIrScopeNormalizationSupport.normalizeScopeId(entity.scopeId(), repositoryScope.id()),
                     entity.sourceRefs(),
                     entity.metadata()
                 ));
@@ -124,7 +124,7 @@ final class ArchitectureIrAssemblyStateBuilder {
                     entity.origin(),
                     entity.name(),
                     entity.displayName(),
-                    ArchitectureIrAssemblyCompositionSupport.normalizeScopeId(entity.scopeId(), repositoryScope.id()),
+                    ArchitectureIrScopeNormalizationSupport.normalizeScopeId(entity.scopeId(), repositoryScope.id()),
                     entity.sourceRefs(),
                     entity.metadata()
                 ));
