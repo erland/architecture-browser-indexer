@@ -29,7 +29,13 @@ final class ArchitectureIrAssemblyStateBuilder {
         Map<String, ArchitectureEntity> entitiesById = assembleEntitiesById(inputs, repositoryScope, inventoryEntity);
         Map<String, ArchitectureEntity> observedTypesByQualifiedName = ArchitectureIrAssemblyCompositionSupport.observedTypesByQualifiedName(entitiesById);
         List<ArchitectureRelationship> relationships = assembleRelationships(inputs, entitiesById, observedTypesByQualifiedName);
-        Map<String, Object> dependencyViews = ArchitectureIrAssemblyCompositionSupport.buildDependencyViews(relationships, entitiesById, observedTypesByQualifiedName);
+        Map<String, Object> dependencyViews = ArchitectureIrAssemblyCompositionSupport.buildDependencyViews(
+            new ArchitectureIrDependencyViewAssemblyInputs(
+                relationships,
+                entitiesById,
+                observedTypesByQualifiedName
+            )
+        );
         Map<String, ArchitectureEntity> enrichedEntitiesById = ArchitectureIrPackageEntityEnrichmentSupport.enrichPackageEntities(entitiesById, dependencyViews);
         return new ArchitectureIrAssemblyState(
             repositoryScope,

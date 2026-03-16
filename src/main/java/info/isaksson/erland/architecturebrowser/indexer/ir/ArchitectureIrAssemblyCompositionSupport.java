@@ -55,6 +55,17 @@ final class ArchitectureIrAssemblyCompositionSupport {
         Map<String, ArchitectureEntity> entitiesById,
         Map<String, ArchitectureEntity> observedTypesByQualifiedName
     ) {
+        return buildDependencyViews(new ArchitectureIrDependencyViewAssemblyInputs(
+            relationships,
+            entitiesById,
+            observedTypesByQualifiedName
+        ));
+    }
+
+    static Map<String, Object> buildDependencyViews(ArchitectureIrDependencyViewAssemblyInputs inputs) {
+        List<ArchitectureRelationship> relationships = inputs.relationships();
+        Map<String, ArchitectureEntity> entitiesById = inputs.entitiesById();
+        Map<String, ArchitectureEntity> observedTypesByQualifiedName = inputs.observedTypesByQualifiedName();
         Map<String, NormalizedTypeDependency> typeDependenciesByKey = new LinkedHashMap<>();
         Map<String, NormalizedPackageDependency> packageDependenciesByKey = new LinkedHashMap<>();
         Map<String, NormalizedModuleDependency> moduleDependenciesByKey = new LinkedHashMap<>();
@@ -231,36 +242,27 @@ final class ArchitectureIrAssemblyCompositionSupport {
             "observerEvents", List.of("observerTypeDependencies", "observerModuleDependencies"),
             "writePaths", List.of("writePathTypeDependencies", "writePathModuleDependencies")
         ));
-        Map<String, Object> frontendBrowserViews = ArchitectureIrBrowserViewMetadataBuilder.buildFrontendBrowserViews(
-            compositionTypeDependencies,
-            compositionModuleDependencies,
-            routeTypeDependencies,
-            routeModuleDependencies,
-            providerTypeDependencies,
-            providerModuleDependencies,
-            hookTypeDependencies,
-            hookModuleDependencies
+        ArchitectureIrBrowserViewComposition browserViewComposition = ArchitectureIrBrowserViewMetadataBuilder.compose(
+            new ArchitectureIrBrowserViewCompositionInputs(
+                compositionTypeDependencies,
+                compositionModuleDependencies,
+                routeTypeDependencies,
+                routeModuleDependencies,
+                providerTypeDependencies,
+                providerModuleDependencies,
+                hookTypeDependencies,
+                hookModuleDependencies,
+                endpointTypeDependencies,
+                endpointModuleDependencies,
+                entityModelTypeDependencies,
+                entityModelModuleDependencies,
+                observerTypeDependencies,
+                observerModuleDependencies,
+                writePathTypeDependencies,
+                writePathModuleDependencies
+            )
         );
-        if (!frontendBrowserViews.isEmpty()) {
-            dependencyViews.put("frontendBrowserViews", frontendBrowserViews);
-        }
-        Map<String, Object> javaBrowserViews = ArchitectureIrBrowserViewMetadataBuilder.buildJavaBrowserViews(
-            endpointTypeDependencies,
-            endpointModuleDependencies,
-            entityModelTypeDependencies,
-            entityModelModuleDependencies,
-            observerTypeDependencies,
-            observerModuleDependencies,
-            writePathTypeDependencies,
-            writePathModuleDependencies
-        );
-        if (!javaBrowserViews.isEmpty()) {
-            dependencyViews.put("javaBrowserViews", javaBrowserViews);
-        }
-        Map<String, Object> browserViewCatalog = ArchitectureIrBrowserViewMetadataBuilder.buildBrowserViewCatalog(frontendBrowserViews, javaBrowserViews);
-        if (!browserViewCatalog.isEmpty()) {
-            dependencyViews.put("browserViewCatalog", browserViewCatalog);
-        }
+        dependencyViews = new LinkedHashMap<>(browserViewComposition.applyTo(dependencyViews));
         dependencyViews.put("evidenceStatus", Map.of(
             "fileImportDependencies", "supporting-evidence",
             "recommendedForArchitectureViews", false,

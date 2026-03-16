@@ -12,6 +12,34 @@ final class ArchitectureIrBrowserViewMetadataBuilder {
     private ArchitectureIrBrowserViewMetadataBuilder() {
     }
 
+    static ArchitectureIrBrowserViewComposition compose(ArchitectureIrBrowserViewCompositionInputs inputs) {
+        if (inputs == null) {
+            return ArchitectureIrBrowserViewComposition.empty();
+        }
+        Map<String, Object> frontendBrowserViews = buildFrontendBrowserViews(
+            inputs.compositionTypeDependencies(),
+            inputs.compositionModuleDependencies(),
+            inputs.routeTypeDependencies(),
+            inputs.routeModuleDependencies(),
+            inputs.providerTypeDependencies(),
+            inputs.providerModuleDependencies(),
+            inputs.hookTypeDependencies(),
+            inputs.hookModuleDependencies()
+        );
+        Map<String, Object> javaBrowserViews = buildJavaBrowserViews(
+            inputs.endpointTypeDependencies(),
+            inputs.endpointModuleDependencies(),
+            inputs.entityModelTypeDependencies(),
+            inputs.entityModelModuleDependencies(),
+            inputs.observerTypeDependencies(),
+            inputs.observerModuleDependencies(),
+            inputs.writePathTypeDependencies(),
+            inputs.writePathModuleDependencies()
+        );
+        Map<String, Object> browserViewCatalog = buildBrowserViewCatalog(frontendBrowserViews, javaBrowserViews);
+        return new ArchitectureIrBrowserViewComposition(frontendBrowserViews, javaBrowserViews, browserViewCatalog);
+    }
+
     static Map<String, Object> buildFrontendBrowserViews(
         List<Map<String, Object>> compositionTypeDependencies,
         List<Map<String, Object>> compositionModuleDependencies,
