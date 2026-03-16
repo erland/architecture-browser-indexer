@@ -13,6 +13,8 @@ import java.util.regex.Pattern;
 
 final class JavaDeclarationDiscovery {
 
+    private static final JavaEntityMapper ENTITY_MAPPER = new JavaEntityMapper();
+
     private JavaDeclarationDiscovery() {
     }
 
@@ -94,7 +96,7 @@ final class JavaDeclarationDiscovery {
         SyntaxNode typeNode,
         String owningQualifiedName
     ) {
-        ExtractedEntityFact typeEntity = JavaStructuralExtractor.toTypeEntity(
+        ExtractedEntityFact typeEntity = ENTITY_MAPPER.toTypeEntity(
             parseResult,
             relativePath,
             packageName,

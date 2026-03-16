@@ -23,6 +23,8 @@ import java.util.regex.Pattern;
 
 final class JavaStructuralExtractor implements StructuralExtractor {
 
+    private final JavaEntityMapper entityMapper = new JavaEntityMapper();
+    private final JavaRelationshipEvidenceEmitter relationshipEvidenceEmitter = new JavaRelationshipEvidenceEmitter();
     private final JavaJaxRsSemantics jaxRsSemantics = new JavaJaxRsSemantics();
     private final JavaJpaSemantics jpaSemantics = new JavaJpaSemantics();
     private final JavaCdiSemantics cdiSemantics = new JavaCdiSemantics();
@@ -123,7 +125,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                 fileEntity.id(), external.id(), imported,
                 ExtractionSupport.sourceRef(relativePath, line, importNode.textSnippet(), Map.of("language", "java", "kind", "import")),
                 "java",
-                dependencyMetadata("import", "evidence")
+                relationshipEvidenceEmitter.dependencyMetadata("import", "evidence")
             ));
         }
 
@@ -189,12 +191,12 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         String currentOwningQualifiedName = owningQualifiedName;
         String currentOwningTypeSnippet = owningTypeSnippet;
         if (isJavaTypeDeclaration(node)) {
-            ExtractedEntityFact typeEntity = toTypeEntity(parseResult, relativePath, packageName, extractionMode, packageScopeId, node, owningQualifiedName);
+            ExtractedEntityFact typeEntity = entityMapper.toTypeEntity(parseResult, relativePath, packageName, extractionMode, packageScopeId, node, owningQualifiedName);
             if (typeEntity != null) {
                 accumulator.addEntity(typeEntity);
                 SourceReference ref = typeEntity.sourceRefs().isEmpty() ? null : typeEntity.sourceRefs().getFirst();
                 accumulator.addRelationship(ExtractionSupport.containsRelationship(fileEntityId, typeEntity.id(), ref));
-                addTypeRelationships(accumulator, relativePath, packageName, node, typeEntity, importsBySimpleName, declaredTypes);
+                relationshipEvidenceEmitter.addTypeRelationships(accumulator, relativePath, packageName, node, typeEntity, importsBySimpleName, declaredTypes);
                 addJaxRsResourceMetadata(accumulator, new JavaTypeContext(extractionContext, node, typeEntity));
                 addJpaTypeMetadata(accumulator, new JavaTypeContext(extractionContext, node, typeEntity));
                 addJpaInheritanceFacts(
@@ -212,7 +214,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                 currentOwningQualifiedName = qualifiedName == null ? owningQualifiedName : String.valueOf(qualifiedName);
             }
         } else if (isJavaFieldDeclaration(node)) {
-            for (ExtractedEntityFact fieldEntity : toFieldEntities(parseResult, relativePath, extractionMode, fileScopeId, node, currentOwningQualifiedName)) {
+            for (ExtractedEntityFact fieldEntity : entityMapper.toFieldEntities(parseResult, relativePath, extractionMode, fileScopeId, node, currentOwningQualifiedName)) {
                 accumulator.addEntity(fieldEntity);
                 SourceReference ref = fieldEntity.sourceRefs().isEmpty() ? null : fieldEntity.sourceRefs().getFirst();
                 String dependencySourceEntityId = currentOwningTypeEntityId == null ? fileEntityId : currentOwningTypeEntityId;
@@ -221,7 +223,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                     fieldEntity.id(),
                     ref
                 ));
-                addDeclaredTypeDependencies(
+                relationshipEvidenceEmitter.addDeclaredTypeDependencies(
                     accumulator,
                     dependencySourceEntityId,
                     List.of(String.valueOf(fieldEntity.metadata().getOrDefault("declaredType", ""))),
@@ -231,7 +233,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                     ref,
                     importsBySimpleName,
                     declaredTypes,
-                    dependencyMetadata("field", "composition")
+                    relationshipEvidenceEmitter.dependencyMetadata("field", "composition")
                 );
                 addJpaFieldFacts(
                     accumulator,
@@ -246,7 +248,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                 );
             }
         } else if (isJavaMethodLikeDeclaration(node)) {
-            ExtractedEntityFact methodEntity = toMethodEntity(parseResult, relativePath, extractionMode, fileScopeId, node, currentOwningQualifiedName);
+            ExtractedEntityFact methodEntity = entityMapper.toMethodEntity(parseResult, relativePath, extractionMode, fileScopeId, node, currentOwningQualifiedName);
             if (methodEntity != null) {
                 accumulator.addEntity(methodEntity);
                 SourceReference ref = methodEntity.sourceRefs().isEmpty() ? null : methodEntity.sourceRefs().getFirst();
@@ -258,7 +260,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                 ));
                 String returnType = String.valueOf(methodEntity.metadata().getOrDefault("returnType", ""));
                 if (!returnType.isBlank()) {
-                    addDeclaredTypeDependencies(
+                    relationshipEvidenceEmitter.addDeclaredTypeDependencies(
                         accumulator,
                         dependencySourceEntityId,
                         List.of(returnType),
@@ -268,13 +270,13 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                         ref,
                         importsBySimpleName,
                         declaredTypes,
-                        dependencyMetadata("returnType", "api")
+                        relationshipEvidenceEmitter.dependencyMetadata("returnType", "api")
                     );
                 }
                 @SuppressWarnings("unchecked")
                 List<String> parameterTypes = (List<String>) methodEntity.metadata().getOrDefault("parameterTypes", List.of());
                 if (!parameterTypes.isEmpty()) {
-                    addDeclaredTypeDependencies(
+                    relationshipEvidenceEmitter.addDeclaredTypeDependencies(
                         accumulator,
                         dependencySourceEntityId,
                         parameterTypes,
@@ -284,7 +286,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                         ref,
                         importsBySimpleName,
                         declaredTypes,
-                        dependencyMetadata(isConstructor(methodEntity) ? "constructorParameter" : "parameterType", "api")
+                        relationshipEvidenceEmitter.dependencyMetadata(isConstructor(methodEntity) ? "constructorParameter" : "parameterType", "api")
                     );
                 }
                 JavaMethodContext methodContext = javaMethodContext(
@@ -424,7 +426,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                 String params = String.valueOf(methodEntity.metadata().getOrDefault("parameters", ""));
                 List<String> paramNames = extractParameterNames(params);
                 for (int i = 0; i < Math.min(parameterTypes.size(), paramNames.size()); i++) {
-                    String type = normalizeTypeReference(parameterTypes.get(i));
+                    String type = JavaRelationshipEvidenceEmitter.normalizeTypeReference(parameterTypes.get(i));
                     if (!type.isBlank()) {
                         result.add(new DetectedWritePath(operation, "repository-method", paramNames.get(i), null, type));
                     }
@@ -452,7 +454,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         List<String> paramTypes = metadataStringList(methodEntity.metadata().get("parameterTypes"));
         List<String> paramNames = extractParameterNames(params);
         for (int i = 0; i < Math.min(paramTypes.size(), paramNames.size()); i++) {
-            String type = normalizeTypeReference(paramTypes.get(i));
+            String type = JavaRelationshipEvidenceEmitter.normalizeTypeReference(paramTypes.get(i));
             if (!type.isBlank()) {
                 result.putIfAbsent(paramNames.get(i), type);
             }
@@ -460,7 +462,7 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         if (snippet != null && !snippet.isBlank()) {
             Matcher matcher = Pattern.compile("([A-Za-z_$][\\w.$]*(?:\\s*<[^>{}]+>)?)\\s+([A-Za-z_$][\\w$]*)\\s*=", Pattern.DOTALL).matcher(snippet);
             while (matcher.find()) {
-                String type = normalizeTypeReference(matcher.group(1));
+                String type = JavaRelationshipEvidenceEmitter.normalizeTypeReference(matcher.group(1));
                 String name = matcher.group(2);
                 if (!type.isBlank() && !isJavaPrimitiveOrKeyword(type)) {
                     result.putIfAbsent(name, type);
@@ -597,125 +599,6 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         jpaSemantics.addJpaInheritanceFacts(accumulator, relativePath, packageName, typeNode, typeEntity, importsBySimpleName, declaredTypes);
     }
 
-    private void addTypeRelationships(
-        ExtractionAccumulator accumulator,
-        String relativePath,
-        String packageName,
-        SyntaxNode typeNode,
-        ExtractedEntityFact typeEntity,
-        Map<String, String> importsBySimpleName,
-        Map<String, JavaDeclaredType> declaredTypes
-    ) {
-        EntityKind sourceKind = typeEntity.kind();
-        int line = SyntaxTreeExtractionSupport.oneBasedLine(typeNode);
-        SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, typeNode.textSnippet(), Map.of("language", "java", "kind", typeNode.type()));
-        List<String> extendedTypes = extractExtendedTypes(typeNode);
-        for (String parentType : extendedTypes) {
-            addResolvedTypeRelationship(
-                accumulator,
-                typeEntity,
-                parentType,
-                sourceKind == EntityKind.INTERFACE ? EntityKind.INTERFACE : EntityKind.CLASS,
-                info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.EXTENDS,
-                "extends",
-                relativePath,
-                packageName,
-                line,
-                ref,
-                importsBySimpleName,
-                declaredTypes
-            );
-        }
-        List<String> implementedTypes = extractImplementedTypes(typeNode);
-        for (String iface : implementedTypes) {
-            addResolvedTypeRelationship(
-                accumulator,
-                typeEntity,
-                iface,
-                EntityKind.INTERFACE,
-                info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.IMPLEMENTS,
-                "implements",
-                relativePath,
-                packageName,
-                line,
-                ref,
-                importsBySimpleName,
-                declaredTypes
-            );
-        }
-        if (!extendedTypes.isEmpty()) {
-            addDeclaredTypeDependencies(
-                accumulator,
-                typeEntity.id(),
-                extendedTypes,
-                relativePath,
-                packageName,
-                line,
-                ref,
-                importsBySimpleName,
-                declaredTypes,
-                dependencyMetadata("extends", "hierarchy")
-            );
-        }
-        if (!implementedTypes.isEmpty()) {
-            addDeclaredTypeDependencies(
-                accumulator,
-                typeEntity.id(),
-                implementedTypes,
-                relativePath,
-                packageName,
-                line,
-                ref,
-                importsBySimpleName,
-                declaredTypes,
-                dependencyMetadata(typeEntity.kind() == EntityKind.INTERFACE ? "extends" : "implements", "hierarchy")
-            );
-        }
-    }
-
-    private void addDeclaredTypeDependencies(
-        ExtractionAccumulator accumulator,
-        String sourceEntityId,
-        List<String> declaredTypeTexts,
-        String relativePath,
-        String packageName,
-        int line,
-        SourceReference ref,
-        Map<String, String> importsBySimpleName,
-        Map<String, JavaDeclaredType> declaredTypes,
-        Map<String, Object> metadata
-    ) {
-        if (sourceEntityId == null || declaredTypeTexts == null || declaredTypeTexts.isEmpty()) {
-            return;
-        }
-        Set<String> seen = new java.util.LinkedHashSet<>();
-        for (String declaredTypeText : declaredTypeTexts) {
-            for (String referencedType : extractReferencedTypes(declaredTypeText)) {
-                ResolvedJavaType resolved = resolveJavaTypeReference(
-                    accumulator,
-                    referencedType,
-                    EntityKind.CLASS,
-                    relativePath,
-                    packageName,
-                    line,
-                    importsBySimpleName,
-                    declaredTypes
-                );
-                if (resolved == null || sourceEntityId.equals(resolved.entityId()) || !seen.add(resolved.label())) {
-                    continue;
-                }
-                accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
-                    sourceEntityId,
-                    resolved.entityId(),
-                    resolved.label(),
-                    ref,
-                    "java",
-                    metadata
-                ));
-            }
-        }
-    }
-
     private ResolvedJavaType resolveJavaTypeReference(
         ExtractionAccumulator accumulator,
         String referencedType,
@@ -726,185 +609,26 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         Map<String, String> importsBySimpleName,
         Map<String, JavaDeclaredType> declaredTypes
     ) {
-        if (referencedType == null || referencedType.isBlank()) {
-            return null;
-        }
-        String normalized = normalizeTypeReference(referencedType);
-        if (normalized.isBlank()) {
-            return null;
-        }
-        JavaDeclaredType declared = declaredTypes.get(normalized);
-        if (declared != null) {
-            return new ResolvedJavaType(declared.entityId(), declared.qualifiedName(), declared.kind());
-        }
-        String qualifiedName = resolveQualifiedTypeName(normalized, packageName, importsBySimpleName, declaredTypes);
-        var inferred = ExtractionSupport.inferredTypeEntity(
-            "java",
-            fallbackTargetKind,
-            qualifiedName,
-            relativePath,
-            line,
-            Map.of(
-                "resolvedFrom", normalized,
-                "resolution", qualifiedName.equals(normalized) ? "unresolved-or-external" : "import-or-package"
-            )
+        JavaRelationshipEvidenceEmitter.ResolvedJavaType resolved = relationshipEvidenceEmitter.resolveJavaTypeReference(
+            accumulator, referencedType, fallbackTargetKind, relativePath, packageName, line, importsBySimpleName, declaredTypes
         );
-        accumulator.addEntity(inferred);
-        return new ResolvedJavaType(inferred.id(), qualifiedName, inferred.kind());
-    }
-
-    private void addResolvedTypeRelationship(
-        ExtractionAccumulator accumulator,
-        ExtractedEntityFact sourceType,
-        String referencedType,
-        EntityKind fallbackTargetKind,
-        info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind relationshipKind,
-        String relationshipPrefix,
-        String relativePath,
-        String packageName,
-        int line,
-        SourceReference ref,
-        Map<String, String> importsBySimpleName,
-        Map<String, JavaDeclaredType> declaredTypes
-    ) {
-        ResolvedJavaType resolved = resolveJavaTypeReference(
-            accumulator,
-            referencedType,
-            fallbackTargetKind,
-            relativePath,
-            packageName,
-            line,
-            importsBySimpleName,
-            declaredTypes
-        );
-        if (resolved == null) {
-            return;
-        }
-        String targetEntityId = resolved.entityId();
-        String label = resolved.label();
-        accumulator.addRelationship(ExtractionSupport.typedRelationship(
-            relationshipKind,
-            relationshipPrefix,
-            sourceType.id(),
-            targetEntityId,
-            label,
-            ref,
-            "java",
-            dependencyMetadata(relationshipPrefix, "hierarchy")
-        ));
+        return resolved == null ? null : new ResolvedJavaType(resolved.entityId(), resolved.label(), resolved.kind());
     }
 
     private static List<String> extractExtendedTypes(SyntaxNode typeNode) {
-        if (typeNode == null || typeNode.textSnippet() == null) {
-            return List.of();
-        }
-        String header = declarationHeader(typeNode.textSnippet());
-        if (typeNode.type().equals("interface_declaration")) {
-            return extractTypeListAfterKeyword(header, "extends");
-        }
-        Optional<String> single = extractSingleTypeAfterKeyword(header, "extends");
-        return single.map(List::of).orElseGet(List::of);
-    }
-
-    private static List<String> extractImplementedTypes(SyntaxNode typeNode) {
-        if (typeNode == null || typeNode.textSnippet() == null) {
-            return List.of();
-        }
-        return extractTypeListAfterKeyword(declarationHeader(typeNode.textSnippet()), "implements");
-    }
-
-    private static Optional<String> extractSingleTypeAfterKeyword(String header, String keyword) {
-        Matcher matcher = Pattern.compile("\\b" + Pattern.quote(keyword) + "\\s+([A-Za-z_$][\\w.$]*(?:\\s*<[^>{}]+>)?)").matcher(header);
-        if (!matcher.find()) {
-            return Optional.empty();
-        }
-        return Optional.ofNullable(normalizeTypeReference(matcher.group(1)));
-    }
-
-    private static List<String> extractTypeListAfterKeyword(String header, String keyword) {
-        Matcher matcher = Pattern.compile("\\b" + Pattern.quote(keyword) + "\\s+([^\\{]+)$").matcher(header);
-        if (!matcher.find()) {
-            return List.of();
-        }
-        String raw = matcher.group(1);
-        List<String> result = new ArrayList<>();
-        for (String part : raw.split(",")) {
-            String normalized = normalizeTypeReference(part);
-            if (!normalized.isBlank()) {
-                result.add(normalized);
-            }
-        }
-        return List.copyOf(result);
-    }
-
-    private static String declarationHeader(String snippet) {
-        int brace = snippet.indexOf('{');
-        String header = brace >= 0 ? snippet.substring(0, brace) : snippet;
-        return header.replace('\n', ' ').replace('\r', ' ').strip();
-    }
-
-    private static String normalizeTypeReference(String value) {
-        if (value == null) {
-            return "";
-        }
-        String normalized = value.replaceAll("<[^>]+>", " ")
-            .replaceAll("\bextends\b", " ")
-            .replaceAll("\bsuper\b", " ")
-            .replace("?", " ")
-            .replace("[]", " ")
-            .trim();
-        Matcher matcher = Pattern.compile("([A-Za-z_$][\\w.$]*)").matcher(normalized);
-        return matcher.find() ? matcher.group(1) : "";
+        return JavaRelationshipEvidenceEmitter.extractExtendedTypes(typeNode);
     }
 
     private static List<String> extractReferencedTypes(String declaredTypeText) {
-        if (declaredTypeText == null || declaredTypeText.isBlank()) {
-            return List.of();
-        }
-        String normalized = declaredTypeText
-            .replaceAll("@[A-Za-z_][\\w.]*\\s*(\\([^)]*\\))?", " ")
-            .replaceAll("\bextends\b", " ")
-            .replaceAll("\bsuper\b", " ")
-            .replace("?", " ")
-            .replace("[]", " ")
-            .replace("...", " ");
-        Matcher matcher = Pattern.compile("([A-Za-z_$][\\w.$]*)").matcher(normalized);
-        Set<String> result = new java.util.LinkedHashSet<>();
-        while (matcher.find()) {
-            String candidate = matcher.group(1);
-            if (!isJavaPrimitiveOrKeyword(candidate)) {
-                result.add(candidate);
-            }
-        }
-        return List.copyOf(result);
+        return JavaRelationshipEvidenceEmitter.extractReferencedTypes(declaredTypeText);
     }
+
 
     private static boolean isJavaPrimitiveOrKeyword(String candidate) {
         return Set.of(
             "byte", "short", "int", "long", "float", "double", "boolean", "char", "void", "var", "this", "super"
         ).contains(candidate);
     }
-
-    private static String resolveQualifiedTypeName(String reference, String packageName, Map<String, String> importsBySimpleName, Map<String, JavaDeclaredType> declaredTypes) {
-        if (reference == null || reference.isBlank()) {
-            return "";
-        }
-        if (reference.contains(".")) {
-            return reference;
-        }
-        if (importsBySimpleName.containsKey(reference)) {
-            return importsBySimpleName.get(reference);
-        }
-        JavaDeclaredType declared = declaredTypes.get(reference);
-        if (declared != null) {
-            return declared.qualifiedName();
-        }
-        if (packageName != null && !packageName.isBlank()) {
-            return packageName + "." + reference;
-        }
-        return reference;
-    }
-
 
     private static boolean isConstructor(ExtractedEntityFact methodEntity) {
         if (methodEntity == null) {
@@ -916,13 +640,6 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         }
         String ownerSimpleName = simpleName(String.valueOf(ownerQualifiedName));
         return ownerSimpleName != null && ownerSimpleName.equals(methodEntity.name());
-    }
-
-    private static Map<String, Object> dependencyMetadata(String dependencySource, String dependencyCategory) {
-        java.util.Map<String, Object> metadata = new java.util.LinkedHashMap<>();
-        metadata.put("dependencySource", dependencySource);
-        metadata.put("dependencyCategory", dependencyCategory);
-        return java.util.Map.copyOf(metadata);
     }
 
     static String simpleName(String qualifiedName) {
@@ -1284,146 +1001,6 @@ final class JavaStructuralExtractor implements StructuralExtractor {
     private static int lineOf(SourceReference ref, SyntaxNode fallbackNode) {
         return ref != null && ref.startLine() != null ? ref.startLine() : SyntaxTreeExtractionSupport.oneBasedLine(fallbackNode);
     }
-
-    private static List<ExtractedEntityFact> toFieldEntities(
-        SourceParseResult parseResult,
-        String relativePath,
-        ExtractionMode extractionMode,
-        String fileScopeId,
-        SyntaxNode fieldNode,
-        String owningQualifiedName
-    ) {
-        List<String> fieldNames = SyntaxTreeExtractionSupport.javaFieldNames(fieldNode);
-        if (fieldNames.isEmpty()) {
-            return List.of();
-        }
-        String declaredType = SyntaxTreeExtractionSupport.javaFieldDeclaredType(fieldNode);
-        List<String> annotations = SyntaxTreeExtractionSupport.descendantsByType(fieldNode, Set.of(
-            "marker_annotation", "annotation"
-        )).stream().flatMap(node -> SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(node.textSnippet()).stream()).distinct().toList();
-        List<String> modifiers = SyntaxTreeExtractionSupport.javaModifiers(fieldNode);
-        int line = SyntaxTreeExtractionSupport.oneBasedLine(fieldNode);
-        SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, fieldNode.textSnippet(), Map.of("language", "java", "kind", fieldNode.type()));
-        List<ExtractedEntityFact> result = new ArrayList<>();
-        for (String fieldName : fieldNames) {
-            String canonicalName = owningQualifiedName == null || owningQualifiedName.isBlank()
-                ? fieldName
-                : owningQualifiedName + "#" + fieldName;
-            result.add(new ExtractedEntityFact(
-                IdUtils.scopedEntityId("java", relativePath, canonicalName, line),
-                EntityKind.FIELD,
-                EntityOrigin.OBSERVED,
-                fieldName,
-                DisplayNamePolicy.entityDisplayName(EntityKind.FIELD, canonicalName, "java"),
-                fileScopeId,
-                List.of(ref),
-                Map.of(
-                    "language", "java",
-                    "declaredType", declaredType == null ? "" : declaredType,
-                    "annotations", annotations,
-                    "modifiers", modifiers,
-                    "ownerQualifiedName", owningQualifiedName == null ? "" : owningQualifiedName,
-                    "parseStatus", parseResult.status().name(),
-                    "extractionMode", extractionMode.name()
-                )
-            ));
-        }
-        return List.copyOf(result);
-    }
-
-    static ExtractedEntityFact toTypeEntity(
-        SourceParseResult parseResult,
-        String relativePath,
-        String packageName,
-        ExtractionMode extractionMode,
-        String packageScopeId,
-        SyntaxNode typeNode,
-        String owningQualifiedName
-    ) {
-        String typeName = SyntaxTreeExtractionSupport.declarationName(typeNode);
-        if (typeName == null || typeName.isBlank()) {
-            return null;
-        }
-        int line = SyntaxTreeExtractionSupport.oneBasedLine(typeNode);
-        EntityKind kind = "interface_declaration".equals(typeNode.type()) ? EntityKind.INTERFACE : EntityKind.CLASS;
-        String declarationKind = javaDeclarationKind(typeNode.type());
-        String qualifiedName = owningQualifiedName == null || owningQualifiedName.isBlank()
-            ? (packageName == null || packageName.isBlank() ? typeName : packageName + "." + typeName)
-            : owningQualifiedName + "." + typeName;
-        List<String> annotations = SyntaxTreeExtractionSupport.descendantsByType(typeNode, Set.of(
-            "marker_annotation", "annotation"
-        )).stream().flatMap(node -> SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(node.textSnippet()).stream()).distinct().toList();
-        SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, typeNode.textSnippet(), Map.of("language", "java", "kind", typeNode.type()));
-        return new ExtractedEntityFact(
-            IdUtils.scopedEntityId("java", relativePath, qualifiedName, line),
-            kind,
-            EntityOrigin.OBSERVED,
-            typeName,
-            DisplayNamePolicy.entityDisplayName(kind, qualifiedName, "java"),
-            packageScopeId,
-            List.of(ref),
-            Map.of(
-                "language", "java",
-                "qualifiedName", qualifiedName,
-                "packageName", packageName,
-                "declarationKind", declarationKind,
-                "annotations", annotations,
-                "parseStatus", parseResult.status().name(),
-                "extractionMode", extractionMode.name()
-            )
-        );
-    }
-
-
-    private static String javaDeclarationKind(String nodeType) {
-        return switch (nodeType) {
-            case "interface_declaration" -> "interface";
-            case "enum_declaration" -> "enum";
-            case "record_declaration" -> "record";
-            case "class_declaration" -> "class";
-            default -> "type";
-        };
-    }
-
-    private static ExtractedEntityFact toMethodEntity(
-        SourceParseResult parseResult,
-        String relativePath,
-        ExtractionMode extractionMode,
-        String fileScopeId,
-        SyntaxNode methodNode,
-        String owningQualifiedName
-    ) {
-        String methodName = SyntaxTreeExtractionSupport.javaMethodLikeName(methodNode);
-        if (methodName == null || methodName.isBlank()) {
-            return null;
-        }
-        String parameterSnippet = SyntaxTreeExtractionSupport.parameterSnippet(methodNode);
-        int line = SyntaxTreeExtractionSupport.oneBasedLine(methodNode);
-        SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, methodNode.textSnippet(), Map.of("language", "java", "kind", methodNode.type()));
-        List<String> annotations = SyntaxTreeExtractionSupport.descendantsByType(methodNode, Set.of(
-            "marker_annotation", "annotation"
-        )).stream().flatMap(node -> SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(node.textSnippet()).stream()).distinct().toList();
-        return new ExtractedEntityFact(
-            IdUtils.scopedEntityId("java", relativePath, (owningQualifiedName == null || owningQualifiedName.isBlank() ? methodName : owningQualifiedName + "#" + methodName), line),
-            EntityKind.FUNCTION,
-            EntityOrigin.OBSERVED,
-            methodName,
-            SyntaxTreeExtractionSupport.javaMethodDisplayName(methodName, parameterSnippet),
-            fileScopeId,
-            List.of(ref),
-            Map.of(
-                "language", "java",
-                "parameters", parameterSnippet,
-                "returnType", SyntaxTreeExtractionSupport.javaMethodReturnType(methodNode),
-                "parameterTypes", SyntaxTreeExtractionSupport.javaMethodParameterDeclaredTypes(methodNode),
-                "annotations", annotations,
-                "ownerQualifiedName", owningQualifiedName == null ? "" : owningQualifiedName,
-                "parseStatus", parseResult.status().name(),
-                "extractionMode", extractionMode.name()
-            )
-        );
-    }
-
 
     private static java.util.Optional<String> importQualifiedName(String snippet) {
         return SyntaxTreeExtractionSupport.extractQualifiedName(

@@ -91,9 +91,33 @@ final class SyntaxTreeExtractionSupport {
     }
 
     static String parameterSnippet(SyntaxNode node) {
-        return firstDescendantByType(node, Set.of("formal_parameters", "parameters"))
+        String extracted = firstDescendantByType(node, Set.of("formal_parameters", "parameters"))
             .map(SyntaxNode::textSnippet)
             .orElse("");
+        if (!extracted.isBlank()) {
+            return extracted;
+        }
+        if (node == null || node.textSnippet() == null || node.textSnippet().isBlank()) {
+            return "";
+        }
+        String snippet = node.textSnippet();
+        int start = snippet.indexOf('(');
+        if (start < 0) {
+            return "";
+        }
+        int depth = 0;
+        for (int i = start; i < snippet.length(); i++) {
+            char ch = snippet.charAt(i);
+            if (ch == '(') {
+                depth++;
+            } else if (ch == ')') {
+                depth--;
+                if (depth == 0) {
+                    return snippet.substring(start, i + 1).trim();
+                }
+            }
+        }
+        return "";
     }
 
     static List<String> javaFieldNames(SyntaxNode node) {
@@ -111,7 +135,19 @@ final class SyntaxTreeExtractionSupport {
             return List.copyOf(result);
         }
         String fallback = declarationName(node);
-        return fallback == null || fallback.isBlank() ? List.of() : List.of(fallback);
+        if (fallback != null && !fallback.isBlank()) {
+            return List.of(fallback);
+        }
+        if (node.textSnippet() == null || node.textSnippet().isBlank()) {
+            return List.of();
+        }
+        String snippet = node.textSnippet().replace('\n', ' ').replace('\r', ' ').trim();
+        snippet = snippet.replaceAll("@[A-Za-z_][\\w.]*\\s*(\\([^)]*\\))?", " ");
+        snippet = snippet.replaceAll("\\b(public|protected|private|static|final|transient|volatile|abstract|synchronized|native|strictfp|default)\\b", " ");
+        snippet = snippet.replaceAll("\\s*=.*$", " ");
+        snippet = snippet.replaceAll(";\\s*$", " ").trim();
+        Matcher matcher = Pattern.compile("([A-Za-z_$][\\w$]*)\\s*$").matcher(snippet);
+        return matcher.find() ? List.of(matcher.group(1)) : List.of();
     }
 
     static String javaFieldDeclaredType(SyntaxNode node) {
