@@ -30,6 +30,7 @@ final class JavaSyntaxTreeExtractionStage {
     private final JavaJpaSemantics jpaSemantics = new JavaJpaSemantics();
     private final JavaCdiSemantics cdiSemantics = new JavaCdiSemantics();
     private final JavaWritePathSemantics writePathSemantics = new JavaWritePathSemantics();
+    private final JavaMemberExtractionFlow memberExtractionFlow = new JavaMemberExtractionFlow();
 
     private record JavaExtractionContext(
         String relativePath,
@@ -212,11 +213,112 @@ final class JavaSyntaxTreeExtractionStage {
                 Object qualifiedName = typeEntity.metadata().get("qualifiedName");
                 currentOwningQualifiedName = qualifiedName == null ? currentOwningQualifiedName : String.valueOf(qualifiedName);
             }
-        } else if (isJavaFieldDeclaration(node)) {
-            for (ExtractedEntityFact fieldEntity : entityMapper.toFieldEntities(parseResult, relativePath, extractionMode, fileScopeId, node, currentOwningQualifiedName)) {
+        } else {
+            memberExtractionFlow.handleMemberNode(
+                parseResult,
+                accumulator,
+                relativePath,
+                packageName,
+                extractionMode,
+                fileScopeId,
+                fileEntityId,
+                node,
+                currentOwningTypeEntityId,
+                currentOwningQualifiedName,
+                currentOwningTypeSnippet,
+                importsBySimpleName,
+                declaredTypes,
+                extractionContext
+            );
+        }
+
+        return new JavaSyntaxTreeTraversal.JavaTraversalOwnership(
+            currentOwningTypeEntityId,
+            currentOwningQualifiedName,
+            currentOwningTypeSnippet
+        );
+    }
+
+
+
+
+    private final class JavaMemberExtractionFlow {
+
+        void handleMemberNode(
+            SourceParseResult parseResult,
+            ExtractionAccumulator accumulator,
+            String relativePath,
+            String packageName,
+            ExtractionMode extractionMode,
+            String fileScopeId,
+            String fileEntityId,
+            SyntaxNode node,
+            String owningTypeEntityId,
+            String owningQualifiedName,
+            String owningTypeSnippet,
+            Map<String, String> importsBySimpleName,
+            Map<String, JavaDeclaredType> declaredTypes,
+            JavaExtractionContext extractionContext
+        ) {
+            if (isJavaFieldDeclaration(node)) {
+                handleFieldNode(
+                    parseResult,
+                    accumulator,
+                    relativePath,
+                    packageName,
+                    extractionMode,
+                    fileScopeId,
+                    fileEntityId,
+                    node,
+                    owningTypeEntityId,
+                    owningQualifiedName,
+                    owningTypeSnippet,
+                    importsBySimpleName,
+                    declaredTypes,
+                    extractionContext
+                );
+                return;
+            }
+            if (isJavaMethodLikeDeclaration(node)) {
+                handleMethodNode(
+                    parseResult,
+                    accumulator,
+                    relativePath,
+                    packageName,
+                    extractionMode,
+                    fileScopeId,
+                    fileEntityId,
+                    node,
+                    owningTypeEntityId,
+                    owningQualifiedName,
+                    owningTypeSnippet,
+                    importsBySimpleName,
+                    declaredTypes,
+                    extractionContext
+                );
+            }
+        }
+
+        private void handleFieldNode(
+            SourceParseResult parseResult,
+            ExtractionAccumulator accumulator,
+            String relativePath,
+            String packageName,
+            ExtractionMode extractionMode,
+            String fileScopeId,
+            String fileEntityId,
+            SyntaxNode node,
+            String owningTypeEntityId,
+            String owningQualifiedName,
+            String owningTypeSnippet,
+            Map<String, String> importsBySimpleName,
+            Map<String, JavaDeclaredType> declaredTypes,
+            JavaExtractionContext extractionContext
+        ) {
+            for (ExtractedEntityFact fieldEntity : entityMapper.toFieldEntities(parseResult, relativePath, extractionMode, fileScopeId, node, owningQualifiedName)) {
                 accumulator.addEntity(fieldEntity);
                 SourceReference ref = fieldEntity.sourceRefs().isEmpty() ? null : fieldEntity.sourceRefs().getFirst();
-                String dependencySourceEntityId = currentOwningTypeEntityId == null ? fileEntityId : currentOwningTypeEntityId;
+                String dependencySourceEntityId = owningTypeEntityId == null ? fileEntityId : owningTypeEntityId;
                 accumulator.addRelationship(ExtractionSupport.containsRelationship(
                     dependencySourceEntityId,
                     fieldEntity.id(),
@@ -240,77 +342,87 @@ final class JavaSyntaxTreeExtractionStage {
                         extractionContext,
                         node,
                         fieldEntity,
-                        currentOwningTypeEntityId,
-                        currentOwningQualifiedName,
-                        currentOwningTypeSnippet
+                        owningTypeEntityId,
+                        owningQualifiedName,
+                        owningTypeSnippet
                     )
                 );
             }
-        } else if (isJavaMethodLikeDeclaration(node)) {
-            ExtractedEntityFact methodEntity = entityMapper.toMethodEntity(parseResult, relativePath, extractionMode, fileScopeId, node, currentOwningQualifiedName);
-            if (methodEntity != null) {
-                accumulator.addEntity(methodEntity);
-                SourceReference ref = methodEntity.sourceRefs().isEmpty() ? null : methodEntity.sourceRefs().getFirst();
-                String dependencySourceEntityId = currentOwningTypeEntityId == null ? fileEntityId : currentOwningTypeEntityId;
-                accumulator.addRelationship(ExtractionSupport.containsRelationship(
-                    dependencySourceEntityId,
-                    methodEntity.id(),
-                    ref
-                ));
-                String returnType = String.valueOf(methodEntity.metadata().getOrDefault("returnType", ""));
-                if (!returnType.isBlank()) {
-                    relationshipEvidenceEmitter.addDeclaredTypeDependencies(
-                        accumulator,
-                        dependencySourceEntityId,
-                        List.of(returnType),
-                        relativePath,
-                        packageName,
-                        lineOf(ref, node),
-                        ref,
-                        importsBySimpleName,
-                        declaredTypes,
-                        relationshipEvidenceEmitter.dependencyMetadata("returnType", "api")
-                    );
-                }
-                @SuppressWarnings("unchecked")
-                List<String> parameterTypes = (List<String>) methodEntity.metadata().getOrDefault("parameterTypes", List.of());
-                if (!parameterTypes.isEmpty()) {
-                    relationshipEvidenceEmitter.addDeclaredTypeDependencies(
-                        accumulator,
-                        dependencySourceEntityId,
-                        parameterTypes,
-                        relativePath,
-                        packageName,
-                        lineOf(ref, node),
-                        ref,
-                        importsBySimpleName,
-                        declaredTypes,
-                        relationshipEvidenceEmitter.dependencyMetadata(isConstructor(methodEntity) ? "constructorParameter" : "parameterType", "api")
-                    );
-                }
-                JavaMethodContext methodContext = javaMethodContext(
-                    extractionContext,
-                    node,
-                    methodEntity,
-                    currentOwningTypeEntityId,
-                    currentOwningQualifiedName,
-                    currentOwningTypeSnippet
-                );
-                addJaxRsEndpointFacts(accumulator, methodContext);
-                addJpaMethodFacts(accumulator, methodContext);
-                addCdiEventFacts(accumulator, methodContext);
-                addWritePathFacts(accumulator, methodContext);
-            }
         }
 
-        return new JavaSyntaxTreeTraversal.JavaTraversalOwnership(
-            currentOwningTypeEntityId,
-            currentOwningQualifiedName,
-            currentOwningTypeSnippet
-        );
+        private void handleMethodNode(
+            SourceParseResult parseResult,
+            ExtractionAccumulator accumulator,
+            String relativePath,
+            String packageName,
+            ExtractionMode extractionMode,
+            String fileScopeId,
+            String fileEntityId,
+            SyntaxNode node,
+            String owningTypeEntityId,
+            String owningQualifiedName,
+            String owningTypeSnippet,
+            Map<String, String> importsBySimpleName,
+            Map<String, JavaDeclaredType> declaredTypes,
+            JavaExtractionContext extractionContext
+        ) {
+            ExtractedEntityFact methodEntity = entityMapper.toMethodEntity(parseResult, relativePath, extractionMode, fileScopeId, node, owningQualifiedName);
+            if (methodEntity == null) {
+                return;
+            }
+            accumulator.addEntity(methodEntity);
+            SourceReference ref = methodEntity.sourceRefs().isEmpty() ? null : methodEntity.sourceRefs().getFirst();
+            String dependencySourceEntityId = owningTypeEntityId == null ? fileEntityId : owningTypeEntityId;
+            accumulator.addRelationship(ExtractionSupport.containsRelationship(
+                dependencySourceEntityId,
+                methodEntity.id(),
+                ref
+            ));
+            String returnType = String.valueOf(methodEntity.metadata().getOrDefault("returnType", ""));
+            if (!returnType.isBlank()) {
+                relationshipEvidenceEmitter.addDeclaredTypeDependencies(
+                    accumulator,
+                    dependencySourceEntityId,
+                    List.of(returnType),
+                    relativePath,
+                    packageName,
+                    lineOf(ref, node),
+                    ref,
+                    importsBySimpleName,
+                    declaredTypes,
+                    relationshipEvidenceEmitter.dependencyMetadata("returnType", "api")
+                );
+            }
+            @SuppressWarnings("unchecked")
+            List<String> parameterTypes = (List<String>) methodEntity.metadata().getOrDefault("parameterTypes", List.of());
+            if (!parameterTypes.isEmpty()) {
+                relationshipEvidenceEmitter.addDeclaredTypeDependencies(
+                    accumulator,
+                    dependencySourceEntityId,
+                    parameterTypes,
+                    relativePath,
+                    packageName,
+                    lineOf(ref, node),
+                    ref,
+                    importsBySimpleName,
+                    declaredTypes,
+                    relationshipEvidenceEmitter.dependencyMetadata(isConstructor(methodEntity) ? "constructorParameter" : "parameterType", "api")
+                );
+            }
+            JavaMethodContext methodContext = javaMethodContext(
+                extractionContext,
+                node,
+                methodEntity,
+                owningTypeEntityId,
+                owningQualifiedName,
+                owningTypeSnippet
+            );
+            addJaxRsEndpointFacts(accumulator, methodContext);
+            addJpaMethodFacts(accumulator, methodContext);
+            addCdiEventFacts(accumulator, methodContext);
+            addWritePathFacts(accumulator, methodContext);
+        }
     }
-
-
 
     private void addJaxRsResourceMetadata(ExtractionAccumulator accumulator, JavaTypeContext typeContext) {
         jaxRsSemantics.addJaxRsResourceMetadata(accumulator, typeContext);
