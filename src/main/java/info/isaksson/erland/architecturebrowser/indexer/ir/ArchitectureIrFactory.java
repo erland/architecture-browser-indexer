@@ -461,7 +461,7 @@ public final class ArchitectureIrFactory {
         for (EvidenceDependency dependency : evidenceDependenciesByKey.values()) {
             evidenceDependencies.add(dependency.toMetadataMap());
         }
-        List<Map<String, Object>> packageMetrics = buildPackageMetrics(entitiesById, packageDependencies);
+        List<Map<String, Object>> packageMetrics = ArchitectureIrPackageMetricsBoundaryBuilder.buildPackageMetrics(entitiesById, packageDependencies);
         List<Map<String, Object>> frameworkTypeDependencies = filterDependenciesByViewKind(typeDependencies, "framework");
         List<Map<String, Object>> frameworkModuleDependencies = filterDependenciesByViewKind(moduleDependencies, "framework");
         List<Map<String, Object>> compositionTypeDependencies = filterDependenciesByViewKind(typeDependencies, "composition");
@@ -504,7 +504,7 @@ public final class ArchitectureIrFactory {
         dependencyViews.put("writePathTypeDependencies", List.copyOf(writePathTypeDependencies));
         dependencyViews.put("writePathModuleDependencies", List.copyOf(writePathModuleDependencies));
         dependencyViews.put("packageMetrics", List.copyOf(packageMetrics));
-        dependencyViews.put("boundarySummary", buildBoundarySummary(typeDependencies, packageDependencies, moduleDependencies));
+        dependencyViews.put("boundarySummary", ArchitectureIrPackageMetricsBoundaryBuilder.buildBoundarySummary(typeDependencies, packageDependencies, moduleDependencies));
         List<String> recommendedEntryPoints = new ArrayList<>(List.of("packageDependencies", "typeDependencies", "moduleDependencies"));
         List<String> primaryArchitectureViews = new ArrayList<>(List.of("packageDependencies", "typeDependencies", "moduleDependencies"));
         if (!frameworkTypeDependencies.isEmpty()) {
@@ -665,145 +665,6 @@ public final class ArchitectureIrFactory {
 
 
 
-
-    private static List<Map<String, Object>> buildPackageMetrics(
-        Map<String, ArchitectureEntity> entitiesById,
-        List<Map<String, Object>> packageDependencies
-    ) {
-        Map<String, PackageMetrics> metricsByPackage = new LinkedHashMap<>();
-        for (ArchitectureEntity entity : entitiesById.values()) {
-            if (isPackageEntity(entity)) {
-                String packageName = entity.name();
-                metricsByPackage.putIfAbsent(packageName, new PackageMetrics(
-                    packageName,
-                    stringMetadata(entity, "language", "unknown"),
-                    deriveSourceRoot(packageName, entity.sourceRefs()),
-                    boundaryForEntity(entity),
-                    "observed-source-package"
-                ));
-            }
-        }
-        for (ArchitectureEntity entity : entitiesById.values()) {
-            String packageName = packageNameForEntityMetrics(entity);
-            PackageMetrics metrics = metricsByPackage.get(packageName);
-            if (metrics == null) {
-                continue;
-            }
-            metrics.observeEntity(entity);
-        }
-        for (Map<String, Object> dependency : packageDependencies) {
-            Object sourcePackageName = dependency.get("sourcePackageName");
-            Object targetPackageName = dependency.get("targetPackageName");
-            if (sourcePackageName instanceof String s) {
-                PackageMetrics sourceMetrics = metricsByPackage.get(s);
-                if (sourceMetrics != null) {
-                    sourceMetrics.observeOutgoingDependency();
-                }
-            }
-            if (targetPackageName instanceof String s) {
-                PackageMetrics targetMetrics = metricsByPackage.get(s);
-                if (targetMetrics != null) {
-                    targetMetrics.observeIncomingDependency();
-                }
-            }
-        }
-        List<Map<String, Object>> results = new ArrayList<>();
-        for (PackageMetrics metrics : metricsByPackage.values()) {
-            results.add(metrics.toMetadataMap());
-        }
-        return List.copyOf(results);
-    }
-
-    private static String packageNameForEntityMetrics(ArchitectureEntity entity) {
-        if (entity == null || isPackageEntity(entity) || !isInternalEntity(entity)) {
-            return null;
-        }
-        if (entity.metadata() != null) {
-            Object explicitPackage = entity.metadata().get("packageName");
-            if (explicitPackage instanceof String packageName && !packageName.isBlank()) {
-                return packageName;
-            }
-            Object qualifiedName = entity.metadata().get("qualifiedName");
-            if (qualifiedName instanceof String qualified && !qualified.isBlank()) {
-                String derived = packageNameFromQualifiedName(qualified);
-                if (derived != null) {
-                    return derived;
-                }
-            }
-            Object ownerQualifiedName = entity.metadata().get("ownerQualifiedName");
-            if (ownerQualifiedName instanceof String ownerQualified && !ownerQualified.isBlank()) {
-                String derived = packageNameFromQualifiedName(ownerQualified);
-                if (derived != null) {
-                    return derived;
-                }
-            }
-        }
-        return packageNameFromQualifiedName(entity.name());
-    }
-
-    private static String stringMetadata(ArchitectureEntity entity, String key, String defaultValue) {
-        if (entity == null || entity.metadata() == null) {
-            return defaultValue;
-        }
-        Object value = entity.metadata().get(key);
-        if (value instanceof String s && !s.isBlank()) {
-            return s;
-        }
-        return defaultValue;
-    }
-
-    private static String deriveSourceRoot(String packageName, List<SourceReference> sourceRefs) {
-        if (sourceRefs == null || sourceRefs.isEmpty()) {
-            return null;
-        }
-        String packagePath = packageName == null ? null : packageName.replace('.', '/');
-        for (SourceReference ref : sourceRefs) {
-            if (ref == null || ref.path() == null || ref.path().isBlank()) {
-                continue;
-            }
-            String path = ref.path().replace('\\', '/');
-            if (packagePath != null && !packagePath.isBlank()) {
-                String marker = "/" + packagePath + "/";
-                int idx = path.indexOf(marker);
-                if (idx > 0) {
-                    return path.substring(0, idx);
-                }
-                if (path.endsWith("/" + packagePath)) {
-                    return path.substring(0, path.length() - packagePath.length() - 1);
-                }
-            }
-            int slash = path.lastIndexOf('/');
-            if (slash > 0) {
-                return path.substring(0, slash);
-            }
-        }
-        return null;
-    }
-
-    private static Map<String, Object> buildBoundarySummary(
-        List<Map<String, Object>> typeDependencies,
-        List<Map<String, Object>> packageDependencies,
-        List<Map<String, Object>> moduleDependencies
-    ) {
-        Map<String, Object> summary = new LinkedHashMap<>();
-        summary.put("typeInternalCount", countBoundary(typeDependencies, "targetBoundary", "internal"));
-        summary.put("typeExternalCount", countBoundary(typeDependencies, "targetBoundary", "external"));
-        summary.put("packageInternalCount", countBoundary(packageDependencies, "targetBoundary", "internal"));
-        summary.put("packageExternalCount", countBoundary(packageDependencies, "targetBoundary", "external"));
-        summary.put("moduleInternalCount", countBoundary(moduleDependencies, "targetBoundary", "internal"));
-        summary.put("moduleExternalCount", countBoundary(moduleDependencies, "targetBoundary", "external"));
-        return Map.copyOf(summary);
-    }
-
-    private static int countBoundary(List<Map<String, Object>> dependencies, String key, String expectedValue) {
-        int count = 0;
-        for (Map<String, Object> dependency : dependencies) {
-            if (Objects.equals(expectedValue, dependency.get(key))) {
-                count++;
-            }
-        }
-        return count;
-    }
 
     static Map<String, ArchitectureEntity> observedTypesByQualifiedName(Map<String, ArchitectureEntity> entitiesById) {
         Map<String, ArchitectureEntity> observed = new LinkedHashMap<>();
@@ -1443,94 +1304,6 @@ public final class ArchitectureIrFactory {
         }
     }
 
-    private static final class PackageMetrics {
-        private final String packageName;
-        private final String language;
-        private final String sourceRoot;
-        private final String packageBoundary;
-        private final String packageClassification;
-        private int declaredTypeCount;
-        private int classCount;
-        private int interfaceCount;
-        private int enumCount;
-        private int recordCount;
-        private int fieldCount;
-        private int functionCount;
-        private int incomingDependencyCount;
-        private int outgoingDependencyCount;
-
-        private PackageMetrics(
-            String packageName,
-            String language,
-            String sourceRoot,
-            String packageBoundary,
-            String packageClassification
-        ) {
-            this.packageName = packageName;
-            this.language = language;
-            this.sourceRoot = sourceRoot;
-            this.packageBoundary = packageBoundary;
-            this.packageClassification = packageClassification;
-        }
-
-        private void observeEntity(ArchitectureEntity entity) {
-            if (entity == null) {
-                return;
-            }
-            switch (entity.kind()) {
-                case CLASS -> {
-                    declaredTypeCount++;
-                    Object declarationKind = entity.metadata() == null ? null : entity.metadata().get("declarationKind");
-                    if (Objects.equals("enum", declarationKind)) {
-                        enumCount++;
-                    } else if (Objects.equals("record", declarationKind)) {
-                        recordCount++;
-                    } else {
-                        classCount++;
-                    }
-                }
-                case INTERFACE -> {
-                    declaredTypeCount++;
-                    interfaceCount++;
-                }
-                case FIELD -> fieldCount++;
-                case FUNCTION -> functionCount++;
-                default -> {
-                }
-            }
-        }
-
-        private void observeIncomingDependency() {
-            incomingDependencyCount++;
-        }
-
-        private void observeOutgoingDependency() {
-            outgoingDependencyCount++;
-        }
-
-        private Map<String, Object> toMetadataMap() {
-            Map<String, Object> metadata = new LinkedHashMap<>();
-            metadata.put("packageName", packageName);
-            metadata.put("qualifiedName", packageName);
-            metadata.put("language", language);
-            if (sourceRoot != null && !sourceRoot.isBlank()) {
-                metadata.put("sourceRoot", sourceRoot);
-            }
-            metadata.put("packageBoundary", packageBoundary);
-            metadata.put("packageClassification", packageClassification);
-            metadata.put("declaredTypeCount", declaredTypeCount);
-            metadata.put("classCount", classCount);
-            metadata.put("interfaceCount", interfaceCount);
-            metadata.put("enumCount", enumCount);
-            metadata.put("recordCount", recordCount);
-            metadata.put("fieldCount", fieldCount);
-            metadata.put("functionCount", functionCount);
-            metadata.put("incomingDependencyCount", incomingDependencyCount);
-            metadata.put("outgoingDependencyCount", outgoingDependencyCount);
-            return Map.copyOf(metadata);
-        }
-    }
-
     private static List<String> defaultCompletenessNotes(
         StructuralExtractionResult extractionResult,
         InterpretationResult interpretationResult,
@@ -1556,6 +1329,14 @@ public final class ArchitectureIrFactory {
             new FileInventory(List.of(), 0, 0, 0, java.util.Set.of(), java.util.Set.of()),
             List.of()
         );
+    }
+
+    private static String stringMetadata(ArchitectureEntity entity, String key, String defaultValue) {
+        if (entity == null || entity.metadata() == null) {
+            return defaultValue;
+        }
+        Object value = entity.metadata().get(key);
+        return value instanceof String s && !s.isBlank() ? s : defaultValue;
     }
 
     static String normalizeScopeId(String scopeId, String repositoryScopeId) {
