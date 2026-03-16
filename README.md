@@ -292,8 +292,18 @@ Priority 3 hotspot reduction is now structurally complete through Step 10. The J
 
 ## Priority 1 refactor status
 
-The internal hotspot cleanup now leaves the remaining large classes in a more orchestration-first shape:
-- `JavaSyntaxTreeExtractionStage` coordinates traversal, member extraction, dependency emission, and dedicated semantic flows.
-- `ArchitectureIrAssemblyCompositionSupport` coordinates dependency normalization and delegates final dependency-view shaping to a dedicated post-processor.
+The Java-stage hotspot refactor is now structurally complete through Step 10.
 
-Continuation should now focus on smaller helper reductions and test hardening rather than further broad structural moves.
+Current state:
+- `JavaSyntaxTreeExtractionStage` acts as an orchestration boundary rather than the main holder of Java extraction detail logic.
+- Java extraction work is split across dedicated flows for compilation-unit setup, traversal dispatch, type handling, field handling, method handling, dependency emission, and semantics.
+- `ArchitectureIrAssemblyCompositionSupport` remains reduced compared with the earlier baseline and is no longer the main urgent broad refactor target.
+
+Primary follow-up should now be:
+- keeping seam tests aligned with real stable contracts
+- doing only small helper cleanups where they clearly reduce duplication
+- adding future Java semantics in the dedicated owning flow/helper instead of re-growing the stage
+
+See also:
+- `docs/priority1-java-stage-step10-final-cleanup.md`
+- `docs/priority1-java-stage-final-seams.md`
