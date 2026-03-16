@@ -38,7 +38,8 @@ final class JavaSyntaxTreeExtractionStage {
     private final JavaCdiMethodSemantics cdiMethodSemantics = new JavaCdiMethodSemantics(cdiSemantics);
     private final JavaWritePathMethodSemantics writePathMethodSemantics = new JavaWritePathMethodSemantics(writePathSemantics);
     private final JavaMethodSemanticsFlow methodSemanticsFlow = new JavaMethodSemanticsFlow(jaxRsMethodSemantics, jpaMethodSemantics, cdiMethodSemantics, writePathMethodSemantics);
-    private final JavaFieldExtractionFlow fieldExtractionFlow = new JavaFieldExtractionFlow(entityMapper, dependencyEmissionFlow, jpaSemantics);
+    private final JavaJpaFieldSemantics jpaFieldSemantics = new JavaJpaFieldSemantics(jpaSemantics);
+    private final JavaFieldExtractionFlow fieldExtractionFlow = new JavaFieldExtractionFlow(entityMapper, dependencyEmissionFlow, jpaFieldSemantics);
     private final JavaMethodExtractionFlow methodExtractionFlow = new JavaMethodExtractionFlow(entityMapper, dependencyEmissionFlow, methodSemanticsFlow);
     private final JavaMemberExtractionFlow memberExtractionFlow = new JavaMemberExtractionFlow();
 

@@ -14,16 +14,16 @@ final class JavaFieldExtractionFlow {
 
     private final JavaEntityMapper entityMapper;
     private final JavaDependencyEmissionFlow dependencyEmissionFlow;
-    private final JavaSyntaxTreeExtractionStage.JavaJpaSemantics jpaSemantics;
+    private final JavaJpaFieldSemantics jpaFieldSemantics;
 
     JavaFieldExtractionFlow(
         JavaEntityMapper entityMapper,
         JavaDependencyEmissionFlow dependencyEmissionFlow,
-        JavaSyntaxTreeExtractionStage.JavaJpaSemantics jpaSemantics
+        JavaJpaFieldSemantics jpaFieldSemantics
     ) {
         this.entityMapper = entityMapper;
         this.dependencyEmissionFlow = dependencyEmissionFlow;
-        this.jpaSemantics = jpaSemantics;
+        this.jpaFieldSemantics = jpaFieldSemantics;
     }
 
     JavaMemberExtractionResult handleFieldNode(
@@ -66,7 +66,7 @@ final class JavaFieldExtractionFlow {
                 importsBySimpleName,
                 declaredTypes
             );
-            jpaSemantics.addJpaFieldFacts(
+            jpaFieldSemantics.apply(
                 accumulator,
                 new JavaFieldContext(
                     extractionContext,
