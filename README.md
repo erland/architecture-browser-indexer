@@ -283,3 +283,8 @@ If a future chat continues cleanup work, prefer this order:
 A compact summary of the completed refactoring phase is available in:
 - `docs/refactoring-phase-summary.md`
 - `docs/refactoring-step10-final-cleanup-and-continuation.md`
+
+
+## Priority 3 status
+
+Priority 3 hotspot reduction is now structurally complete through Step 10. The Java extraction and IR assembly seams now have focused hardening tests and a final continuation note in `docs/priority3-step10-final-hardening.md`.
