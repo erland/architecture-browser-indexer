@@ -143,10 +143,7 @@ public final class ArchitectureIrFactory {
                 enriched.add(relationship);
                 continue;
             }
-            Map<String, Object> metadata = new LinkedHashMap<>();
-            if (relationship.metadata() != null) {
-                metadata.putAll(relationship.metadata());
-            }
+            Map<String, Object> metadata = ArchitectureIrDependencyMetadataSupport.mutableCopy(relationship.metadata());
             if (isTypeDependencyRelationship(relationship, source, target)) {
                 metadata.put("dependencyView", "type");
                 metadata.put("dependencySourceTypeId", source == null ? relationship.fromEntityId() : source.id());
@@ -201,25 +198,16 @@ public final class ArchitectureIrFactory {
                 metadata.put("dependencyTargetBoundary", targetModuleName == null ? "unknown" : moduleBoundaryForName(targetModuleName, entitiesById));
                 metadata.put("sameModule", Objects.equals(sourceModuleName, targetModuleName));
             } else if (isImportEvidenceRelationship(relationship, source, target)) {
-                metadata.putIfAbsent("dependencyView", "evidence");
-                metadata.put("dependencyTier", "supporting-evidence");
-                metadata.put("architecturePrimary", false);
-                metadata.put("recommendedForArchitectureViews", false);
-                metadata.put("dependencyTargetInternal", isInternalEntity(target));
-                metadata.put("dependencyTargetExternal", isExternalEntity(target));
-                metadata.put("dependencyTargetBoundary", boundaryForEntity(target));
-                metadata.put("dependencyTargetClassification", typeClassificationForEntity(target));
-                metadata.put("evidenceKind", "file-import");
-                metadata.put("evidenceSourceEntityId", relationship.fromEntityId());
-                metadata.put("evidenceTargetEntityId", relationship.toEntityId());
-                String sourceModuleName = source == null ? null : source.name();
-                String targetModuleName = target == null ? null : target.name();
-                if (sourceModuleName != null) {
-                    metadata.put("evidenceSourceName", sourceModuleName);
-                }
-                if (targetModuleName != null) {
-                    metadata.put("evidenceTargetName", targetModuleName);
-                }
+                metadata = ArchitectureIrDependencyMetadataSupport.shapeImportEvidenceMetadata(
+                    relationship,
+                    source,
+                    target,
+                    metadata,
+                    isInternalEntity(target),
+                    isExternalEntity(target),
+                    boundaryForEntity(target),
+                    typeClassificationForEntity(target)
+                );
             }
             enriched.add(new ArchitectureRelationship(
                 relationship.id(),
@@ -228,7 +216,7 @@ public final class ArchitectureIrFactory {
                 relationship.toEntityId(),
                 relationship.label(),
                 relationship.sourceRefs(),
-                Map.copyOf(metadata)
+                ArchitectureIrDependencyMetadataSupport.immutable(metadata)
             ));
         }
         return List.copyOf(enriched);
@@ -293,7 +281,7 @@ public final class ArchitectureIrFactory {
                 targetPackageEntityId,
                 relationship.label(),
                 relationship.sourceRefs(),
-                Map.copyOf(metadata)
+                ArchitectureIrDependencyMetadataSupport.immutable(metadata)
             ));
         }
 
@@ -360,7 +348,7 @@ public final class ArchitectureIrFactory {
                 entity.displayName(),
                 entity.scopeId(),
                 entity.sourceRefs(),
-                Map.copyOf(metadata)
+                ArchitectureIrDependencyMetadataSupport.immutable(metadata)
             ));
         }
         return Map.copyOf(enriched);
@@ -615,52 +603,11 @@ public final class ArchitectureIrFactory {
         Set<String> architectureViewKinds,
         ArchitectureRelationship relationship
     ) {
-        if (relationship == null || relationship.metadata() == null) {
-            return;
-        }
-        Object framework = relationship.metadata().get("framework");
-        NormalizedTypeDependency.addIfPresent(frameworks, framework);
-        Object frameworkRelationship = relationship.metadata().get("frameworkRelationship");
-        Object relationshipType = relationship.metadata().get("relationshipType");
-        NormalizedTypeDependency.addIfPresent(frameworkRelationships, frameworkRelationship);
-        NormalizedTypeDependency.addIfPresent(frameworkRelationships, relationshipType);
-        addArchitectureViewKinds(architectureViewKinds, relationship.kind(), framework, relationship.metadata().get("dependencySource"), frameworkRelationship, relationshipType);
+        ArchitectureIrDependencyMetadataSupport.addFrameworkMetadata(frameworks, frameworkRelationships, architectureViewKinds, relationship);
     }
 
     private static void addArchitectureViewKinds(Set<String> sink, RelationshipKind relationshipKind, Object framework, Object dependencySource, Object frameworkRelationship, Object relationshipType) {
-        String dependencySourceValue = dependencySource == null ? "" : String.valueOf(dependencySource).trim();
-        String frameworkRelationshipValue = frameworkRelationship == null ? "" : String.valueOf(frameworkRelationship).trim();
-        String relationshipTypeValue = relationshipType == null ? "" : String.valueOf(relationshipType).trim();
-        String frameworkValue = framework == null ? "" : String.valueOf(framework).trim();
-        boolean frameworkSpecificSource = dependencySourceValue.startsWith("react:") || dependencySourceValue.startsWith("angular:");
-        boolean javaFrameworkSemantic = "jax-rs".equals(frameworkValue) || "jpa".equals(frameworkValue) || "cdi".equals(frameworkValue);
-        if (!frameworkRelationshipValue.isEmpty() || !relationshipTypeValue.isEmpty() || frameworkSpecificSource || javaFrameworkSemantic) {
-            sink.add("framework");
-        }
-        if (relationshipKind == RelationshipKind.EXPOSES || "jax-rs".equals(frameworkValue) && ("endpoint".equals(relationshipTypeValue) || !String.valueOf(relationshipKind).isEmpty() && (relationshipKind == RelationshipKind.EXPOSES))) {
-            sink.add("endpoint");
-        }
-        String javaSemanticKey = !frameworkRelationshipValue.isEmpty() ? frameworkRelationshipValue : relationshipTypeValue;
-        switch (javaSemanticKey) {
-            case "publishesEvent", "observesEvent", "eventObservedBy" -> sink.add("observer-event");
-            case "hasAssociation", "embeds", "inheritsPersistenceModel" -> sink.add("entity-model");
-            case "writePath" -> sink.add("write-path");
-        }
-        String key = !frameworkRelationshipValue.isEmpty() ? frameworkRelationshipValue : dependencySourceValue;
-        if (key.isEmpty()) {
-            return;
-        }
-        switch (key) {
-            case "renders", "templateRenders", "usesDirective", "usesPipe", "declares", "imports", "exports", "bootstraps" -> sink.add("composition");
-            case "targets", "childOf", "lazyLoads", "guards", "resolves" -> sink.add("route");
-            case "provides", "providedBy", "injects", "resolvesTo", "providesContext", "consumesContext" -> sink.add("provider-di");
-            case "usesHook" -> sink.add("hook");
-            default -> {
-                if (dependencySourceValue.contains("route")) {
-                    sink.add("route");
-                }
-            }
-        }
+        ArchitectureIrDependencyMetadataSupport.addArchitectureViewKinds(sink, relationshipKind, framework, dependencySource, frameworkRelationship, relationshipType);
     }
 
 
@@ -1015,8 +962,8 @@ public final class ArchitectureIrFactory {
                 evidenceLabels.add(relationship.label());
             }
             if (relationship.metadata() != null) {
-                addIfPresent(dependencySources, relationship.metadata().get("dependencySource"));
-                addIfPresent(dependencyCategories, relationship.metadata().get("dependencyCategory"));
+                ArchitectureIrDependencyMetadataSupport.addIfPresent(dependencySources, relationship.metadata().get("dependencySource"));
+                ArchitectureIrDependencyMetadataSupport.addIfPresent(dependencyCategories, relationship.metadata().get("dependencyCategory"));
                 addFrameworkMetadata(frameworks, frameworkRelationships, architectureViewKinds, relationship);
             }
         }
@@ -1032,31 +979,16 @@ public final class ArchitectureIrFactory {
             if (targetTypeName != null) {
                 metadata.put("targetTypeName", targetTypeName);
             }
-            metadata.put("dependencySources", List.copyOf(dependencySources));
-            metadata.put("dependencyCategories", List.copyOf(dependencyCategories));
-            metadata.put("frameworks", List.copyOf(frameworks));
-            metadata.put("frameworkRelationships", List.copyOf(frameworkRelationships));
-            metadata.put("architectureViewKinds", List.copyOf(architectureViewKinds));
+            ArchitectureIrDependencyMetadataSupport.putSummaryCollections(metadata, dependencySources, dependencyCategories, frameworks, frameworkRelationships, architectureViewKinds, evidenceRelationshipIds, evidenceLabels);
             metadata.put("sourceBoundary", sourceBoundary);
             metadata.put("targetBoundary", targetBoundary);
             metadata.put("targetClassification", targetClassification);
             metadata.put("internalTarget", internalTarget);
             metadata.put("externalTarget", externalTarget);
             metadata.put("evidenceRelationshipCount", evidenceRelationshipIds.size());
-            metadata.put("evidenceRelationshipIds", List.copyOf(evidenceRelationshipIds));
-            metadata.put("evidenceLabels", List.copyOf(evidenceLabels));
-            return Map.copyOf(metadata);
+            return ArchitectureIrDependencyMetadataSupport.immutable(metadata);
         }
 
-        private static void addIfPresent(Set<String> sink, Object value) {
-            if (value == null) {
-                return;
-            }
-            String asString = Objects.toString(value, "").trim();
-            if (!asString.isEmpty()) {
-                sink.add(asString);
-            }
-        }
     }
 
     private static final class NormalizedPackageDependency {
@@ -1110,8 +1042,8 @@ public final class ArchitectureIrFactory {
                 targetTypeIds.add(target.id());
             }
             if (relationship.metadata() != null) {
-                NormalizedTypeDependency.addIfPresent(dependencySources, relationship.metadata().get("dependencySource"));
-                NormalizedTypeDependency.addIfPresent(dependencyCategories, relationship.metadata().get("dependencyCategory"));
+                ArchitectureIrDependencyMetadataSupport.addIfPresent(dependencySources, relationship.metadata().get("dependencySource"));
+                ArchitectureIrDependencyMetadataSupport.addIfPresent(dependencyCategories, relationship.metadata().get("dependencyCategory"));
                 addFrameworkMetadata(frameworks, frameworkRelationships, architectureViewKinds, relationship);
             }
         }
@@ -1121,11 +1053,7 @@ public final class ArchitectureIrFactory {
             metadata.put("sourcePackageName", sourcePackageName);
             metadata.put("targetPackageName", targetPackageName);
             metadata.put("relationshipKind", relationshipKind.name());
-            metadata.put("dependencySources", List.copyOf(dependencySources));
-            metadata.put("dependencyCategories", List.copyOf(dependencyCategories));
-            metadata.put("frameworks", List.copyOf(frameworks));
-            metadata.put("frameworkRelationships", List.copyOf(frameworkRelationships));
-            metadata.put("architectureViewKinds", List.copyOf(architectureViewKinds));
+            ArchitectureIrDependencyMetadataSupport.putSummaryCollections(metadata, dependencySources, dependencyCategories, frameworks, frameworkRelationships, architectureViewKinds, evidenceRelationshipIds, evidenceLabels);
             metadata.put("sourceBoundary", sourceBoundary);
             metadata.put("targetBoundary", targetBoundary);
             metadata.put("targetPackageClassification", targetPackageClassification);
@@ -1134,9 +1062,7 @@ public final class ArchitectureIrFactory {
             metadata.put("underlyingRelationshipCount", evidenceRelationshipIds.size());
             metadata.put("sourceTypeCount", sourceTypeIds.size());
             metadata.put("targetTypeCount", targetTypeIds.size());
-            metadata.put("evidenceRelationshipIds", List.copyOf(evidenceRelationshipIds));
-            metadata.put("evidenceLabels", List.copyOf(evidenceLabels));
-            return Map.copyOf(metadata);
+            return ArchitectureIrDependencyMetadataSupport.immutable(metadata);
         }
     }
 
@@ -1194,8 +1120,8 @@ public final class ArchitectureIrFactory {
                 targetTypeIds.add(target.id());
             }
             if (relationship.metadata() != null) {
-                NormalizedTypeDependency.addIfPresent(dependencySources, relationship.metadata().get("dependencySource"));
-                NormalizedTypeDependency.addIfPresent(dependencyCategories, relationship.metadata().get("dependencyCategory"));
+                ArchitectureIrDependencyMetadataSupport.addIfPresent(dependencySources, relationship.metadata().get("dependencySource"));
+                ArchitectureIrDependencyMetadataSupport.addIfPresent(dependencyCategories, relationship.metadata().get("dependencyCategory"));
                 addFrameworkMetadata(frameworks, frameworkRelationships, architectureViewKinds, relationship);
             }
         }
@@ -1205,11 +1131,7 @@ public final class ArchitectureIrFactory {
             metadata.put("sourceModuleName", sourceModuleName);
             metadata.put("targetModuleName", targetModuleName);
             metadata.put("relationshipKind", relationshipKind.name());
-            metadata.put("dependencySources", List.copyOf(dependencySources));
-            metadata.put("dependencyCategories", List.copyOf(dependencyCategories));
-            metadata.put("frameworks", List.copyOf(frameworks));
-            metadata.put("frameworkRelationships", List.copyOf(frameworkRelationships));
-            metadata.put("architectureViewKinds", List.copyOf(architectureViewKinds));
+            ArchitectureIrDependencyMetadataSupport.putSummaryCollections(metadata, dependencySources, dependencyCategories, frameworks, frameworkRelationships, architectureViewKinds, evidenceRelationshipIds, evidenceLabels);
             metadata.put("sourceBoundary", sourceBoundary);
             metadata.put("targetBoundary", targetBoundary);
             metadata.put("targetModuleClassification", targetModuleClassification);
@@ -1219,9 +1141,7 @@ public final class ArchitectureIrFactory {
             metadata.put("underlyingRelationshipCount", evidenceRelationshipIds.size());
             metadata.put("sourceTypeCount", sourceTypeIds.size());
             metadata.put("targetTypeCount", targetTypeIds.size());
-            metadata.put("evidenceRelationshipIds", List.copyOf(evidenceRelationshipIds));
-            metadata.put("evidenceLabels", List.copyOf(evidenceLabels));
-            return Map.copyOf(metadata);
+            return ArchitectureIrDependencyMetadataSupport.immutable(metadata);
         }
     }
 
@@ -1264,13 +1184,9 @@ public final class ArchitectureIrFactory {
 
         private void addEvidence(ArchitectureRelationship relationship) {
             Object dependencySource = relationship.metadata() == null ? null : relationship.metadata().get("dependencySource");
-            if (dependencySource instanceof String s && !s.isBlank()) {
-                dependencySources.add(s);
-            }
+            ArchitectureIrDependencyMetadataSupport.addIfPresent(dependencySources, dependencySource);
             Object dependencyCategory = relationship.metadata() == null ? null : relationship.metadata().get("dependencyCategory");
-            if (dependencyCategory instanceof String s && !s.isBlank()) {
-                dependencyCategories.add(s);
-            }
+            ArchitectureIrDependencyMetadataSupport.addIfPresent(dependencyCategories, dependencyCategory);
             addFrameworkMetadata(frameworks, frameworkRelationships, architectureViewKinds, relationship);
             evidenceRelationshipIds.add(relationship.id());
             if (relationship.label() != null && !relationship.label().isBlank()) {
@@ -1288,19 +1204,13 @@ public final class ArchitectureIrFactory {
             metadata.put("sourceBoundary", sourceBoundary);
             metadata.put("targetBoundary", targetBoundary);
             metadata.put("targetClassification", targetClassification);
-            metadata.put("dependencySources", List.copyOf(dependencySources));
-            metadata.put("dependencyCategories", List.copyOf(dependencyCategories));
-            metadata.put("frameworks", List.copyOf(frameworks));
-            metadata.put("frameworkRelationships", List.copyOf(frameworkRelationships));
-            metadata.put("architectureViewKinds", List.copyOf(architectureViewKinds));
+            ArchitectureIrDependencyMetadataSupport.putSummaryCollections(metadata, dependencySources, dependencyCategories, frameworks, frameworkRelationships, architectureViewKinds, evidenceRelationshipIds, evidenceLabels);
             metadata.put("underlyingRelationshipCount", evidenceRelationshipIds.size());
-            metadata.put("evidenceRelationshipIds", List.copyOf(evidenceRelationshipIds));
-            metadata.put("evidenceLabels", List.copyOf(evidenceLabels));
             metadata.put("dependencyTier", "supporting-evidence");
             metadata.put("architecturePrimary", false);
             metadata.put("recommendedForArchitectureViews", false);
             metadata.put("evidenceKind", "file-import");
-            return Map.copyOf(metadata);
+            return ArchitectureIrDependencyMetadataSupport.immutable(metadata);
         }
     }
 
