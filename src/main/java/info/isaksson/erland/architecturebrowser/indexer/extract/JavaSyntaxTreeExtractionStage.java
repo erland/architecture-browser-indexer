@@ -33,40 +33,6 @@ final class JavaSyntaxTreeExtractionStage {
     private final JavaWritePathSemantics writePathSemantics = new JavaWritePathSemantics();
     private final JavaMemberExtractionFlow memberExtractionFlow = new JavaMemberExtractionFlow();
 
-    private record JavaExtractionContext(
-        String relativePath,
-        String packageName,
-        String sourceText,
-        Map<String, String> importsBySimpleName,
-        Map<String, JavaDeclaredType> declaredTypes
-    ) {}
-
-    private record JavaTypeContext(
-        JavaExtractionContext extractionContext,
-        SyntaxNode typeNode,
-        ExtractedEntityFact typeEntity
-    ) {}
-
-    private record JavaFieldContext(
-        JavaExtractionContext extractionContext,
-        SyntaxNode fieldNode,
-        ExtractedEntityFact fieldEntity,
-        String ownerTypeEntityId,
-        String ownerQualifiedName,
-        String ownerTypeSnippet
-    ) {}
-
-    private record JavaMethodContext(
-        JavaExtractionContext extractionContext,
-        SyntaxNode methodNode,
-        ExtractedEntityFact methodEntity,
-        String ownerTypeEntityId,
-        String ownerQualifiedName,
-        String ownerTypeSnippet,
-        SourceReference sourceRef,
-        String snippet
-    ) {}
-
     ParseLanguage language() {
         return ParseLanguage.JAVA;
     }
@@ -186,52 +152,49 @@ final class JavaSyntaxTreeExtractionStage {
     ) {
         if (node == null) {
             return ownership;
-        }
-
-        String currentOwningTypeEntityId = ownership == null ? null : ownership.owningTypeEntityId();
+        }        String currentOwningTypeEntityId = ownership == null ? null : ownership.owningTypeEntityId();
         String currentOwningQualifiedName = ownership == null ? null : ownership.owningQualifiedName();
         String currentOwningTypeSnippet = ownership == null ? null : ownership.owningTypeSnippet();
-        if (isJavaTypeDeclaration(node)) {
-            ExtractedEntityFact typeEntity = entityMapper.toTypeEntity(parseResult, relativePath, packageName, extractionMode, packageScopeId, node, currentOwningQualifiedName);
-            if (typeEntity != null) {
-                accumulator.addEntity(typeEntity);
-                SourceReference ref = typeEntity.sourceRefs().isEmpty() ? null : typeEntity.sourceRefs().getFirst();
-                accumulator.addRelationship(ExtractionSupport.containsRelationship(fileEntityId, typeEntity.id(), ref));
-                dependencyEmissionFlow.addTypeRelationships(accumulator, relativePath, packageName, node, typeEntity, importsBySimpleName, declaredTypes);
-                addJaxRsResourceMetadata(accumulator, new JavaTypeContext(extractionContext, node, typeEntity));
-                addJpaTypeMetadata(accumulator, new JavaTypeContext(extractionContext, node, typeEntity));
-                addJpaInheritanceFacts(
-                    accumulator,
-                    relativePath,
-                    packageName,
-                    node,
-                    typeEntity,
-                    importsBySimpleName,
-                    declaredTypes
-                );
-                currentOwningTypeEntityId = typeEntity.id();
-                currentOwningTypeSnippet = node.textSnippet();
-                Object qualifiedName = typeEntity.metadata().get("qualifiedName");
-                currentOwningQualifiedName = qualifiedName == null ? currentOwningQualifiedName : String.valueOf(qualifiedName);
-            }
-        } else {
-            memberExtractionFlow.handleMemberNode(
-                parseResult,
-                accumulator,
-                relativePath,
-                packageName,
-                extractionMode,
-                fileScopeId,
-                fileEntityId,
-                node,
-                currentOwningTypeEntityId,
-                currentOwningQualifiedName,
-                currentOwningTypeSnippet,
-                importsBySimpleName,
-                declaredTypes,
-                extractionContext
+        JavaTypeTraversalResult typeTraversalResult = handleTypeNode(
+            parseResult,
+            accumulator,
+            relativePath,
+            packageName,
+            extractionMode,
+            packageScopeId,
+            fileEntityId,
+            node,
+            currentOwningTypeEntityId,
+            currentOwningQualifiedName,
+            currentOwningTypeSnippet,
+            importsBySimpleName,
+            declaredTypes,
+            extractionContext
+        );
+        if (typeTraversalResult.handled()) {
+            return new JavaSyntaxTreeTraversal.JavaTraversalOwnership(
+                typeTraversalResult.owningTypeEntityId(),
+                typeTraversalResult.owningQualifiedName(),
+                typeTraversalResult.owningTypeSnippet()
             );
         }
+
+        memberExtractionFlow.handleMemberNode(
+            parseResult,
+            accumulator,
+            relativePath,
+            packageName,
+            extractionMode,
+            fileScopeId,
+            fileEntityId,
+            node,
+            currentOwningTypeEntityId,
+            currentOwningQualifiedName,
+            currentOwningTypeSnippet,
+            importsBySimpleName,
+            declaredTypes,
+            extractionContext
+        );
 
         return new JavaSyntaxTreeTraversal.JavaTraversalOwnership(
             currentOwningTypeEntityId,
@@ -242,10 +205,74 @@ final class JavaSyntaxTreeExtractionStage {
 
 
 
+    private JavaTypeTraversalResult handleTypeNode(
+        SourceParseResult parseResult,
+        ExtractionAccumulator accumulator,
+        String relativePath,
+        String packageName,
+        ExtractionMode extractionMode,
+        String packageScopeId,
+        String fileEntityId,
+        SyntaxNode node,
+        String currentOwningTypeEntityId,
+        String currentOwningQualifiedName,
+        String currentOwningTypeSnippet,
+        Map<String, String> importsBySimpleName,
+        Map<String, JavaDeclaredType> declaredTypes,
+        JavaExtractionContext extractionContext
+    ) {
+        if (!isJavaTypeDeclaration(node)) {
+            return JavaTypeTraversalResult.notHandled(
+                currentOwningTypeEntityId,
+                currentOwningQualifiedName,
+                currentOwningTypeSnippet
+            );
+        }
+        ExtractedEntityFact typeEntity = entityMapper.toTypeEntity(
+            parseResult,
+            relativePath,
+            packageName,
+            extractionMode,
+            packageScopeId,
+            node,
+            currentOwningQualifiedName
+        );
+        if (typeEntity == null) {
+            return JavaTypeTraversalResult.notHandled(
+                currentOwningTypeEntityId,
+                currentOwningQualifiedName,
+                currentOwningTypeSnippet
+            );
+        }
+        accumulator.addEntity(typeEntity);
+        SourceReference ref = typeEntity.sourceRefs().isEmpty() ? null : typeEntity.sourceRefs().getFirst();
+        accumulator.addRelationship(ExtractionSupport.containsRelationship(fileEntityId, typeEntity.id(), ref));
+        dependencyEmissionFlow.addTypeRelationships(accumulator, relativePath, packageName, node, typeEntity, importsBySimpleName, declaredTypes);
+        addJaxRsResourceMetadata(accumulator, new JavaTypeContext(extractionContext, node, typeEntity));
+        addJpaTypeMetadata(accumulator, new JavaTypeContext(extractionContext, node, typeEntity));
+        addJpaInheritanceFacts(
+            accumulator,
+            relativePath,
+            packageName,
+            node,
+            typeEntity,
+            importsBySimpleName,
+            declaredTypes
+        );
+        String nextOwningTypeEntityId = typeEntity.id();
+        String nextOwningTypeSnippet = node.textSnippet();
+        Object qualifiedName = typeEntity.metadata().get("qualifiedName");
+        String nextOwningQualifiedName = qualifiedName == null ? currentOwningQualifiedName : String.valueOf(qualifiedName);
+        return JavaTypeTraversalResult.handled(
+            nextOwningTypeEntityId,
+            nextOwningQualifiedName,
+            nextOwningTypeSnippet
+        );
+    }
 
     private final class JavaMemberExtractionFlow {
 
-        void handleMemberNode(
+        JavaMemberExtractionResult handleMemberNode(
             SourceParseResult parseResult,
             ExtractionAccumulator accumulator,
             String relativePath,
@@ -262,7 +289,7 @@ final class JavaSyntaxTreeExtractionStage {
             JavaExtractionContext extractionContext
         ) {
             if (isJavaFieldDeclaration(node)) {
-                handleFieldNode(
+                return handleFieldNode(
                     parseResult,
                     accumulator,
                     relativePath,
@@ -278,10 +305,9 @@ final class JavaSyntaxTreeExtractionStage {
                     declaredTypes,
                     extractionContext
                 );
-                return;
             }
             if (isJavaMethodLikeDeclaration(node)) {
-                handleMethodNode(
+                return handleMethodNode(
                     parseResult,
                     accumulator,
                     relativePath,
@@ -298,9 +324,10 @@ final class JavaSyntaxTreeExtractionStage {
                     extractionContext
                 );
             }
+            return JavaMemberExtractionResult.notHandled();
         }
 
-        private void handleFieldNode(
+        private JavaMemberExtractionResult handleFieldNode(
             SourceParseResult parseResult,
             ExtractionAccumulator accumulator,
             String relativePath,
@@ -316,7 +343,10 @@ final class JavaSyntaxTreeExtractionStage {
             Map<String, JavaDeclaredType> declaredTypes,
             JavaExtractionContext extractionContext
         ) {
+            List<String> emittedEntityIds = new ArrayList<>();
+            int emittedRelationshipCount = 0;
             for (ExtractedEntityFact fieldEntity : entityMapper.toFieldEntities(parseResult, relativePath, extractionMode, fileScopeId, node, owningQualifiedName)) {
+                emittedEntityIds.add(fieldEntity.id());
                 accumulator.addEntity(fieldEntity);
                 SourceReference ref = fieldEntity.sourceRefs().isEmpty() ? null : fieldEntity.sourceRefs().getFirst();
                 String dependencySourceEntityId = owningTypeEntityId == null ? fileEntityId : owningTypeEntityId;
@@ -325,6 +355,7 @@ final class JavaSyntaxTreeExtractionStage {
                     fieldEntity.id(),
                     ref
                 ));
+                emittedRelationshipCount++;
                 dependencyEmissionFlow.addFieldDeclaredTypeDependencies(
                     accumulator,
                     dependencySourceEntityId,
@@ -348,9 +379,10 @@ final class JavaSyntaxTreeExtractionStage {
                     )
                 );
             }
+            return JavaMemberExtractionResult.handled(emittedEntityIds, emittedRelationshipCount);
         }
 
-        private void handleMethodNode(
+        private JavaMemberExtractionResult handleMethodNode(
             SourceParseResult parseResult,
             ExtractionAccumulator accumulator,
             String relativePath,
@@ -368,7 +400,7 @@ final class JavaSyntaxTreeExtractionStage {
         ) {
             ExtractedEntityFact methodEntity = entityMapper.toMethodEntity(parseResult, relativePath, extractionMode, fileScopeId, node, owningQualifiedName);
             if (methodEntity == null) {
-                return;
+                return JavaMemberExtractionResult.notHandled();
             }
             accumulator.addEntity(methodEntity);
             SourceReference ref = methodEntity.sourceRefs().isEmpty() ? null : methodEntity.sourceRefs().getFirst();
@@ -420,6 +452,7 @@ final class JavaSyntaxTreeExtractionStage {
             addJpaMethodFacts(accumulator, methodContext);
             addCdiEventFacts(accumulator, methodContext);
             addWritePathFacts(accumulator, methodContext);
+            return JavaMemberExtractionResult.handled(List.of(methodEntity.id()), 1);
         }
     }
 
