@@ -27,7 +27,7 @@ final class JavaMethodExtractionFlow {
         }
         request.accumulator().addEntity(methodEntity);
         SourceReference ref = methodEntity.sourceRefs().isEmpty() ? null : methodEntity.sourceRefs().getFirst();
-        String dependencySourceEntityId = request.ownerContext().owningTypeEntityId() == null ? request.fileEntityId() : request.ownerContext().owningTypeEntityId();
+        String dependencySourceEntityId = JavaOwnershipSupport.dependencySourceEntityId(request.ownerContext(), request.fileEntityId());
         request.accumulator().addRelationship(ExtractionSupport.containsRelationship(
             dependencySourceEntityId,
             methodEntity.id(),
@@ -41,7 +41,7 @@ final class JavaMethodExtractionFlow {
                 returnType,
                 request.relativePath(),
                 request.packageName(),
-                JavaSyntaxTreeExtractionStage.lineOf(ref, request.node()),
+                JavaSourceReferenceSupport.lineOf(ref, request.node()),
                 ref,
                 request.importsBySimpleName(),
                 request.declaredTypes()
@@ -57,7 +57,7 @@ final class JavaMethodExtractionFlow {
                 JavaSyntaxTreeExtractionStage.isConstructor(methodEntity),
                 request.relativePath(),
                 request.packageName(),
-                JavaSyntaxTreeExtractionStage.lineOf(ref, request.node()),
+                JavaSourceReferenceSupport.lineOf(ref, request.node()),
                 ref,
                 request.importsBySimpleName(),
                 request.declaredTypes()

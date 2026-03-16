@@ -324,34 +324,11 @@ final class JavaSyntaxTreeExtractionStage {
     }
 
     private static String exactNodeSnippet(String sourceText, SyntaxNode node) {
-        if (sourceText == null || sourceText.isBlank() || node == null) {
-            return null;
-        }
-        int start = Math.max(0, Math.min(node.startByte(), sourceText.length()));
-        int end = Math.max(start, Math.min(node.endByte(), sourceText.length()));
-        if (start >= end) {
-            return null;
-        }
-        String snippet = sourceText.substring(start, end);
-        return snippet.isBlank() ? null : snippet;
+        return JavaSourceReferenceSupport.exactNodeSnippet(sourceText, node);
     }
 
     private static List<String> extractParameterNames(String parameterSnippet) {
-        if (parameterSnippet == null || parameterSnippet.isBlank() || "()".equals(parameterSnippet.strip())) {
-            return List.of();
-        }
-        String inner = parameterSnippet.strip();
-        if (inner.startsWith("(")) inner = inner.substring(1);
-        if (inner.endsWith(")")) inner = inner.substring(0, inner.length() - 1);
-        if (inner.isBlank()) return List.of();
-        List<String> result = new ArrayList<>();
-        for (String part : splitTopLevelCommaSeparated(inner)) {
-            String name = extractParameterName(part.strip());
-            if (!name.isBlank()) {
-                result.add(name);
-            }
-        }
-        return List.copyOf(result);
+        return JavaDeclaredTypeSupport.extractParameterNames(parameterSnippet);
     }
 
     private record DetectedWritePath(String operation, String writeKind, String argumentExpression, String viaField, String viaType) {}
@@ -812,14 +789,11 @@ final class JavaSyntaxTreeExtractionStage {
 
     @SuppressWarnings("unchecked")
     private static List<String> metadataStringList(Object value) {
-        if (value instanceof List<?> list) {
-            return list.stream().map(String::valueOf).toList();
-        }
-        return List.of();
+        return JavaDeclaredTypeSupport.metadataStringList(value);
     }
 
     static int lineOf(SourceReference ref, SyntaxNode fallbackNode) {
-        return ref != null && ref.startLine() != null ? ref.startLine() : SyntaxTreeExtractionSupport.oneBasedLine(fallbackNode);
+        return JavaSourceReferenceSupport.lineOf(ref, fallbackNode);
     }
 
     private static java.util.Optional<String> importQualifiedName(String snippet) {

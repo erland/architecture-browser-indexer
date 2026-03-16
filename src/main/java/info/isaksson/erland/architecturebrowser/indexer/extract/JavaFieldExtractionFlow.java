@@ -28,7 +28,7 @@ final class JavaFieldExtractionFlow {
             emittedEntityIds.add(fieldEntity.id());
             request.accumulator().addEntity(fieldEntity);
             SourceReference ref = fieldEntity.sourceRefs().isEmpty() ? null : fieldEntity.sourceRefs().getFirst();
-            String dependencySourceEntityId = request.ownerContext().owningTypeEntityId() == null ? request.fileEntityId() : request.ownerContext().owningTypeEntityId();
+            String dependencySourceEntityId = JavaOwnershipSupport.dependencySourceEntityId(request.ownerContext(), request.fileEntityId());
             request.accumulator().addRelationship(ExtractionSupport.containsRelationship(
                 dependencySourceEntityId,
                 fieldEntity.id(),
@@ -41,7 +41,7 @@ final class JavaFieldExtractionFlow {
                 String.valueOf(fieldEntity.metadata().getOrDefault("declaredType", "")),
                 request.relativePath(),
                 request.packageName(),
-                JavaSyntaxTreeExtractionStage.lineOf(ref, request.node()),
+                JavaSourceReferenceSupport.lineOf(ref, request.node()),
                 ref,
                 request.importsBySimpleName(),
                 request.declaredTypes()

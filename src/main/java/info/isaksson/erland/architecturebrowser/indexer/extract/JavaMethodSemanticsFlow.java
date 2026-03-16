@@ -4,7 +4,6 @@ import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedE
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxNode;
 
-import java.util.Map;
 
 final class JavaMethodSemanticsFlow {
     private final JavaJaxRsMethodSemantics jaxRsMethodSemantics;
@@ -59,14 +58,13 @@ final class JavaMethodSemanticsFlow {
         if ((snippet == null || snippet.isBlank()) && methodNode != null) {
             snippet = methodNode.textSnippet();
         }
-        SourceReference ref = methodEntity.sourceRefs().isEmpty()
-            ? ExtractionSupport.sourceRef(
-                extractionContext.relativePath(),
-                SyntaxTreeExtractionSupport.oneBasedLine(methodNode),
-                snippet,
-                Map.of("language", "java", "kind", methodNode == null ? "method_declaration" : methodNode.type())
-            )
-            : methodEntity.sourceRefs().getFirst();
+        SourceReference ref = JavaSourceReferenceSupport.primaryReference(
+            extractionContext.relativePath(),
+            methodNode,
+            methodNode == null ? "method_declaration" : methodNode.type(),
+            methodEntity.sourceRefs(),
+            snippet
+        );
         return new JavaMethodContext(
             extractionContext,
             methodNode,
