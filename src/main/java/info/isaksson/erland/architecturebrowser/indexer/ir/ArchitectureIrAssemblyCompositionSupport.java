@@ -1,7 +1,6 @@
 package info.isaksson.erland.architecturebrowser.indexer.ir;
 
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureEntity;
-import info.isaksson.erland.architecturebrowser.indexer.extract.IdUtils;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureRelationship;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityOrigin;
@@ -20,6 +19,7 @@ final class ArchitectureIrAssemblyCompositionSupport {
     private ArchitectureIrAssemblyCompositionSupport() {
     }
 
+
     static List<ArchitectureRelationship> enrichDependencyRelationshipMetadata(
         List<ArchitectureRelationship> relationships,
         Map<String, ArchitectureEntity> entitiesById,
@@ -37,83 +37,11 @@ final class ArchitectureIrAssemblyCompositionSupport {
         Map<String, ArchitectureEntity> entitiesById,
         Map<String, ArchitectureEntity> observedTypesByQualifiedName
     ) {
-        Map<String, ArchitectureRelationship> byId = new LinkedHashMap<>();
-        for (ArchitectureRelationship relationship : relationships) {
-            byId.put(relationship.id(), relationship);
-        }
-
-        Map<String, ArchitectureRelationship> synthetic = new LinkedHashMap<>();
-        for (ArchitectureRelationship relationship : relationships) {
-            ArchitectureEntity source = canonicalDependencyEntity(entitiesById.get(relationship.fromEntityId()), observedTypesByQualifiedName);
-            ArchitectureEntity target = canonicalDependencyEntity(entitiesById.get(relationship.toEntityId()), observedTypesByQualifiedName);
-            if (!isTypeDependencyRelationship(relationship, source, target)) {
-                continue;
-            }
-            String sourcePackageName = packageNameForDependencyEntity(source);
-            String targetPackageName = packageNameForDependencyEntity(target);
-            if (sourcePackageName == null || targetPackageName == null || sourcePackageName.equals(targetPackageName)) {
-                continue;
-            }
-            String sourcePackageEntityId = findPackageEntityIdByName(sourcePackageName, entitiesById);
-            String targetPackageEntityId = findPackageEntityIdByName(targetPackageName, entitiesById);
-            if (sourcePackageEntityId == null || targetPackageEntityId == null || sourcePackageEntityId.equals(targetPackageEntityId)) {
-                continue;
-            }
-            String syntheticId = IdUtils.relationshipId("ir-package-uses", sourcePackageEntityId, targetPackageEntityId, "");
-            if (byId.containsKey(syntheticId) || synthetic.containsKey(syntheticId)) {
-                continue;
-            }
-            Map<String, Object> metadata = new LinkedHashMap<>();
-            metadata.put("rollup", "package-package");
-            metadata.put("dependencyView", "package");
-            metadata.put("dependencySourcePackageId", sourcePackageEntityId);
-            metadata.put("dependencyTargetPackageId", targetPackageEntityId);
-            metadata.put("dependencySourcePackageName", sourcePackageName);
-            metadata.put("dependencyTargetPackageName", targetPackageName);
-            metadata.put("dependencySourcePackageBoundary", packageBoundaryForName(sourcePackageName, entitiesById));
-            metadata.put("dependencyTargetPackageBoundary", packageBoundaryForName(targetPackageName, entitiesById));
-            metadata.put("dependencyTargetBoundary", packageBoundaryForName(targetPackageName, entitiesById));
-            metadata.put("dependencyTargetPackageClassification", packageClassificationForName(targetPackageName, entitiesById));
-            if (relationship.metadata() != null) {
-                Object dependencySource = relationship.metadata().get("dependencySource");
-                Object dependencyCategory = relationship.metadata().get("dependencyCategory");
-                if (dependencySource != null) {
-                    metadata.put("dependencySource", dependencySource);
-                }
-                if (dependencyCategory != null) {
-                    metadata.put("dependencyCategory", dependencyCategory);
-                }
-            }
-            synthetic.put(syntheticId, new ArchitectureRelationship(
-                syntheticId,
-                RelationshipKind.USES,
-                sourcePackageEntityId,
-                targetPackageEntityId,
-                relationship.label(),
-                relationship.sourceRefs(),
-                ArchitectureIrDependencyMetadataSupport.immutable(metadata)
-            ));
-        }
-
-        if (synthetic.isEmpty()) {
-            return relationships;
-        }
-        List<ArchitectureRelationship> merged = new ArrayList<>(relationships.size() + synthetic.size());
-        merged.addAll(relationships);
-        merged.addAll(synthetic.values());
-        return List.copyOf(merged);
-    }
-
-    private static String findPackageEntityIdByName(String packageName, Map<String, ArchitectureEntity> entitiesById) {
-        if (packageName == null || packageName.isBlank()) {
-            return null;
-        }
-        for (ArchitectureEntity entity : entitiesById.values()) {
-            if (isPackageEntity(entity) && packageName.equals(entity.name())) {
-                return entity.id();
-            }
-        }
-        return null;
+        return ArchitectureIrSyntheticPackageDependencyRollupBuilder.ensurePackageDependencyRelationships(
+            relationships,
+            entitiesById,
+            observedTypesByQualifiedName
+        );
     }
 
     static Map<String, ArchitectureEntity> enrichPackageEntities(
@@ -437,7 +365,7 @@ final class ArchitectureIrAssemblyCompositionSupport {
         return Map.copyOf(observed);
     }
 
-    private static ArchitectureEntity canonicalDependencyEntity(
+    static ArchitectureEntity canonicalDependencyEntity(
         ArchitectureEntity entity,
         Map<String, ArchitectureEntity> observedTypesByQualifiedName
     ) {
@@ -479,7 +407,7 @@ final class ArchitectureIrAssemblyCompositionSupport {
             || kind == RelationshipKind.EXPOSES;
     }
 
-    private static boolean isTypeDependencyRelationship(
+    static boolean isTypeDependencyRelationship(
         ArchitectureRelationship relationship,
         ArchitectureEntity source,
         ArchitectureEntity target
@@ -529,7 +457,7 @@ final class ArchitectureIrAssemblyCompositionSupport {
         return source.kind() == EntityKind.MODULE && target.kind() == EntityKind.MODULE && Objects.equals("import", dependencySource);
     }
 
-    private static String packageNameForDependencyEntity(ArchitectureEntity entity) {
+    static String packageNameForDependencyEntity(ArchitectureEntity entity) {
         if (entity == null) {
             return null;
         }
@@ -632,7 +560,7 @@ final class ArchitectureIrAssemblyCompositionSupport {
             && Objects.equals("source-root", entity.metadata().get("logicalRole"));
     }
 
-    private static boolean isPackageEntity(ArchitectureEntity entity) {
+    static boolean isPackageEntity(ArchitectureEntity entity) {
         return entity != null
             && entity.kind() == EntityKind.MODULE
             && entity.metadata() != null
@@ -693,14 +621,26 @@ final class ArchitectureIrAssemblyCompositionSupport {
         return "unknown";
     }
 
-    private static String packageBoundaryForName(String packageName, Map<String, ArchitectureEntity> entitiesById) {
+    static String findPackageEntityIdByName(String packageName, Map<String, ArchitectureEntity> entitiesById) {
+        if (packageName == null || packageName.isBlank()) {
+            return null;
+        }
+        for (ArchitectureEntity entity : entitiesById.values()) {
+            if (isPackageEntity(entity) && packageName.equals(entity.name())) {
+                return entity.id();
+            }
+        }
+        return null;
+    }
+
+    static String packageBoundaryForName(String packageName, Map<String, ArchitectureEntity> entitiesById) {
         if (packageName == null || packageName.isBlank()) {
             return "unknown";
         }
         return findPackageEntityIdByName(packageName, entitiesById) != null ? "internal" : "external";
     }
 
-    private static String packageClassificationForName(String packageName, Map<String, ArchitectureEntity> entitiesById) {
+    static String packageClassificationForName(String packageName, Map<String, ArchitectureEntity> entitiesById) {
         if (packageName == null || packageName.isBlank()) {
             return "unknown";
         }
