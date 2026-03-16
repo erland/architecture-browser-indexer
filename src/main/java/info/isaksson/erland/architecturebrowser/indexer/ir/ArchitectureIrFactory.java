@@ -1,12 +1,8 @@
 package info.isaksson.erland.architecturebrowser.indexer.ir;
 
 import info.isaksson.erland.architecturebrowser.indexer.extract.IdUtils;
-import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedEntityFact;
-import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedRelationshipFact;
 import info.isaksson.erland.architecturebrowser.indexer.extract.model.StructuralExtractionResult;
 import info.isaksson.erland.architecturebrowser.indexer.interpret.model.InterpretationResult;
-import info.isaksson.erland.architecturebrowser.indexer.interpret.model.InterpretedEntityFact;
-import info.isaksson.erland.architecturebrowser.indexer.interpret.model.InterpretedRelationshipFact;
 import info.isaksson.erland.architecturebrowser.indexer.topology.model.TopologyResult;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureEntity;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureIndexDocument;
@@ -14,8 +10,6 @@ import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureRel
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.CompletenessMetadata;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.CompletenessStatus;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.Diagnostic;
-import info.isaksson.erland.architecturebrowser.indexer.ir.model.DiagnosticPhase;
-import info.isaksson.erland.architecturebrowser.indexer.ir.model.DiagnosticSeverity;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityOrigin;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.LogicalScope;
@@ -23,13 +17,9 @@ import info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKin
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.RepositorySource;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.RunMetadata;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.RunOutcome;
-import info.isaksson.erland.architecturebrowser.indexer.ir.model.ScopeKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
 import info.isaksson.erland.architecturebrowser.indexer.parse.ParseBatchResult;
-import info.isaksson.erland.architecturebrowser.indexer.parse.ParseDiagnostics;
-import info.isaksson.erland.architecturebrowser.indexer.parse.TreeSitterParsingService;
 import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventory;
-import info.isaksson.erland.architecturebrowser.indexer.scan.FileInventoryEntry;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -97,186 +87,27 @@ public final class ArchitectureIrFactory {
         TopologyResult topologyResult
     ) {
         Instant generatedAt = Instant.now();
-
-        LogicalScope repositoryScope = new LogicalScope(
-            "scope:repo",
-            ScopeKind.REPOSITORY,
-            source.repositoryId(),
-            source.repositoryId(),
-            null,
-            List.of(),
-            Map.of("acquisitionType", source.acquisitionType())
+        ArchitectureIrAssemblyInputs inputs = new ArchitectureIrAssemblyInputs(
+            source,
+            inventory,
+            acquisitionDiagnostics,
+            parseBatchResult,
+            extractionResult,
+            interpretationResult,
+            topologyResult
         );
-
-        SourceReference firstSource = inventory.entries().stream()
-            .filter(entry -> !entry.ignored())
-            .findFirst()
-            .map(entry -> new SourceReference(entry.relativePath(), null, null, null, Map.of("type", entry.type())))
-            .orElse(null);
-
-        ArchitectureEntity inventoryEntity = new ArchitectureEntity(
-            "entity:inventory:root",
-            EntityKind.MODULE,
-            EntityOrigin.INFERRED,
-            "Repository inventory",
-            source.repositoryId() + ":inventory",
-            repositoryScope.id(),
-            firstSource == null ? List.of() : List.of(firstSource),
-            Map.of(
-                "indexedFileCount", inventory.indexedFiles(),
-                "totalFileCount", inventory.totalFiles(),
-                "detectedLanguages", inventory.detectedLanguages(),
-                "detectedTechnologyMarkers", inventory.detectedTechnologyMarkers()
-            )
-        );
-
-        List<Diagnostic> diagnostics = new ArrayList<>();
-        if (acquisitionDiagnostics == null || acquisitionDiagnostics.isEmpty()) {
-            diagnostics.add(new Diagnostic(
-                "diag:inventory:scan-complete",
-                DiagnosticSeverity.INFO,
-                DiagnosticPhase.ACQUISITION,
-                "inventory.scan.complete",
-                "Acquisition and file inventory completed",
-                false,
-                null,
-                repositoryScope.id(),
-                inventoryEntity.id(),
-                inventoryEntity.sourceRefs(),
-                Map.of("totalFiles", inventory.totalFiles(), "ignoredFiles", inventory.ignoredFiles())
-            ));
-        } else {
-            diagnostics.addAll(acquisitionDiagnostics);
-        }
-        if (parseBatchResult != null) {
-            diagnostics.addAll(ParseDiagnostics.toDiagnostics(parseBatchResult));
-        }
-        if (extractionResult != null) {
-            diagnostics.addAll(extractionResult.diagnostics());
-        }
-        if (interpretationResult != null) {
-            diagnostics.addAll(interpretationResult.diagnostics());
-        }
-        if (topologyResult != null) {
-            diagnostics.addAll(topologyResult.diagnostics());
-        }
-
-        Map<String, LogicalScope> scopesById = new LinkedHashMap<>();
-        scopesById.put(repositoryScope.id(), repositoryScope);
-        if (extractionResult != null) {
-            for (LogicalScope scope : extractionResult.scopes()) {
-                scopesById.put(scope.id(), scope);
-            }
-        }
-        if (topologyResult != null) {
-            for (LogicalScope scope : topologyResult.scopes()) {
-                scopesById.put(scope.id(), scope);
-            }
-        }
-        List<LogicalScope> scopes = List.copyOf(scopesById.values());
-
-        Map<String, ArchitectureEntity> entitiesById = new LinkedHashMap<>();
-        entitiesById.put(inventoryEntity.id(), inventoryEntity);
-        if (extractionResult != null) {
-            for (ExtractedEntityFact entity : extractionResult.entities()) {
-                entitiesById.put(entity.id(), new ArchitectureEntity(
-                    entity.id(), entity.kind(), entity.origin(), entity.name(), entity.displayName(), normalizeScopeId(entity.scopeId(), repositoryScope.id()), entity.sourceRefs(), entity.metadata()
-                ));
-            }
-        }
-        if (interpretationResult != null) {
-            for (InterpretedEntityFact entity : interpretationResult.entities()) {
-                entitiesById.put(entity.id(), new ArchitectureEntity(
-                    entity.id(), entity.kind(), entity.origin(), entity.name(), entity.displayName(), normalizeScopeId(entity.scopeId(), repositoryScope.id()), entity.sourceRefs(), entity.metadata()
-                ));
-            }
-        }
-        if (topologyResult != null) {
-            for (ArchitectureEntity entity : topologyResult.entities()) {
-                entitiesById.put(entity.id(), entity);
-            }
-        }
-        Map<String, ArchitectureRelationship> relationshipsById = new LinkedHashMap<>();
-        if (extractionResult != null) {
-            for (ExtractedRelationshipFact relationship : extractionResult.relationships()) {
-                ArchitectureRelationship architectureRelationship = new ArchitectureRelationship(
-                    relationship.id(), relationship.kind(), relationship.fromEntityId(), relationship.toEntityId(), relationship.label(), relationship.sourceRefs(), relationship.metadata()
-                );
-                relationshipsById.put(architectureRelationship.id(), architectureRelationship);
-            }
-        }
-        if (interpretationResult != null) {
-            for (InterpretedRelationshipFact relationship : interpretationResult.relationships()) {
-                ArchitectureRelationship architectureRelationship = new ArchitectureRelationship(
-                    relationship.id(), relationship.kind(), relationship.fromEntityId(), relationship.toEntityId(), relationship.label(), relationship.sourceRefs(), relationship.metadata()
-                );
-                relationshipsById.put(architectureRelationship.id(), architectureRelationship);
-            }
-        }
-        if (topologyResult != null) {
-            for (ArchitectureRelationship relationship : topologyResult.relationships()) {
-                relationshipsById.put(relationship.id(), relationship);
-            }
-        }
-        Map<String, ArchitectureEntity> observedTypesByQualifiedName = observedTypesByQualifiedName(entitiesById);
-        List<ArchitectureRelationship> relationships = enrichDependencyRelationshipMetadata(List.copyOf(relationshipsById.values()), entitiesById, observedTypesByQualifiedName);
-        relationships = ensurePackageDependencyRelationships(relationships, entitiesById, observedTypesByQualifiedName);
-
-        List<String> completenessNotes = new ArrayList<>();
-        if (extractionResult == null) {
-            completenessNotes.add("Inventory-only payload produced before structural extraction is implemented");
-        } else if (interpretationResult == null) {
-            completenessNotes.add("Structural extraction included syntax-tree-based extraction without interpretation");
-        } else if (topologyResult == null) {
-            completenessNotes.add("Structural extraction and first-pass interpretation rules were included");
-        } else {
-            completenessNotes.add("Structural extraction, interpretation, logical scoping, and relationship inference were included");
-        }
-
-        RunAssessment assessment = RunAssessment.assess(inventory, parseBatchResult, diagnostics, completenessNotes);
+        ArchitectureIrAssemblyState assembly = ArchitectureIrAssemblyStateBuilder.build(inputs);
+        List<String> completenessNotes = defaultCompletenessNotes(extractionResult, interpretationResult, topologyResult);
+        RunAssessment assessment = RunAssessment.assess(inventory, parseBatchResult, assembly.diagnostics(), completenessNotes);
         CompletenessMetadata completeness = assessment.completeness();
-
-        Map<String, Object> documentMetadata = new LinkedHashMap<>();
-        documentMetadata.put("inventoryEntries", inventory.entries());
-        documentMetadata.put("inventorySummary", Map.of(
-            "totalFiles", inventory.totalFiles(),
-            "indexedFiles", inventory.indexedFiles(),
-            "ignoredFiles", inventory.ignoredFiles(),
-            "detectedLanguages", inventory.detectedLanguages(),
-            "detectedTechnologyMarkers", inventory.detectedTechnologyMarkers()
-        ));
-        if (parseBatchResult != null) {
-            documentMetadata.put("parseSummary", TreeSitterParsingService.summarize(parseBatchResult));
-        }
-        if (extractionResult != null) {
-            documentMetadata.put("extractionSummary", extractionResult.summary());
-        }
-        if (interpretationResult != null) {
-            documentMetadata.put("interpretationSummary", interpretationResult.summary());
-        }
-        if (topologyResult != null) {
-            documentMetadata.put("topologySummary", topologyResult.summary());
-        }
-        Map<String, Object> dependencyViews = buildDependencyViews(relationships, entitiesById, observedTypesByQualifiedName);
-        entitiesById = enrichPackageEntities(entitiesById, dependencyViews);
-        List<ArchitectureEntity> entities = List.copyOf(entitiesById.values());
-        documentMetadata.put("dependencyViews", dependencyViews);
-        documentMetadata.put("diagnosticSummary", assessment.diagnosticSummary());
-        documentMetadata.put("partialResult", assessment.partialResult());
-
-        RunMetadata runMetadata = new RunMetadata(
+        Map<String, Object> documentMetadata = ArchitectureIrDocumentMetadataBuilder.build(inputs, assembly, assessment);
+        RunMetadata runMetadata = ArchitectureIrRunMetadataBuilder.build(
             generatedAt,
-            generatedAt,
-            assessment.outcome(),
-            inventory.detectedTechnologyMarkers().stream().sorted().toList(),
-            Map.of(
-                "mode", topologyResult != null ? "cli-topology" : (interpretationResult != null ? "cli-interpretation" : (extractionResult == null ? "cli-inventory" : "cli-structural-extraction")),
-                "inventoryOnly", extractionResult == null,
-                "structuralExtraction", extractionResult != null,
-                "interpretation", interpretationResult != null,
-                "topology", topologyResult != null,
-                "degradedPaths", assessment.degradedPaths()
-            )
+            inventory,
+            extractionResult,
+            interpretationResult,
+            topologyResult,
+            assessment
         );
 
         return new ArchitectureIndexDocument(
@@ -284,17 +115,17 @@ public final class ArchitectureIrFactory {
             indexerVersion,
             runMetadata,
             source,
-            List.copyOf(scopes),
-            List.copyOf(entities),
-            List.copyOf(relationships),
-            diagnostics,
+            assembly.scopes(),
+            assembly.entities(),
+            assembly.relationships(),
+            assembly.diagnostics(),
             completeness,
-            Map.copyOf(documentMetadata)
+            documentMetadata
         );
     }
 
 
-    private static List<ArchitectureRelationship> enrichDependencyRelationshipMetadata(
+    static List<ArchitectureRelationship> enrichDependencyRelationshipMetadata(
         List<ArchitectureRelationship> relationships,
         Map<String, ArchitectureEntity> entitiesById,
         Map<String, ArchitectureEntity> observedTypesByQualifiedName
@@ -403,7 +234,7 @@ public final class ArchitectureIrFactory {
         return List.copyOf(enriched);
     }
 
-    private static List<ArchitectureRelationship> ensurePackageDependencyRelationships(
+    static List<ArchitectureRelationship> ensurePackageDependencyRelationships(
         List<ArchitectureRelationship> relationships,
         Map<String, ArchitectureEntity> entitiesById,
         Map<String, ArchitectureEntity> observedTypesByQualifiedName
@@ -487,7 +318,7 @@ public final class ArchitectureIrFactory {
         return null;
     }
 
-    private static Map<String, ArchitectureEntity> enrichPackageEntities(
+    static Map<String, ArchitectureEntity> enrichPackageEntities(
         Map<String, ArchitectureEntity> entitiesById,
         Map<String, Object> dependencyViews
     ) {
@@ -535,7 +366,7 @@ public final class ArchitectureIrFactory {
         return Map.copyOf(enriched);
     }
 
-    private static Map<String, Object> buildDependencyViews(
+    static Map<String, Object> buildDependencyViews(
         List<ArchitectureRelationship> relationships,
         Map<String, ArchitectureEntity> entitiesById,
         Map<String, ArchitectureEntity> observedTypesByQualifiedName
@@ -1340,7 +1171,7 @@ public final class ArchitectureIrFactory {
         return count;
     }
 
-    private static Map<String, ArchitectureEntity> observedTypesByQualifiedName(Map<String, ArchitectureEntity> entitiesById) {
+    static Map<String, ArchitectureEntity> observedTypesByQualifiedName(Map<String, ArchitectureEntity> entitiesById) {
         Map<String, ArchitectureEntity> observed = new LinkedHashMap<>();
         for (ArchitectureEntity entity : entitiesById.values()) {
             if (!isTypeEntity(entity) || entity.origin() != EntityOrigin.OBSERVED) {
@@ -2066,6 +1897,24 @@ public final class ArchitectureIrFactory {
         }
     }
 
+    private static List<String> defaultCompletenessNotes(
+        StructuralExtractionResult extractionResult,
+        InterpretationResult interpretationResult,
+        TopologyResult topologyResult
+    ) {
+        List<String> completenessNotes = new ArrayList<>();
+        if (extractionResult == null) {
+            completenessNotes.add("Inventory-only payload produced before structural extraction is implemented");
+        } else if (interpretationResult == null) {
+            completenessNotes.add("Structural extraction included syntax-tree-based extraction without interpretation");
+        } else if (topologyResult == null) {
+            completenessNotes.add("Structural extraction and first-pass interpretation rules were included");
+        } else {
+            completenessNotes.add("Structural extraction, interpretation, logical scoping, and relationship inference were included");
+        }
+        return List.copyOf(completenessNotes);
+    }
+
     public static ArchitectureIndexDocument createPlaceholderDocument(RepositorySource source, String indexerVersion) {
         return createInventoryDocument(
             source,
@@ -2075,7 +1924,7 @@ public final class ArchitectureIrFactory {
         );
     }
 
-    private static String normalizeScopeId(String scopeId, String repositoryScopeId) {
+    static String normalizeScopeId(String scopeId, String repositoryScopeId) {
         if (scopeId == null || scopeId.isBlank()) {
             return repositoryScopeId;
         }
