@@ -242,6 +242,18 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                     currentOwningTypeSnippet,
                     methodEntity
                 );
+                addJpaMethodFacts(
+                    accumulator,
+                    relativePath,
+                    packageName,
+                    node,
+                    methodEntity,
+                    currentOwningTypeEntityId,
+                    currentOwningQualifiedName,
+                    currentOwningTypeSnippet,
+                    importsBySimpleName,
+                    declaredTypes
+                );
             }
         }
 
@@ -558,6 +570,193 @@ final class JavaStructuralExtractor implements StructuralExtractor {
             ));
         }
     }
+
+    private void addJpaMethodFacts(
+        ExtractionAccumulator accumulator,
+        String relativePath,
+        String packageName,
+        SyntaxNode methodNode,
+        ExtractedEntityFact methodEntity,
+        String ownerTypeEntityId,
+        String ownerQualifiedName,
+        String ownerTypeSnippet,
+        Map<String, String> importsBySimpleName,
+        Map<String, DeclaredJavaType> declaredTypes
+    ) {
+        if (methodEntity == null || ownerTypeEntityId == null || !isJpaPersistentType(ownerTypeSnippet, null) || isConstructor(methodEntity)) {
+            return;
+        }
+        List<String> annotations = metadataStringList(methodEntity.metadata().get("annotations"));
+        if (methodNode != null) {
+            java.util.LinkedHashSet<String> mergedAnnotations = new java.util.LinkedHashSet<>(annotations);
+            SyntaxTreeExtractionSupport.descendantsByType(methodNode, Set.of("marker_annotation", "annotation")).stream()
+                .flatMap(annotationNode -> SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(annotationNode.textSnippet()).stream())
+                .forEach(mergedAnnotations::add);
+            SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(methodNode.textSnippet()).forEach(mergedAnnotations::add);
+            annotations = List.copyOf(mergedAnnotations);
+        }
+        String snippet = methodEntity.sourceRefs().isEmpty() ? (methodNode == null ? "" : methodNode.textSnippet()) : methodEntity.sourceRefs().getFirst().snippet();
+        if ((snippet == null || snippet.isBlank()) && methodNode != null) {
+            snippet = methodNode.textSnippet();
+        }
+        String parameters = String.valueOf(methodEntity.metadata().getOrDefault("parameters", ""));
+        String methodName = methodEntity.name();
+        if (!annotations.stream().anyMatch(a -> a != null && !a.isBlank()) && !containsJpaPropertyAnnotation(snippet)) {
+            return;
+        }
+        String propertyName = deriveJavaPropertyName(methodName, parameters);
+        if (propertyName == null || propertyName.isBlank()) {
+            return;
+        }
+        LinkedHashMap<String, Object> metadata = new LinkedHashMap<>(methodEntity.metadata());
+        metadata.put("framework", "jpa");
+        metadata.put("jpaPropertyAccess", true);
+        metadata.put("jpaPropertyName", propertyName);
+        boolean changed = true;
+        if (hasAnnotation(annotations, "Id") || hasAnnotation(annotations, "EmbeddedId")) {
+            metadata.put("jpaId", true);
+            changed = true;
+        }
+        if (hasAnnotation(annotations, "Version")) {
+            metadata.put("jpaVersion", true);
+            changed = true;
+        }
+        if (hasAnnotation(annotations, "Embedded") || hasAnnotation(annotations, "EmbeddedId")) {
+            metadata.put("jpaEmbedded", true);
+            changed = true;
+        }
+        extractJpaColumnName(snippet).ifPresent(column -> metadata.put("columnName", column));
+        if (snippet != null && snippet.contains("nullable = false")) {
+            metadata.put("nullable", false);
+            changed = true;
+        }
+        if (snippet != null && snippet.contains("nullable = true")) {
+            metadata.put("nullable", true);
+            changed = true;
+        }
+        if (snippet != null && snippet.contains("unique = true")) {
+            metadata.put("unique", true);
+            changed = true;
+        }
+        if (extractJpaColumnName(snippet).isPresent()) {
+            changed = true;
+        }
+        Optional<String> association = detectJpaAssociation(annotations, snippet);
+        if (association.isEmpty()) {
+            String loweredSnippet = snippet == null ? "" : snippet.toLowerCase(java.util.Locale.ROOT);
+            if (loweredSnippet.contains("manytoone") || loweredSnippet.contains("many_to_one") || loweredSnippet.contains("many-to-one")) {
+                association = Optional.of("many-to-one");
+            } else if (loweredSnippet.contains("onetomany") || loweredSnippet.contains("one_to_many") || loweredSnippet.contains("one-to-many")) {
+                association = Optional.of("one-to-many");
+            } else if (loweredSnippet.contains("onetoone") || loweredSnippet.contains("one_to_one") || loweredSnippet.contains("one-to-one")) {
+                association = Optional.of("one-to-one");
+            } else if (loweredSnippet.contains("manytomany") || loweredSnippet.contains("many_to_many") || loweredSnippet.contains("many-to-many")) {
+                association = Optional.of("many-to-many");
+            }
+        }
+        String declaredType = String.valueOf(methodEntity.metadata().getOrDefault("returnType", ""));
+        if (declaredType == null || declaredType.isBlank()) {
+            declaredType = inferJavaMethodReturnTypeFromSnippet(snippet, methodName).orElse("");
+        }
+        if (association.isPresent()) {
+            String associationKind = association.get();
+            metadata.put("jpaAssociation", associationKind);
+            extractJpaMappedBy(snippet).ifPresent(mappedBy -> metadata.put("mappedBy", mappedBy));
+            extractJpaJoinColumn(snippet).ifPresent(joinColumn -> metadata.put("joinColumn", joinColumn));
+            extractJpaJoinTable(snippet).ifPresent(joinTable -> metadata.put("joinTable", joinTable));
+            changed = true;
+            List<String> referencedTypes = extractReferencedTypes(declaredType);
+            if (!referencedTypes.isEmpty()) {
+                ResolvedJavaType target = resolveJavaTypeReference(
+                    accumulator,
+                    referencedTypes.getLast(),
+                    EntityKind.CLASS,
+                    relativePath,
+                    packageName,
+                    lineOf(methodEntity.sourceRefs().isEmpty() ? null : methodEntity.sourceRefs().getFirst(), methodNode),
+                    importsBySimpleName,
+                    declaredTypes
+                );
+                if (target != null && !ownerTypeEntityId.equals(target.entityId())) {
+                    SourceReference ref = methodEntity.sourceRefs().isEmpty()
+                        ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(methodNode), snippet, Map.of("language", "java", "kind", "method_declaration"))
+                        : methodEntity.sourceRefs().getFirst();
+                    LinkedHashMap<String, Object> relationshipMetadata = new LinkedHashMap<>();
+                    relationshipMetadata.put("framework", "jpa");
+                    relationshipMetadata.put("relationshipType", "hasAssociation");
+                    relationshipMetadata.put("jpaAssociation", associationKind);
+                    extractJpaMappedBy(snippet).ifPresent(mappedBy -> relationshipMetadata.put("mappedBy", mappedBy));
+                    extractJpaJoinColumn(snippet).ifPresent(joinColumn -> relationshipMetadata.put("joinColumn", joinColumn));
+                    extractJpaJoinTable(snippet).ifPresent(joinTable -> relationshipMetadata.put("joinTable", joinTable));
+                    relationshipMetadata.put("ownerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName);
+                    relationshipMetadata.put("ownerMemberKind", "method");
+                    relationshipMetadata.put("ownerMemberName", methodName);
+                    relationshipMetadata.put("ownerPropertyName", propertyName);
+                    accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
+                        ownerTypeEntityId,
+                        target.entityId(),
+                        target.label(),
+                        ref,
+                        "java",
+                        Map.copyOf(relationshipMetadata)
+                    ));
+                }
+            }
+        }
+        if (Boolean.TRUE.equals(metadata.get("jpaEmbedded"))) {
+            List<String> referencedTypes = extractReferencedTypes(declaredType);
+            if (!referencedTypes.isEmpty()) {
+                ResolvedJavaType target = resolveJavaTypeReference(
+                    accumulator,
+                    referencedTypes.getLast(),
+                    EntityKind.CLASS,
+                    relativePath,
+                    packageName,
+                    lineOf(methodEntity.sourceRefs().isEmpty() ? null : methodEntity.sourceRefs().getFirst(), methodNode),
+                    importsBySimpleName,
+                    declaredTypes
+                );
+                if (target != null && !ownerTypeEntityId.equals(target.entityId())) {
+                    SourceReference ref = methodEntity.sourceRefs().isEmpty()
+                        ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(methodNode), snippet, Map.of("language", "java", "kind", "method_declaration"))
+                        : methodEntity.sourceRefs().getFirst();
+                    accumulator.addRelationship(ExtractionSupport.typedRelationship(
+                        info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.DEPENDS_ON,
+                        "embeds-jpa-property-type",
+                        ownerTypeEntityId,
+                        target.entityId(),
+                        target.label(),
+                        ref,
+                        "java",
+                        Map.of(
+                            "framework", "jpa",
+                            "relationshipType", "embeds",
+                            "ownerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName,
+                            "ownerMemberKind", "method",
+                            "ownerMemberName", methodName,
+                            "ownerPropertyName", propertyName
+                        )
+                    ));
+                }
+            }
+        }
+        if (changed) {
+            SourceReference ref = methodEntity.sourceRefs().isEmpty()
+                ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(methodNode), snippet, Map.of("language", "java", "kind", "method_declaration"))
+                : methodEntity.sourceRefs().getFirst();
+            accumulator.addEntity(new ExtractedEntityFact(
+                methodEntity.id(),
+                methodEntity.kind(),
+                methodEntity.origin(),
+                methodEntity.name(),
+                methodEntity.displayName(),
+                methodEntity.scopeId(),
+                List.of(ref),
+                Map.copyOf(metadata)
+            ));
+        }
+    }
+
 
     private void addJpaInheritanceFacts(
         ExtractionAccumulator accumulator,
@@ -966,6 +1165,50 @@ final class JavaStructuralExtractor implements StructuralExtractor {
     }
 
 
+    private static boolean containsJpaPropertyAnnotation(String snippet) {
+        return hasAnyJpaAnnotation(snippet, "Id", "EmbeddedId", "Version", "Embedded", "Column", "OneToOne", "OneToMany", "ManyToOne", "ManyToMany", "JoinColumn", "JoinTable");
+    }
+
+    private static boolean hasAnyJpaAnnotation(String snippet, String... simpleNames) {
+        if (snippet == null || snippet.isBlank()) {
+            return false;
+        }
+        for (String simpleName : simpleNames) {
+            if (containsAnnotationSnippet(snippet, simpleName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String deriveJavaPropertyName(String methodName, String parameterSnippet) {
+        if (methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        String params = parameterSnippet == null ? "" : parameterSnippet.strip();
+        if (!(params.isBlank() || "()".equals(params))) {
+            return null;
+        }
+        if (methodName.startsWith("get") && methodName.length() > 3 && Character.isUpperCase(methodName.charAt(3))) {
+            return decapitalizeJavaProperty(methodName.substring(3));
+        }
+        if (methodName.startsWith("is") && methodName.length() > 2 && Character.isUpperCase(methodName.charAt(2))) {
+            return decapitalizeJavaProperty(methodName.substring(2));
+        }
+        return null;
+    }
+
+    private static String decapitalizeJavaProperty(String value) {
+        if (value == null || value.isBlank()) {
+            return value;
+        }
+        if (value.length() > 1 && Character.isUpperCase(value.charAt(0)) && Character.isUpperCase(value.charAt(1))) {
+            return value;
+        }
+        return Character.toLowerCase(value.charAt(0)) + value.substring(1);
+    }
+
+
     private static boolean isJpaPersistentType(String snippet, ExtractedEntityFact entity) {
         if (hasAnnotation(metadataStringList(entity == null ? null : entity.metadata().get("annotations")), "Entity")
             || hasAnnotation(metadataStringList(entity == null ? null : entity.metadata().get("annotations")), "Embeddable")
@@ -1039,10 +1282,26 @@ final class JavaStructuralExtractor implements StructuralExtractor {
     }
 
     private static Optional<String> detectJpaAssociation(String snippet) {
-        if (containsAnnotationSnippet(snippet, "OneToOne")) return Optional.of("one-to-one");
-        if (containsAnnotationSnippet(snippet, "OneToMany")) return Optional.of("one-to-many");
-        if (containsAnnotationSnippet(snippet, "ManyToOne")) return Optional.of("many-to-one");
-        if (containsAnnotationSnippet(snippet, "ManyToMany")) return Optional.of("many-to-many");
+        return detectJpaAssociation(List.of(), snippet);
+    }
+
+    private static Optional<String> detectJpaAssociation(List<String> annotations, String snippet) {
+        if (hasAnnotation(annotations, "OneToOne") || containsAnnotationSnippet(snippet, "OneToOne")) return Optional.of("one-to-one");
+        if (hasAnnotation(annotations, "OneToMany") || containsAnnotationSnippet(snippet, "OneToMany")) return Optional.of("one-to-many");
+        if (hasAnnotation(annotations, "ManyToOne") || containsAnnotationSnippet(snippet, "ManyToOne")) return Optional.of("many-to-one");
+        if (hasAnnotation(annotations, "ManyToMany") || containsAnnotationSnippet(snippet, "ManyToMany")) return Optional.of("many-to-many");
+        return Optional.empty();
+    }
+
+    private static Optional<String> inferJavaMethodReturnTypeFromSnippet(String snippet, String methodName) {
+        if (snippet == null || snippet.isBlank() || methodName == null || methodName.isBlank()) {
+            return Optional.empty();
+        }
+        Pattern pattern = Pattern.compile("(?:public|protected|private)?\\s*(?:static\\s+)?(?:final\\s+)?([A-Za-z_$][\\w$<>., ?]+?)\\s+" + Pattern.quote(methodName) + "\\s*\\(");
+        Matcher matcher = pattern.matcher(snippet.replace("\n", " "));
+        if (matcher.find()) {
+            return Optional.ofNullable(matcher.group(1)).map(String::trim).filter(value -> !value.isBlank());
+        }
         return Optional.empty();
     }
 

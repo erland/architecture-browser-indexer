@@ -138,11 +138,32 @@ final class SyntaxTreeExtractionSupport {
     }
 
     static String javaMethodLikeName(SyntaxNode node) {
-        if (node == null || node.textSnippet() == null || node.textSnippet().isBlank()) {
+        if (node == null) {
+            return null;
+        }
+        for (SyntaxNode child : node.children()) {
+            if (Set.of("identifier", "property_identifier").contains(child.type())) {
+                String snippet = child.textSnippet();
+                if (snippet != null && !snippet.isBlank()) {
+                    return snippet;
+                }
+            }
+        }
+        if ("constructor_declaration".equals(node.type())) {
+            for (SyntaxNode child : node.children()) {
+                if ("type_identifier".equals(child.type())) {
+                    String snippet = child.textSnippet();
+                    if (snippet != null && !snippet.isBlank()) {
+                        return snippet;
+                    }
+                }
+            }
+        }
+        if (node.textSnippet() == null || node.textSnippet().isBlank()) {
             return declarationName(node);
         }
         String snippet = node.textSnippet();
-        int paren = snippet.indexOf('(');
+        int paren = snippet.lastIndexOf('(');
         String before = paren >= 0 ? snippet.substring(0, paren) : snippet;
         Matcher matcher = Pattern.compile("([A-Za-z_][\\w$]*)").matcher(before);
         String last = null;
@@ -156,17 +177,21 @@ final class SyntaxTreeExtractionSupport {
         if (node == null || node.textSnippet() == null || node.textSnippet().isBlank() || !"method_declaration".equals(node.type())) {
             return "";
         }
-        String snippet = node.textSnippet().replace('\n', ' ').replace('\r', ' ').trim();
-        int paren = snippet.indexOf('(');
-        if (paren < 0) {
+        String methodName = javaMethodLikeName(node);
+        if (methodName == null || methodName.isBlank()) {
             return "";
         }
-        String before = snippet.substring(0, paren)
-            .replaceAll("@[A-Za-z_][\\w.]*\\s*(\\([^)]*\\))?", " ")
+        String snippet = node.textSnippet().replace('\n', ' ').replace('\r', ' ').trim();
+        String sanitized = snippet.replaceAll("@[A-Za-z_][\\w.]*\\s*(\\([^)]*\\))?", " ");
+        Matcher anchor = Pattern.compile("\\b" + Pattern.quote(methodName) + "\\s*\\(").matcher(sanitized);
+        if (!anchor.find()) {
+            return "";
+        }
+        String before = sanitized.substring(0, anchor.start())
             .replaceAll("<[^>]+>\\s*", " ")
             .replaceAll("\\b(public|protected|private|static|final|transient|volatile|abstract|synchronized|native|strictfp|default)\\b", " ")
             .trim();
-        Matcher matcher = Pattern.compile("([A-Za-z_$][\\w.$]*(?:\\s*<[^>{}]+>)?(?:\\s*\\[\\])*)\\s+[A-Za-z_$][\\w$]*$").matcher(before);
+        Matcher matcher = Pattern.compile("([A-Za-z_$][\\w.$]*(?:\\s*<[^>{}]+>)?(?:\\s*\\[\\])*)$").matcher(before);
         return matcher.find() ? matcher.group(1).replaceAll("\\s+", " ").trim() : "";
     }
 
