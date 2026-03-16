@@ -266,6 +266,18 @@ final class JavaStructuralExtractor implements StructuralExtractor {
                     importsBySimpleName,
                     declaredTypes
                 );
+                addWritePathFacts(
+                    accumulator,
+                    relativePath,
+                    packageName,
+                    node,
+                    methodEntity,
+                    currentOwningTypeEntityId,
+                    currentOwningQualifiedName,
+                    currentOwningTypeSnippet,
+                    importsBySimpleName,
+                    declaredTypes
+                );
             }
         }
 
@@ -923,6 +935,232 @@ final class JavaStructuralExtractor implements StructuralExtractor {
         }
     }
 
+
+    private void addWritePathFacts(
+        ExtractionAccumulator accumulator,
+        String relativePath,
+        String packageName,
+        SyntaxNode methodNode,
+        ExtractedEntityFact methodEntity,
+        String ownerTypeEntityId,
+        String ownerQualifiedName,
+        String ownerTypeSnippet,
+        Map<String, String> importsBySimpleName,
+        Map<String, DeclaredJavaType> declaredTypes
+    ) {
+        if (methodEntity == null || ownerTypeEntityId == null) {
+            return;
+        }
+        String snippet = methodEntity.sourceRefs().isEmpty() ? (methodNode == null ? "" : methodNode.textSnippet()) : methodEntity.sourceRefs().getFirst().snippet();
+        if ((snippet == null || snippet.isBlank()) && methodNode != null) {
+            snippet = methodNode.textSnippet();
+        }
+        SourceReference ref = methodEntity.sourceRefs().isEmpty()
+            ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(methodNode), snippet, Map.of("language", "java", "kind", methodNode == null ? "method_declaration" : methodNode.type()))
+            : methodEntity.sourceRefs().getFirst();
+
+        List<DetectedWritePath> detections = new ArrayList<>();
+        detections.addAll(detectJpaWriteOperations(methodEntity, snippet));
+        detections.addAll(detectRepositoryWriteOperations(methodEntity, snippet));
+        if (detections.isEmpty()) {
+            return;
+        }
+
+        Map<String, String> variableTypes = collectMethodVariableTypes(methodEntity, snippet);
+        LinkedHashMap<String, Object> methodMetadata = new LinkedHashMap<>(methodEntity.metadata());
+        java.util.LinkedHashSet<String> writeOperations = new java.util.LinkedHashSet<>(metadataStringList(methodMetadata.get("writeOperations")));
+        java.util.LinkedHashSet<String> writeTargets = new java.util.LinkedHashSet<>(metadataStringList(methodMetadata.get("writeEntityTypes")));
+        boolean changed = false;
+
+        for (DetectedWritePath detection : detections) {
+            String entityType = resolveWriteTargetEntityType(detection.argumentExpression(), variableTypes).orElse(null);
+            if (entityType == null || entityType.isBlank()) {
+                continue;
+            }
+            ResolvedJavaType target = resolveJavaTypeReference(
+                accumulator,
+                entityType,
+                EntityKind.CLASS,
+                relativePath,
+                packageName,
+                lineOf(ref, methodNode),
+                importsBySimpleName,
+                declaredTypes
+            );
+            if (target == null) {
+                continue;
+            }
+            LinkedHashMap<String, Object> relationshipMetadata = new LinkedHashMap<>();
+            relationshipMetadata.put("framework", "jpa");
+            relationshipMetadata.put("relationshipType", "writePath");
+            relationshipMetadata.put("writeOperation", detection.operation());
+            relationshipMetadata.put("writeKind", detection.writeKind());
+            relationshipMetadata.put("writerMethod", methodEntity.name());
+            relationshipMetadata.put("writerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName);
+            relationshipMetadata.put("entityType", target.label());
+            if (detection.viaField() != null && !detection.viaField().isBlank()) {
+                relationshipMetadata.put("writeViaField", detection.viaField());
+            }
+            if (detection.viaType() != null && !detection.viaType().isBlank()) {
+                relationshipMetadata.put("writeViaType", detection.viaType());
+            }
+            accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
+                ownerTypeEntityId,
+                target.entityId(),
+                target.label(),
+                ref,
+                "java",
+                Map.copyOf(relationshipMetadata)
+            ));
+            LinkedHashMap<String, Object> methodRelationshipMetadata = new LinkedHashMap<>(relationshipMetadata);
+            methodRelationshipMetadata.put("ownerMemberKind", "method");
+            methodRelationshipMetadata.put("ownerMemberName", methodEntity.name());
+            accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
+                methodEntity.id(),
+                target.entityId(),
+                target.label(),
+                ref,
+                "java",
+                Map.copyOf(methodRelationshipMetadata)
+            ));
+            writeOperations.add(detection.operation());
+            writeTargets.add(target.label());
+            changed = true;
+        }
+
+        if (changed) {
+            methodMetadata.put("writePath", true);
+            methodMetadata.put("writeOperations", List.copyOf(writeOperations));
+            methodMetadata.put("writeEntityTypes", List.copyOf(writeTargets));
+            accumulator.addEntity(new ExtractedEntityFact(
+                methodEntity.id(),
+                methodEntity.kind(),
+                methodEntity.origin(),
+                methodEntity.name(),
+                methodEntity.displayName(),
+                methodEntity.scopeId(),
+                List.of(ref),
+                Map.copyOf(methodMetadata)
+            ));
+        }
+    }
+
+    private static List<DetectedWritePath> detectJpaWriteOperations(ExtractedEntityFact methodEntity, String snippet) {
+        if (snippet == null || snippet.isBlank()) {
+            return List.of();
+        }
+        List<DetectedWritePath> result = new ArrayList<>();
+        Matcher matcher = Pattern.compile("([A-Za-z_$][\\w$]*)\\s*\\.\\s*(persist|merge|remove)\\s*\\(([^)]*)\\)", Pattern.DOTALL).matcher(snippet);
+        while (matcher.find()) {
+            result.add(new DetectedWritePath(matcher.group(2).toLowerCase(Locale.ROOT), "entity-manager", matcher.group(3).strip(), matcher.group(1), null));
+        }
+        return List.copyOf(result);
+    }
+
+    private static List<DetectedWritePath> detectRepositoryWriteOperations(ExtractedEntityFact methodEntity, String snippet) {
+        if (snippet == null || snippet.isBlank()) {
+            return List.of();
+        }
+        List<DetectedWritePath> result = new ArrayList<>();
+        Matcher callMatcher = Pattern.compile("([A-Za-z_$][\\w$]*)\\s*\\.\\s*(saveAndFlush|save|update|delete|remove)\\s*\\(([^)]*)\\)", Pattern.DOTALL).matcher(snippet);
+        while (callMatcher.find()) {
+            String operation = normalizeWriteOperation(callMatcher.group(2));
+            result.add(new DetectedWritePath(operation, "repository-call", callMatcher.group(3).strip(), callMatcher.group(1), null));
+        }
+        String ownerQualifiedName = String.valueOf(methodEntity.metadata().getOrDefault("ownerQualifiedName", ""));
+        String loweredOwner = ownerQualifiedName.toLowerCase(Locale.ROOT);
+        String methodName = methodEntity.name() == null ? "" : methodEntity.name();
+        if (loweredOwner.contains("repository") || loweredOwner.contains("repo")) {
+            String operation = normalizeWriteOperation(methodName);
+            if (operation != null) {
+                List<String> parameterTypes = metadataStringList(methodEntity.metadata().get("parameterTypes"));
+                String params = String.valueOf(methodEntity.metadata().getOrDefault("parameters", ""));
+                List<String> paramNames = extractParameterNames(params);
+                for (int i = 0; i < Math.min(parameterTypes.size(), paramNames.size()); i++) {
+                    String type = normalizeTypeReference(parameterTypes.get(i));
+                    if (!type.isBlank()) {
+                        result.add(new DetectedWritePath(operation, "repository-method", paramNames.get(i), null, type));
+                    }
+                }
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private static String normalizeWriteOperation(String rawOperation) {
+        if (rawOperation == null || rawOperation.isBlank()) {
+            return null;
+        }
+        String value = rawOperation.toLowerCase(Locale.ROOT);
+        if (value.contains("save")) return "persist";
+        if (value.contains("merge") || value.contains("update")) return "merge";
+        if (value.contains("delete") || value.contains("remove")) return "remove";
+        if (value.equals("persist")) return "persist";
+        return null;
+    }
+
+    private static Map<String, String> collectMethodVariableTypes(ExtractedEntityFact methodEntity, String snippet) {
+        LinkedHashMap<String, String> result = new LinkedHashMap<>();
+        String params = String.valueOf(methodEntity.metadata().getOrDefault("parameters", ""));
+        List<String> paramTypes = metadataStringList(methodEntity.metadata().get("parameterTypes"));
+        List<String> paramNames = extractParameterNames(params);
+        for (int i = 0; i < Math.min(paramTypes.size(), paramNames.size()); i++) {
+            String type = normalizeTypeReference(paramTypes.get(i));
+            if (!type.isBlank()) {
+                result.putIfAbsent(paramNames.get(i), type);
+            }
+        }
+        if (snippet != null && !snippet.isBlank()) {
+            Matcher matcher = Pattern.compile("([A-Za-z_$][\\w.$]*(?:\\s*<[^>{}]+>)?)\\s+([A-Za-z_$][\\w$]*)\\s*=", Pattern.DOTALL).matcher(snippet);
+            while (matcher.find()) {
+                String type = normalizeTypeReference(matcher.group(1));
+                String name = matcher.group(2);
+                if (!type.isBlank() && !isJavaPrimitiveOrKeyword(type)) {
+                    result.putIfAbsent(name, type);
+                }
+            }
+        }
+        return Map.copyOf(result);
+    }
+
+    private static Optional<String> resolveWriteTargetEntityType(String argumentExpression, Map<String, String> variableTypes) {
+        if (argumentExpression == null || argumentExpression.isBlank()) {
+            return Optional.empty();
+        }
+        String arg = argumentExpression.strip();
+        Matcher newMatcher = Pattern.compile("new\\s+([A-Za-z_$][\\w.$]*)\\b").matcher(arg);
+        if (newMatcher.find()) {
+            return Optional.of(newMatcher.group(1));
+        }
+        Matcher identifierMatcher = Pattern.compile("([A-Za-z_$][\\w$]*)").matcher(arg);
+        while (identifierMatcher.find()) {
+            String candidate = identifierMatcher.group(1);
+            if (variableTypes.containsKey(candidate)) {
+                return Optional.of(variableTypes.get(candidate));
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static List<String> extractParameterNames(String parameterSnippet) {
+        if (parameterSnippet == null || parameterSnippet.isBlank() || "()".equals(parameterSnippet.strip())) {
+            return List.of();
+        }
+        String inner = parameterSnippet.strip();
+        if (inner.startsWith("(")) inner = inner.substring(1);
+        if (inner.endsWith(")")) inner = inner.substring(0, inner.length() - 1);
+        if (inner.isBlank()) return List.of();
+        List<String> result = new ArrayList<>();
+        for (String part : splitTopLevelCommaSeparated(inner)) {
+            String name = extractParameterName(part.strip());
+            if (!name.isBlank()) {
+                result.add(name);
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private record DetectedWritePath(String operation, String writeKind, String argumentExpression, String viaField, String viaType) {}
     private static List<PublishedCdiEvent> detectCdiPublishedEvents(String methodSnippet, String ownerTypeSnippet) {
         if (methodSnippet == null || methodSnippet.isBlank()) {
             return List.of();
