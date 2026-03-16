@@ -23,6 +23,7 @@ import java.util.regex.Pattern;
 
 final class JavaSyntaxTreeExtractionStage {
 
+    private final JavaSyntaxTreeTraversal syntaxTreeTraversal = new JavaSyntaxTreeTraversal();
     private final JavaEntityMapper entityMapper = new JavaEntityMapper();
     private final JavaRelationshipEvidenceEmitter relationshipEvidenceEmitter = new JavaRelationshipEvidenceEmitter();
     private final JavaJaxRsSemantics jaxRsSemantics = new JavaJaxRsSemantics();
@@ -144,27 +145,29 @@ final class JavaSyntaxTreeExtractionStage {
             Map.copyOf(declaredTypes)
         );
 
-        extractTypeAndMethodFacts(
-            parseResult,
-            accumulator,
-            relativePath,
-            packageName,
-            extractionMode,
-            packageScope.id(),
-            fileScope.id(),
-            fileEntity.id(),
+        syntaxTreeTraversal.traverse(
             root,
-            null,
-            null,
-            null,
-            importsBySimpleName,
-            declaredTypes,
-            extractionContext
+            new JavaSyntaxTreeTraversal.JavaTraversalOwnership(null, null, null),
+            (node, ownership) -> handleTraversalNode(
+                parseResult,
+                accumulator,
+                relativePath,
+                packageName,
+                extractionMode,
+                packageScope.id(),
+                fileScope.id(),
+                fileEntity.id(),
+                node,
+                ownership,
+                importsBySimpleName,
+                declaredTypes,
+                extractionContext
+            )
         );
         return accumulator;
     }
 
-    private void extractTypeAndMethodFacts(
+    private JavaSyntaxTreeTraversal.JavaTraversalOwnership handleTraversalNode(
         SourceParseResult parseResult,
         ExtractionAccumulator accumulator,
         String relativePath,
@@ -174,22 +177,20 @@ final class JavaSyntaxTreeExtractionStage {
         String fileScopeId,
         String fileEntityId,
         SyntaxNode node,
-        String owningTypeEntityId,
-        String owningQualifiedName,
-        String owningTypeSnippet,
+        JavaSyntaxTreeTraversal.JavaTraversalOwnership ownership,
         Map<String, String> importsBySimpleName,
         Map<String, JavaDeclaredType> declaredTypes,
         JavaExtractionContext extractionContext
     ) {
         if (node == null) {
-            return;
+            return ownership;
         }
 
-        String currentOwningTypeEntityId = owningTypeEntityId;
-        String currentOwningQualifiedName = owningQualifiedName;
-        String currentOwningTypeSnippet = owningTypeSnippet;
+        String currentOwningTypeEntityId = ownership == null ? null : ownership.owningTypeEntityId();
+        String currentOwningQualifiedName = ownership == null ? null : ownership.owningQualifiedName();
+        String currentOwningTypeSnippet = ownership == null ? null : ownership.owningTypeSnippet();
         if (isJavaTypeDeclaration(node)) {
-            ExtractedEntityFact typeEntity = entityMapper.toTypeEntity(parseResult, relativePath, packageName, extractionMode, packageScopeId, node, owningQualifiedName);
+            ExtractedEntityFact typeEntity = entityMapper.toTypeEntity(parseResult, relativePath, packageName, extractionMode, packageScopeId, node, currentOwningQualifiedName);
             if (typeEntity != null) {
                 accumulator.addEntity(typeEntity);
                 SourceReference ref = typeEntity.sourceRefs().isEmpty() ? null : typeEntity.sourceRefs().getFirst();
@@ -209,7 +210,7 @@ final class JavaSyntaxTreeExtractionStage {
                 currentOwningTypeEntityId = typeEntity.id();
                 currentOwningTypeSnippet = node.textSnippet();
                 Object qualifiedName = typeEntity.metadata().get("qualifiedName");
-                currentOwningQualifiedName = qualifiedName == null ? owningQualifiedName : String.valueOf(qualifiedName);
+                currentOwningQualifiedName = qualifiedName == null ? currentOwningQualifiedName : String.valueOf(qualifiedName);
             }
         } else if (isJavaFieldDeclaration(node)) {
             for (ExtractedEntityFact fieldEntity : entityMapper.toFieldEntities(parseResult, relativePath, extractionMode, fileScopeId, node, currentOwningQualifiedName)) {
@@ -302,25 +303,11 @@ final class JavaSyntaxTreeExtractionStage {
             }
         }
 
-        for (SyntaxNode child : node.children()) {
-            extractTypeAndMethodFacts(
-                parseResult,
-                accumulator,
-                relativePath,
-                packageName,
-                extractionMode,
-                packageScopeId,
-                fileScopeId,
-                fileEntityId,
-                child,
-                currentOwningTypeEntityId,
-                currentOwningQualifiedName,
-                currentOwningTypeSnippet,
-                importsBySimpleName,
-                declaredTypes,
-                extractionContext
-            );
-        }
+        return new JavaSyntaxTreeTraversal.JavaTraversalOwnership(
+            currentOwningTypeEntityId,
+            currentOwningQualifiedName,
+            currentOwningTypeSnippet
+        );
     }
 
 
