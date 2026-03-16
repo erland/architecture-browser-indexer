@@ -26,6 +26,7 @@ final class JavaSyntaxTreeExtractionStage {
     private final JavaSyntaxTreeTraversal syntaxTreeTraversal = new JavaSyntaxTreeTraversal();
     private final JavaEntityMapper entityMapper = new JavaEntityMapper();
     private final JavaRelationshipEvidenceEmitter relationshipEvidenceEmitter = new JavaRelationshipEvidenceEmitter();
+    private final JavaDependencyEmissionFlow dependencyEmissionFlow = new JavaDependencyEmissionFlow(relationshipEvidenceEmitter);
     private final JavaJaxRsSemantics jaxRsSemantics = new JavaJaxRsSemantics();
     private final JavaJpaSemantics jpaSemantics = new JavaJpaSemantics();
     private final JavaCdiSemantics cdiSemantics = new JavaCdiSemantics();
@@ -196,7 +197,7 @@ final class JavaSyntaxTreeExtractionStage {
                 accumulator.addEntity(typeEntity);
                 SourceReference ref = typeEntity.sourceRefs().isEmpty() ? null : typeEntity.sourceRefs().getFirst();
                 accumulator.addRelationship(ExtractionSupport.containsRelationship(fileEntityId, typeEntity.id(), ref));
-                relationshipEvidenceEmitter.addTypeRelationships(accumulator, relativePath, packageName, node, typeEntity, importsBySimpleName, declaredTypes);
+                dependencyEmissionFlow.addTypeRelationships(accumulator, relativePath, packageName, node, typeEntity, importsBySimpleName, declaredTypes);
                 addJaxRsResourceMetadata(accumulator, new JavaTypeContext(extractionContext, node, typeEntity));
                 addJpaTypeMetadata(accumulator, new JavaTypeContext(extractionContext, node, typeEntity));
                 addJpaInheritanceFacts(
@@ -324,17 +325,16 @@ final class JavaSyntaxTreeExtractionStage {
                     fieldEntity.id(),
                     ref
                 ));
-                relationshipEvidenceEmitter.addDeclaredTypeDependencies(
+                dependencyEmissionFlow.addFieldDeclaredTypeDependencies(
                     accumulator,
                     dependencySourceEntityId,
-                    List.of(String.valueOf(fieldEntity.metadata().getOrDefault("declaredType", ""))),
+                    String.valueOf(fieldEntity.metadata().getOrDefault("declaredType", "")),
                     relativePath,
                     packageName,
                     lineOf(ref, node),
                     ref,
                     importsBySimpleName,
-                    declaredTypes,
-                    relationshipEvidenceEmitter.dependencyMetadata("field", "composition")
+                    declaredTypes
                 );
                 addJpaFieldFacts(
                     accumulator,
@@ -380,33 +380,32 @@ final class JavaSyntaxTreeExtractionStage {
             ));
             String returnType = String.valueOf(methodEntity.metadata().getOrDefault("returnType", ""));
             if (!returnType.isBlank()) {
-                relationshipEvidenceEmitter.addDeclaredTypeDependencies(
+                dependencyEmissionFlow.addMethodReturnTypeDependencies(
                     accumulator,
                     dependencySourceEntityId,
-                    List.of(returnType),
+                    returnType,
                     relativePath,
                     packageName,
                     lineOf(ref, node),
                     ref,
                     importsBySimpleName,
-                    declaredTypes,
-                    relationshipEvidenceEmitter.dependencyMetadata("returnType", "api")
+                    declaredTypes
                 );
             }
             @SuppressWarnings("unchecked")
             List<String> parameterTypes = (List<String>) methodEntity.metadata().getOrDefault("parameterTypes", List.of());
             if (!parameterTypes.isEmpty()) {
-                relationshipEvidenceEmitter.addDeclaredTypeDependencies(
+                dependencyEmissionFlow.addMethodParameterDependencies(
                     accumulator,
                     dependencySourceEntityId,
                     parameterTypes,
+                    isConstructor(methodEntity),
                     relativePath,
                     packageName,
                     lineOf(ref, node),
                     ref,
                     importsBySimpleName,
-                    declaredTypes,
-                    relationshipEvidenceEmitter.dependencyMetadata(isConstructor(methodEntity) ? "constructorParameter" : "parameterType", "api")
+                    declaredTypes
                 );
             }
             JavaMethodContext methodContext = javaMethodContext(
