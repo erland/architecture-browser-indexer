@@ -142,4 +142,44 @@ class InterpretationServiceTest {
         assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.SERVICE && "sessionStore".equals(entity.name()) && "state-module".equals(entity.metadata().get("serviceProfile"))));
     }
 
+    @Test
+    void infersJavaBackendRoleMetadataFromFrameworksPackagesAndDependencies() {
+        SourceReference resourceRef = new SourceReference("src/main/java/com/example/orders/api/OrderResource.java", 3, 8, "@Path(\"/orders\") class OrderResource", Map.of());
+        SourceReference serviceRef = new SourceReference("src/main/java/com/example/orders/service/OrderService.java", 3, 12, "@ApplicationScoped class OrderService", Map.of());
+        SourceReference repoRef = new SourceReference("src/main/java/com/example/orders/repo/OrderRepository.java", 3, 8, "class OrderRepository", Map.of());
+        SourceReference eventRef = new SourceReference("src/main/java/com/example/orders/service/OrderService.java", 14, 18, "orderCreatedEvents.fire(new OrderCreatedEvent(id));", Map.of());
+
+        StructuralExtractionResult extraction = new StructuralExtractionResult(
+            List.of(),
+            List.of(
+                new ExtractedEntityFact("entity:java:resource", EntityKind.CLASS, EntityOrigin.OBSERVED, "OrderResource", "com.example.orders.api.OrderResource", "scope:pkg", List.of(resourceRef), Map.of("language", "java", "qualifiedName", "com.example.orders.api.OrderResource", "packageName", "com.example.orders.api", "declarationKind", "class", "annotations", List.of("Path"), "jaxRsResource", true)),
+                new ExtractedEntityFact("entity:java:service", EntityKind.CLASS, EntityOrigin.OBSERVED, "OrderService", "com.example.orders.service.OrderService", "scope:pkg", List.of(serviceRef), Map.of("language", "java", "qualifiedName", "com.example.orders.service.OrderService", "packageName", "com.example.orders.service", "declarationKind", "class", "annotations", List.of("ApplicationScoped"))),
+                new ExtractedEntityFact("entity:java:repo", EntityKind.CLASS, EntityOrigin.OBSERVED, "OrderRepository", "com.example.orders.repo.OrderRepository", "scope:pkg", List.of(repoRef), Map.of("language", "java", "qualifiedName", "com.example.orders.repo.OrderRepository", "packageName", "com.example.orders.repo", "declarationKind", "class", "annotations", List.of("ApplicationScoped"))),
+                new ExtractedEntityFact("entity:java:service:publisher", EntityKind.FUNCTION, EntityOrigin.OBSERVED, "createOrder", "createOrder(String id)", "scope:pkg", List.of(eventRef), Map.of("language", "java", "ownerQualifiedName", "com.example.orders.service.OrderService", "cdiEventPublisher", true, "cdiPublishedEventType", "com.example.orders.events.OrderCreatedEvent", "annotations", List.of())),
+                new ExtractedEntityFact("entity:java:service:field", EntityKind.FIELD, EntityOrigin.OBSERVED, "orderRepository", "orderRepository", "scope:pkg", List.of(serviceRef), Map.of("language", "java", "ownerQualifiedName", "com.example.orders.service.OrderService", "declaredType", "OrderRepository", "annotations", List.of("Inject")))
+            ),
+            List.of(
+                new ExtractedRelationshipFact("rel:service:repo", RelationshipKind.DEPENDS_ON, "entity:java:service", "entity:java:repo", "com.example.orders.repo.OrderRepository", List.of(serviceRef), Map.of("language", "java", "dependencySource", "field"))
+            ),
+            List.of(),
+            new ExtractionSummary(3, 3, Map.of("java", 3), Map.of("SYNTAX_TREE", 3), 5, 1)
+        );
+
+        InterpretationResult result = new InterpretationService(InterpretationRegistry.defaultRegistry()).interpret(extraction);
+
+        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.SERVICE
+            && "OrderResource".equals(entity.name())
+            && "resource".equals(entity.metadata().get("entityRole"))
+            && "jax-rs-resource".equals(entity.metadata().get("backendProfile"))));
+        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.SERVICE
+            && "OrderService".equals(entity.name())
+            && "service".equals(entity.metadata().get("entityRole"))
+            && String.valueOf(entity.metadata().get("backendProfile")).contains("application-service")
+            && String.valueOf(entity.metadata().get("frameworks")).contains("cdi")));
+        assertTrue(result.entities().stream().anyMatch(entity -> entity.kind() == EntityKind.PERSISTENCE_ADAPTER
+            && "OrderRepository".equals(entity.name())
+            && "repository".equals(entity.metadata().get("entityRole"))
+            && "repository".equals(entity.metadata().get("backendProfile"))));
+    }
+
 }
