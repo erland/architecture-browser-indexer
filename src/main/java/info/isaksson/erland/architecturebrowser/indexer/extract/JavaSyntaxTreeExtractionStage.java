@@ -32,6 +32,7 @@ final class JavaSyntaxTreeExtractionStage {
     private final JavaCdiSemantics cdiSemantics = new JavaCdiSemantics();
     private final JavaWritePathSemantics writePathSemantics = new JavaWritePathSemantics();
     private final JavaTypeSemanticsFlow typeSemanticsFlow = new JavaTypeSemanticsFlow(jaxRsSemantics, jpaSemantics);
+    private final JavaTypeDeclarationFlow typeDeclarationFlow = new JavaTypeDeclarationFlow(entityMapper, dependencyEmissionFlow, typeSemanticsFlow);
     private final JavaMethodSemanticsFlow methodSemanticsFlow = new JavaMethodSemanticsFlow(jaxRsSemantics, jpaSemantics, cdiSemantics, writePathSemantics);
     private final JavaMemberExtractionFlow memberExtractionFlow = new JavaMemberExtractionFlow();
 
@@ -223,51 +224,21 @@ final class JavaSyntaxTreeExtractionStage {
         Map<String, JavaDeclaredType> declaredTypes,
         JavaExtractionContext extractionContext
     ) {
-        if (!isJavaTypeDeclaration(node)) {
-            return JavaTypeTraversalResult.notHandled(
-                currentOwningTypeEntityId,
-                currentOwningQualifiedName,
-                currentOwningTypeSnippet
-            );
-        }
-        ExtractedEntityFact typeEntity = entityMapper.toTypeEntity(
+        return typeDeclarationFlow.handleTypeNode(
             parseResult,
+            accumulator,
             relativePath,
             packageName,
             extractionMode,
             packageScopeId,
+            fileEntityId,
             node,
-            currentOwningQualifiedName
-        );
-        if (typeEntity == null) {
-            return JavaTypeTraversalResult.notHandled(
-                currentOwningTypeEntityId,
-                currentOwningQualifiedName,
-                currentOwningTypeSnippet
-            );
-        }
-        accumulator.addEntity(typeEntity);
-        SourceReference ref = typeEntity.sourceRefs().isEmpty() ? null : typeEntity.sourceRefs().getFirst();
-        accumulator.addRelationship(ExtractionSupport.containsRelationship(fileEntityId, typeEntity.id(), ref));
-        dependencyEmissionFlow.addTypeRelationships(accumulator, relativePath, packageName, node, typeEntity, importsBySimpleName, declaredTypes);
-        typeSemanticsFlow.applyTypeSemantics(accumulator, new JavaTypeContext(extractionContext, node, typeEntity));
-        typeSemanticsFlow.applyJpaInheritanceFacts(
-            accumulator,
-            relativePath,
-            packageName,
-            node,
-            typeEntity,
+            currentOwningTypeEntityId,
+            currentOwningQualifiedName,
+            currentOwningTypeSnippet,
             importsBySimpleName,
-            declaredTypes
-        );
-        String nextOwningTypeEntityId = typeEntity.id();
-        String nextOwningTypeSnippet = node.textSnippet();
-        Object qualifiedName = typeEntity.metadata().get("qualifiedName");
-        String nextOwningQualifiedName = qualifiedName == null ? currentOwningQualifiedName : String.valueOf(qualifiedName);
-        return JavaTypeTraversalResult.handled(
-            nextOwningTypeEntityId,
-            nextOwningQualifiedName,
-            nextOwningTypeSnippet
+            declaredTypes,
+            extractionContext
         );
     }
 
