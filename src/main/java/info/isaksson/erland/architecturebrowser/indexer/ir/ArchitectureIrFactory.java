@@ -729,6 +729,23 @@ public final class ArchitectureIrFactory {
         if (!frontendBrowserViews.isEmpty()) {
             dependencyViews.put("frontendBrowserViews", frontendBrowserViews);
         }
+        Map<String, Object> javaBrowserViews = buildJavaBrowserViews(
+            endpointTypeDependencies,
+            endpointModuleDependencies,
+            entityModelTypeDependencies,
+            entityModelModuleDependencies,
+            observerTypeDependencies,
+            observerModuleDependencies,
+            writePathTypeDependencies,
+            writePathModuleDependencies
+        );
+        if (!javaBrowserViews.isEmpty()) {
+            dependencyViews.put("javaBrowserViews", javaBrowserViews);
+        }
+        Map<String, Object> browserViewCatalog = buildBrowserViewCatalog(frontendBrowserViews, javaBrowserViews);
+        if (!browserViewCatalog.isEmpty()) {
+            dependencyViews.put("browserViewCatalog", browserViewCatalog);
+        }
         dependencyViews.put("evidenceStatus", Map.of(
             "fileImportDependencies", "supporting-evidence",
             "recommendedForArchitectureViews", false,
@@ -921,6 +938,168 @@ public final class ArchitectureIrFactory {
         return Map.copyOf(result);
     }
 
+
+    private static Map<String, Object> buildJavaBrowserViews(
+        List<Map<String, Object>> endpointTypeDependencies,
+        List<Map<String, Object>> endpointModuleDependencies,
+        List<Map<String, Object>> entityModelTypeDependencies,
+        List<Map<String, Object>> entityModelModuleDependencies,
+        List<Map<String, Object>> observerTypeDependencies,
+        List<Map<String, Object>> observerModuleDependencies,
+        List<Map<String, Object>> writePathTypeDependencies,
+        List<Map<String, Object>> writePathModuleDependencies
+    ) {
+        List<JavaBrowserViewDefinition> definitions = List.of(
+            new JavaBrowserViewDefinition(
+                "javaEndpointGraph",
+                "Java endpoint graph",
+                "JAX-RS resource and endpoint relationships prepared for browser-native backend API exploration.",
+                "jax-rs",
+                "endpoint",
+                "endpointTypeDependencies",
+                "endpointModuleDependencies",
+                List.of("exposesEndpoint", "endpoint"),
+                endpointTypeDependencies,
+                endpointModuleDependencies
+            ),
+            new JavaBrowserViewDefinition(
+                "javaEntityModelGraph",
+                "Java entity model graph",
+                "JPA entity, embeddable, inheritance, and association relationships prepared for browser-native persistence-model exploration.",
+                "jpa",
+                "entity-model",
+                "entityModelTypeDependencies",
+                "entityModelModuleDependencies",
+                List.of("hasAssociation", "embeds", "inheritsPersistenceModel"),
+                entityModelTypeDependencies,
+                entityModelModuleDependencies
+            ),
+            new JavaBrowserViewDefinition(
+                "javaEventFlowGraph",
+                "Java CDI event flow graph",
+                "CDI publisher, event, and observer relationships prepared for browser-native asynchronous flow exploration.",
+                "cdi",
+                "observer-event",
+                "observerTypeDependencies",
+                "observerModuleDependencies",
+                List.of("publishesEvent", "observesEvent", "eventObservedBy"),
+                observerTypeDependencies,
+                observerModuleDependencies
+            ),
+            new JavaBrowserViewDefinition(
+                "javaWritePathGraph",
+                "Java write path graph",
+                "Service and repository write-path relationships prepared for browser-native persistence flow exploration.",
+                "jpa",
+                "write-path",
+                "writePathTypeDependencies",
+                "writePathModuleDependencies",
+                List.of("writePath"),
+                writePathTypeDependencies,
+                writePathModuleDependencies
+            )
+        );
+
+        List<Map<String, Object>> views = new ArrayList<>();
+        List<String> availableViews = new ArrayList<>();
+        for (JavaBrowserViewDefinition definition : definitions) {
+            Map<String, Object> descriptor = definition.toMetadataMap();
+            views.add(descriptor);
+            if (Boolean.TRUE.equals(descriptor.get("available"))) {
+                availableViews.add(definition.id());
+            }
+        }
+        if (availableViews.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("views", List.copyOf(views));
+        result.put("availableViews", List.copyOf(availableViews));
+        result.put("defaultViewId", availableViews.get(0));
+        result.put("description", "Browser-facing Java backend graph descriptors derived from framework-aware dependency rollups.");
+        result.put("recommendedEntryPoints", List.of(
+            "javaEndpointGraph",
+            "javaEntityModelGraph",
+            "javaEventFlowGraph",
+            "javaWritePathGraph"
+        ));
+        return Map.copyOf(result);
+    }
+
+    private static Map<String, Object> buildBrowserViewCatalog(
+        Map<String, Object> frontendBrowserViews,
+        Map<String, Object> javaBrowserViews
+    ) {
+        List<Map<String, Object>> groups = new ArrayList<>();
+        List<String> availableFamilies = new ArrayList<>();
+        addBrowserViewFamily(groups, availableFamilies, "frontend", "Frontend browser views", frontendBrowserViews);
+        addBrowserViewFamily(groups, availableFamilies, "java", "Java backend browser views", javaBrowserViews);
+        if (availableFamilies.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("families", List.copyOf(groups));
+        result.put("availableFamilies", List.copyOf(availableFamilies));
+        result.put("defaultFamily", availableFamilies.get(0));
+        result.put("description", "High-level browser view families exported with the architecture index document.");
+        return Map.copyOf(result);
+    }
+
+    private static void addBrowserViewFamily(
+        List<Map<String, Object>> groups,
+        List<String> availableFamilies,
+        String id,
+        String title,
+        Map<String, Object> browserViews
+    ) {
+        if (browserViews == null || browserViews.isEmpty()) {
+            return;
+        }
+        List<String> availableViews = stringList(browserViews.get("availableViews"));
+        Map<String, Object> group = new LinkedHashMap<>();
+        group.put("id", id);
+        group.put("title", title);
+        group.put("available", !availableViews.isEmpty());
+        group.put("availableViewIds", availableViews);
+        group.put("defaultViewId", browserViews.get("defaultViewId"));
+        group.put("viewCount", ((List<?>) browserViews.getOrDefault("views", List.of())).size());
+        group.put("description", browserViews.get("description"));
+        groups.add(Map.copyOf(group));
+        if (!availableViews.isEmpty()) {
+            availableFamilies.add(id);
+        }
+    }
+
+    private static List<String> distinctStringValues(List<Map<String, Object>> dependencies, String key) {
+        if (dependencies == null || dependencies.isEmpty()) {
+            return List.of();
+        }
+        Set<String> values = new LinkedHashSet<>();
+        for (Map<String, Object> dependency : dependencies) {
+            Object value = dependency.get(key);
+            if (value != null) {
+                values.add(String.valueOf(value));
+            }
+        }
+        return List.copyOf(values);
+    }
+
+    @SafeVarargs
+    private static List<String> distinctListValues(String key, List<Map<String, Object>>... dependencyGroups) {
+        Set<String> values = new LinkedHashSet<>();
+        if (dependencyGroups != null) {
+            for (List<Map<String, Object>> group : dependencyGroups) {
+                if (group == null) {
+                    continue;
+                }
+                for (Map<String, Object> dependency : group) {
+                    values.addAll(stringList(dependency.get(key)));
+                }
+            }
+        }
+        return List.copyOf(values);
+    }
+
     @SuppressWarnings("unchecked")
     private static List<String> stringList(Object value) {
         if (value instanceof List<?> list) {
@@ -982,6 +1161,42 @@ public final class ArchitectureIrFactory {
             metadata.put("preferredDependencyView", !filteredTypeDependencies.isEmpty() ? typeDependencyView : moduleDependencyView);
             metadata.put("browserViewKind", "graph");
             metadata.put("recommendedForArchitectureViews", true);
+            return Map.copyOf(metadata);
+        }
+    }
+
+    private record JavaBrowserViewDefinition(
+        String id,
+        String title,
+        String description,
+        String framework,
+        String architectureViewKind,
+        String typeDependencyView,
+        String moduleDependencyView,
+        List<String> frameworkRelationships,
+        List<Map<String, Object>> typeDependencies,
+        List<Map<String, Object>> moduleDependencies
+    ) {
+        private Map<String, Object> toMetadataMap() {
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("id", id);
+            metadata.put("title", title);
+            metadata.put("description", description);
+            metadata.put("framework", framework);
+            metadata.put("architectureViewKind", architectureViewKind);
+            metadata.put("typeDependencyView", typeDependencyView);
+            metadata.put("moduleDependencyView", moduleDependencyView);
+            metadata.put("frameworkRelationships", List.copyOf(frameworkRelationships));
+            metadata.put("available", !typeDependencies.isEmpty() || !moduleDependencies.isEmpty());
+            metadata.put("typeDependencyCount", typeDependencies.size());
+            metadata.put("moduleDependencyCount", moduleDependencies.size());
+            metadata.put("preferredDependencyView", !typeDependencies.isEmpty() ? typeDependencyView : moduleDependencyView);
+            metadata.put("browserViewKind", "graph");
+            metadata.put("recommendedForArchitectureViews", true);
+            metadata.put("typeRelationshipKinds", distinctStringValues(typeDependencies, "relationshipKind"));
+            metadata.put("moduleRelationshipKinds", distinctStringValues(moduleDependencies, "relationshipKind"));
+            metadata.put("availableFrameworks", distinctListValues("frameworks", typeDependencies, moduleDependencies));
+            metadata.put("availableArchitectureViewKinds", distinctListValues("architectureViewKinds", typeDependencies, moduleDependencies));
             return Map.copyOf(metadata);
         }
     }
