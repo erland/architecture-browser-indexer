@@ -34,6 +34,8 @@ final class JavaSyntaxTreeExtractionStage {
     private final JavaTypeSemanticsFlow typeSemanticsFlow = new JavaTypeSemanticsFlow(jaxRsSemantics, jpaSemantics);
     private final JavaTypeDeclarationFlow typeDeclarationFlow = new JavaTypeDeclarationFlow(entityMapper, dependencyEmissionFlow, typeSemanticsFlow);
     private final JavaMethodSemanticsFlow methodSemanticsFlow = new JavaMethodSemanticsFlow(jaxRsSemantics, jpaSemantics, cdiSemantics, writePathSemantics);
+    private final JavaFieldExtractionFlow fieldExtractionFlow = new JavaFieldExtractionFlow(entityMapper, dependencyEmissionFlow, jpaSemantics);
+    private final JavaMethodExtractionFlow methodExtractionFlow = new JavaMethodExtractionFlow(entityMapper, dependencyEmissionFlow, methodSemanticsFlow);
     private final JavaMemberExtractionFlow memberExtractionFlow = new JavaMemberExtractionFlow();
 
     ParseLanguage language() {
@@ -261,7 +263,7 @@ final class JavaSyntaxTreeExtractionStage {
             JavaExtractionContext extractionContext
         ) {
             if (isJavaFieldDeclaration(node)) {
-                return handleFieldNode(
+                return fieldExtractionFlow.handleFieldNode(
                     parseResult,
                     accumulator,
                     relativePath,
@@ -279,7 +281,7 @@ final class JavaSyntaxTreeExtractionStage {
                 );
             }
             if (isJavaMethodLikeDeclaration(node)) {
-                return handleMethodNode(
+                return methodExtractionFlow.handleMethodNode(
                     parseResult,
                     accumulator,
                     relativePath,
@@ -297,131 +299,6 @@ final class JavaSyntaxTreeExtractionStage {
                 );
             }
             return JavaMemberExtractionResult.notHandled();
-        }
-
-        private JavaMemberExtractionResult handleFieldNode(
-            SourceParseResult parseResult,
-            ExtractionAccumulator accumulator,
-            String relativePath,
-            String packageName,
-            ExtractionMode extractionMode,
-            String fileScopeId,
-            String fileEntityId,
-            SyntaxNode node,
-            String owningTypeEntityId,
-            String owningQualifiedName,
-            String owningTypeSnippet,
-            Map<String, String> importsBySimpleName,
-            Map<String, JavaDeclaredType> declaredTypes,
-            JavaExtractionContext extractionContext
-        ) {
-            List<String> emittedEntityIds = new ArrayList<>();
-            int emittedRelationshipCount = 0;
-            for (ExtractedEntityFact fieldEntity : entityMapper.toFieldEntities(parseResult, relativePath, extractionMode, fileScopeId, node, owningQualifiedName)) {
-                emittedEntityIds.add(fieldEntity.id());
-                accumulator.addEntity(fieldEntity);
-                SourceReference ref = fieldEntity.sourceRefs().isEmpty() ? null : fieldEntity.sourceRefs().getFirst();
-                String dependencySourceEntityId = owningTypeEntityId == null ? fileEntityId : owningTypeEntityId;
-                accumulator.addRelationship(ExtractionSupport.containsRelationship(
-                    dependencySourceEntityId,
-                    fieldEntity.id(),
-                    ref
-                ));
-                emittedRelationshipCount++;
-                dependencyEmissionFlow.addFieldDeclaredTypeDependencies(
-                    accumulator,
-                    dependencySourceEntityId,
-                    String.valueOf(fieldEntity.metadata().getOrDefault("declaredType", "")),
-                    relativePath,
-                    packageName,
-                    lineOf(ref, node),
-                    ref,
-                    importsBySimpleName,
-                    declaredTypes
-                );
-                jpaSemantics.addJpaFieldFacts(
-                    accumulator,
-                    new JavaFieldContext(
-                        extractionContext,
-                        node,
-                        fieldEntity,
-                        owningTypeEntityId,
-                        owningQualifiedName,
-                        owningTypeSnippet
-                    )
-                );
-            }
-            return JavaMemberExtractionResult.handled(emittedEntityIds, emittedRelationshipCount);
-        }
-
-        private JavaMemberExtractionResult handleMethodNode(
-            SourceParseResult parseResult,
-            ExtractionAccumulator accumulator,
-            String relativePath,
-            String packageName,
-            ExtractionMode extractionMode,
-            String fileScopeId,
-            String fileEntityId,
-            SyntaxNode node,
-            String owningTypeEntityId,
-            String owningQualifiedName,
-            String owningTypeSnippet,
-            Map<String, String> importsBySimpleName,
-            Map<String, JavaDeclaredType> declaredTypes,
-            JavaExtractionContext extractionContext
-        ) {
-            ExtractedEntityFact methodEntity = entityMapper.toMethodEntity(parseResult, relativePath, extractionMode, fileScopeId, node, owningQualifiedName);
-            if (methodEntity == null) {
-                return JavaMemberExtractionResult.notHandled();
-            }
-            accumulator.addEntity(methodEntity);
-            SourceReference ref = methodEntity.sourceRefs().isEmpty() ? null : methodEntity.sourceRefs().getFirst();
-            String dependencySourceEntityId = owningTypeEntityId == null ? fileEntityId : owningTypeEntityId;
-            accumulator.addRelationship(ExtractionSupport.containsRelationship(
-                dependencySourceEntityId,
-                methodEntity.id(),
-                ref
-            ));
-            String returnType = String.valueOf(methodEntity.metadata().getOrDefault("returnType", ""));
-            if (!returnType.isBlank()) {
-                dependencyEmissionFlow.addMethodReturnTypeDependencies(
-                    accumulator,
-                    dependencySourceEntityId,
-                    returnType,
-                    relativePath,
-                    packageName,
-                    lineOf(ref, node),
-                    ref,
-                    importsBySimpleName,
-                    declaredTypes
-                );
-            }
-            @SuppressWarnings("unchecked")
-            List<String> parameterTypes = (List<String>) methodEntity.metadata().getOrDefault("parameterTypes", List.of());
-            if (!parameterTypes.isEmpty()) {
-                dependencyEmissionFlow.addMethodParameterDependencies(
-                    accumulator,
-                    dependencySourceEntityId,
-                    parameterTypes,
-                    isConstructor(methodEntity),
-                    relativePath,
-                    packageName,
-                    lineOf(ref, node),
-                    ref,
-                    importsBySimpleName,
-                    declaredTypes
-                );
-            }
-            methodSemanticsFlow.applyMethodSemantics(
-                accumulator,
-                extractionContext,
-                node,
-                methodEntity,
-                owningTypeEntityId,
-                owningQualifiedName,
-                owningTypeSnippet
-            );
-            return JavaMemberExtractionResult.handled(List.of(methodEntity.id()), 1);
         }
     }
 
@@ -649,7 +526,7 @@ final class JavaSyntaxTreeExtractionStage {
         ).contains(candidate);
     }
 
-    private static boolean isConstructor(ExtractedEntityFact methodEntity) {
+    static boolean isConstructor(ExtractedEntityFact methodEntity) {
         if (methodEntity == null) {
             return false;
         }
@@ -1017,7 +894,7 @@ final class JavaSyntaxTreeExtractionStage {
         return List.of();
     }
 
-    private static int lineOf(SourceReference ref, SyntaxNode fallbackNode) {
+    static int lineOf(SourceReference ref, SyntaxNode fallbackNode) {
         return ref != null && ref.startLine() != null ? ref.startLine() : SyntaxTreeExtractionSupport.oneBasedLine(fallbackNode);
     }
 
