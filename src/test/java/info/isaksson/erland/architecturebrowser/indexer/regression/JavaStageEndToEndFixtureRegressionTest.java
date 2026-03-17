@@ -7,6 +7,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasRelationshipByLabel;
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertObservesEvent;
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertPublishesEvent;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -45,29 +48,10 @@ class JavaStageEndToEndFixtureRegressionTest {
         assertEquals(Boolean.TRUE, asyncObserver.metadata().get("cdiObserver"));
         assertEquals(Boolean.TRUE, asyncObserver.metadata().get("observerAsync"));
 
-        assertTrue(extraction.relationships().stream().anyMatch(rel ->
-                rel.kind() == RelationshipKind.EXPOSES
-                    && "POST /orders".equals(rel.label())),
-            () -> "Expected JAX-RS exposes relationship. Relationships=" + extraction.relationships());
-        assertTrue(extraction.relationships().stream().anyMatch(rel ->
-                rel.kind() == RelationshipKind.DEPENDS_ON
-                    && "publishesEvent".equals(rel.metadata().get("relationshipType"))
-                    && "com.example.orders.events.OrderCreatedEvent".equals(rel.metadata().get("eventType"))
-                    && "createOrder".equals(rel.metadata().get("publisherMethod"))),
-            () -> "Expected CDI publish relationship. Relationships=" + extraction.relationships());
-        assertTrue(extraction.relationships().stream().anyMatch(rel ->
-                rel.kind() == RelationshipKind.DEPENDS_ON
-                    && "eventObservedBy".equals(rel.metadata().get("relationshipType"))
-                    && "com.example.orders.events.OrderCreatedEvent".equals(rel.metadata().get("eventType"))
-                    && "onOrderCreated".equals(rel.metadata().get("observerMethod"))),
-            () -> "Expected synchronous CDI observer relationship. Relationships=" + extraction.relationships());
-        assertTrue(extraction.relationships().stream().anyMatch(rel ->
-                rel.kind() == RelationshipKind.DEPENDS_ON
-                    && "eventObservedBy".equals(rel.metadata().get("relationshipType"))
-                    && "com.example.orders.events.OrderCreatedEvent".equals(rel.metadata().get("eventType"))
-                    && "onOrderCreatedAsync".equals(rel.metadata().get("observerMethod"))
-                    && Boolean.TRUE.equals(rel.metadata().get("observerAsync"))),
-            () -> "Expected async CDI observer relationship. Relationships=" + extraction.relationships());
+        assertHasRelationshipByLabel(extraction.relationships(), RelationshipKind.EXPOSES, "POST /orders");
+        assertPublishesEvent(extraction.relationships(), "com.example.orders.events.OrderCreatedEvent", "createOrder");
+        assertObservesEvent(extraction.relationships(), "com.example.orders.events.OrderCreatedEvent", "onOrderCreated", null);
+        assertObservesEvent(extraction.relationships(), "com.example.orders.events.OrderCreatedEvent", "onOrderCreatedAsync", Boolean.TRUE);
         assertTrue(extraction.relationships().stream().anyMatch(rel ->
                 rel.kind() == RelationshipKind.DEPENDS_ON
                     && "hasAssociation".equals(rel.metadata().get("relationshipType"))

@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertContainsViews;
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasPackageDependency;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,26 +28,11 @@ class ArchitectureIrCompositionEndToEndFixtureRegressionTest {
         Map<String, Object> browserViewCatalog = (Map<String, Object>) dependencyViews.get("browserViewCatalog");
         Map<String, Object> evidenceStatus = (Map<String, Object>) dependencyViews.get("evidenceStatus");
 
-                assertTrue(((List<?>) dependencyViews.get("primaryArchitectureViews")).containsAll(List.of(
-            "packageDependencies",
-            "typeDependencies",
-            "moduleDependencies"
-        )), () -> "Expected core primary architecture views to remain present. primaryArchitectureViews=" + dependencyViews.get("primaryArchitectureViews"));
-        assertTrue(((List<?>) dependencyViews.get("recommendedEntryPoints")).containsAll(List.of(
-            "packageDependencies",
-            "typeDependencies",
-            "moduleDependencies",
-            "evidenceDependencies"
-        )));
+                assertContainsViews(dependencyViews.get("primaryArchitectureViews"), "packageDependencies", "typeDependencies", "moduleDependencies");
+        assertContainsViews(dependencyViews.get("recommendedEntryPoints"), "packageDependencies", "typeDependencies", "moduleDependencies", "evidenceDependencies");
 
-        assertTrue(packageDependencies.stream().map(String::valueOf).anyMatch(dep ->
-                dep.contains("sourcePackageName=com.example.orders.api")
-                    && dep.contains("targetPackageName=com.example.orders.service")),
-            () -> "Expected package dependency from api to service. packageDependencies=" + packageDependencies);
-        assertTrue(packageDependencies.stream().map(String::valueOf).anyMatch(dep ->
-                dep.contains("sourcePackageName=com.example.orders.service")
-                    && dep.contains("targetPackageName=com.example.orders.domain")),
-            () -> "Expected package dependency from service to domain. packageDependencies=" + packageDependencies);
+        assertHasPackageDependency(packageDependencies, "com.example.orders.api", "com.example.orders.service");
+        assertHasPackageDependency(packageDependencies, "com.example.orders.service", "com.example.orders.domain");
         assertTrue(packageMetrics.stream().anyMatch(metric ->
                 "com.example.orders.service".equals(metric.get("packageName"))
                     && ((Number) metric.get("outgoingDependencyCount")).intValue() >= 1),

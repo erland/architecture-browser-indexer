@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertContainsViews;
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertDependencyViewRelationship;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -146,23 +148,8 @@ class ArchitectureIrFactoryStructuralExtractionTest {
             extractionResult
         );
 
-        assertTrue(document.relationships().stream().anyMatch(relationship ->
-            relationship.kind().name().equals("DEPENDS_ON")
-                && "type".equals(relationship.metadata().get("dependencyView"))
-                && "parameterType".equals(relationship.metadata().get("dependencySource"))
-                && "external".equals(relationship.metadata().get("dependencyTargetBoundary"))
-                && "external-or-inferred-type".equals(relationship.metadata().get("dependencyTargetClassification"))
-        ));
-        assertTrue(document.relationships().stream().anyMatch(relationship ->
-            relationship.kind().name().equals("DEPENDS_ON")
-                && "evidence".equals(relationship.metadata().get("dependencyView"))
-                && "supporting-evidence".equals(relationship.metadata().get("dependencyTier"))
-                && Boolean.FALSE.equals(relationship.metadata().get("architecturePrimary"))
-                && Boolean.FALSE.equals(relationship.metadata().get("recommendedForArchitectureViews"))
-                && "file-import".equals(relationship.metadata().get("evidenceKind"))
-                && "import".equals(relationship.metadata().get("dependencySource"))
-                && "external".equals(relationship.metadata().get("dependencyTargetBoundary"))
-        ));
+        assertDependencyViewRelationship(document.relationships(), "type", "parameterType");
+        assertDependencyViewRelationship(document.relationships(), "evidence", "import");
 
         @SuppressWarnings("unchecked")
         Map<String, Object> dependencyViews = (Map<String, Object>) document.metadata().get("dependencyViews");
@@ -191,8 +178,8 @@ class ArchitectureIrFactoryStructuralExtractionTest {
                 && "file-import".equals(dep.get("evidenceKind"))
                 && ((List<?>) dep.get("dependencySources")).contains("import")
         ));
-        assertTrue(((List<?>) dependencyViews.get("recommendedEntryPoints")).containsAll(List.of("packageDependencies", "typeDependencies", "moduleDependencies", "evidenceDependencies")));
-        assertTrue(((List<?>) dependencyViews.get("primaryArchitectureViews")).containsAll(List.of("packageDependencies", "typeDependencies", "moduleDependencies")));
+        assertContainsViews(dependencyViews.get("recommendedEntryPoints"), "packageDependencies", "typeDependencies", "moduleDependencies", "evidenceDependencies");
+        assertContainsViews(dependencyViews.get("primaryArchitectureViews"), "packageDependencies", "typeDependencies", "moduleDependencies");
         @SuppressWarnings("unchecked")
         Map<String, Object> evidenceStatus = (Map<String, Object>) dependencyViews.get("evidenceStatus");
         assertEquals("supporting-evidence", evidenceStatus.get("fileImportDependencies"));
