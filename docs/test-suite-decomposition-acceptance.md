@@ -74,7 +74,7 @@ Largest current test files by line count at the time this acceptance doc was gen
 
 - `JavaStructuralExtractionContractRegressionTest (broad baseline only)` — about 991 LOC
 - `FrontendFrameworkBaselineRegressionTest, FrontendRoleInterpretationRegressionTest, FrontendDependencyViewsRegressionTest` — about 548 LOC
-- `ArchitectureDependencyFixtureRegressionTest` — about 524 LOC
+- `ArchitectureDependencyFixtureRegressionTest, ArchitectureDependencyCycleRegressionTest, ArchitectureDependencyReasonRegressionTest` — about 524 LOC
 - `AngularTypeScriptFrameworkSemanticsRegressionTest` — about 485 LOC
 - `ArchitectureIrFactoryStructuralExtractionTest` — about 378 LOC
 - `JavaJpaStructuralExtractionTest` — about 362 LOC

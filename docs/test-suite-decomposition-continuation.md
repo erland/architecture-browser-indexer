@@ -10,7 +10,7 @@ If a future cleanup wave is needed, the most likely next candidates are:
 
 1. `JavaStructuralExtractionContractRegressionTest (broad baseline only)`
 2. `FrontendFrameworkBaselineRegressionTest, FrontendRoleInterpretationRegressionTest, FrontendDependencyViewsRegressionTest`
-3. `ArchitectureDependencyFixtureRegressionTest`
+3. `ArchitectureDependencyFixtureRegressionTest, ArchitectureDependencyCycleRegressionTest, ArchitectureDependencyReasonRegressionTest`
 4. `AngularTypeScriptFrameworkSemanticsRegressionTest`
 5. `ArchitectureIrFactoryStructuralExtractionTest`
 6. `JavaJpaStructuralExtractionTest`

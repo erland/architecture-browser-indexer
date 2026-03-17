@@ -13,7 +13,7 @@ Largest test files by line count in the current baseline:
 3. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/regression/TypeScriptArchitectureFixtureRegressionTest.java` — 780 LOC
 4. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/regression/FrontendArchitectureEndToEndFixtureRegressionTest.java` — 712 LOC
 5. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/regression/FrontendFrameworkBaselineRegressionTest, FrontendRoleInterpretationRegressionTest, FrontendDependencyViewsRegressionTest.java` — 548 LOC
-6. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/regression/ArchitectureDependencyFixtureRegressionTest.java` — 524 LOC
+6. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/regression/ArchitectureDependencyFixtureRegressionTest, ArchitectureDependencyCycleRegressionTest, ArchitectureDependencyReasonRegressionTest.java` — 524 LOC
 7. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/ir/ArchitectureIrFactoryStructuralExtractionTest.java` — 378 LOC
 8. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/extract/JavaJpaStructuralExtractionTest.java` — 362 LOC
 
@@ -67,7 +67,7 @@ These are not all equally urgent, but they are the primary sources of test size,
 
 **Decomposition target:** watchlist / secondary priority
 
-### 6. `ArchitectureDependencyFixtureRegressionTest`
+### 6. `ArchitectureDependencyFixtureRegressionTest, ArchitectureDependencyCycleRegressionTest, ArchitectureDependencyReasonRegressionTest`
 **Current role:** dependency regression fixture
 
 **Why it is a target:**
@@ -108,7 +108,7 @@ Recommended decomposition order for the follow-up test cleanup work:
 2. `StructuralExtractionServiceTest`
 3. `TypeScriptArchitectureFixtureRegressionTest`
 4. `FrontendArchitectureEndToEndFixtureRegressionTest`
-5. `ArchitectureDependencyFixtureRegressionTest`
+5. `ArchitectureDependencyFixtureRegressionTest, ArchitectureDependencyCycleRegressionTest, ArchitectureDependencyReasonRegressionTest`
 6. `FrontendFrameworkBaselineRegressionTest, FrontendRoleInterpretationRegressionTest, FrontendDependencyViewsRegressionTest`
 7. `ArchitectureIrFactoryStructuralExtractionTest`
 
