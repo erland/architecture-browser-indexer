@@ -146,3 +146,8 @@ During the decomposition work:
 ## Contract Assertion Helpers
 
 Use shared helpers in `src/test/java/.../testing/ArchitectureContractAssertions` for architecture-level expectations instead of repeating raw list/map scans in large regression tests. Prefer helpers such as `assertHasEndpoint(...)`, `assertHasPackageDependency(...)`, `assertPublishesEvent(...)`, `assertObservesEvent(...)`, `assertHasFrameworkDependencyView(...)`, and `assertContainsViews(...)` when the goal is to assert stable behavior rather than internal representation shape.
+
+
+## Step 4 example decomposition
+
+The original `TypeScriptStructuralExtractorSafetyNetTest` has been decomposed into a smaller safety net plus focused concern-specific tests for declaration extraction, type relationships, framework semantics, and routing. This is the preferred direction for future large umbrella tests.

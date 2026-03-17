@@ -352,3 +352,16 @@ This baseline step is documentation-only and is intended to define the cleanup t
 ## Shared contract assertion helpers
 
 Broad architecture regressions should prefer `ArchitectureContractAssertions` helpers over repeated raw metadata scans. This keeps tests closer to architect-facing contracts and reduces brittleness during internal refactors.
+
+
+## Test suite decomposition status
+
+Completed through test-plan Step 4:
+
+- `TypeScriptStructuralExtractorSafetyNetTest` reduced to a smaller cross-cutting safety net
+- focused tests added for:
+  - TypeScript declaration extraction
+  - TypeScript type relationships
+  - Angular TypeScript framework semantics
+  - React TypeScript framework semantics
+  - frontend routing contracts

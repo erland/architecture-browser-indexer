@@ -8,7 +8,7 @@ This document defines the starting point for the test-suite cleanup work focused
 
 Largest test files by line count in the current baseline:
 
-1. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/extract/TypeScriptStructuralExtractorSafetyNetTest.java` — 1631 LOC
+1. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/extract/TypeScriptStructuralExtractorSafetyNetTest.java` — decomposed in Step 4; broad safety net reduced and concerns moved into focused test classes
 2. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/extract/StructuralExtractionServiceTest.java` — 1200 LOC
 3. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/regression/TypeScriptArchitectureFixtureRegressionTest.java` — 780 LOC
 4. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/regression/FrontendArchitectureEndToEndFixtureRegressionTest.java` — 712 LOC
@@ -21,7 +21,7 @@ These are not all equally urgent, but they are the primary sources of test size,
 
 ## Role classification of the main large tests
 
-### 1. `TypeScriptStructuralExtractorSafetyNetTest`
+### 1. `TypeScriptStructuralExtractorSafetyNetTest` (decomposed in Step 4)
 **Current role:** mixed seam test + mixed feature regression + broad extractor safety net
 
 **Why it is a target:**
@@ -146,3 +146,14 @@ Proceed to defining an explicit test taxonomy and naming/placement guidance so t
 ## Step 3 status
 
 Shared contract assertion helpers are now the preferred mechanism for architecture-level assertions in broad regression tests. The next decomposition steps should migrate repeated raw scans toward these helpers before splitting the largest umbrella test classes.
+
+
+## Step 4 outcome
+
+`TypeScriptStructuralExtractorSafetyNetTest` has been reduced to a smaller cross-cutting safety net. Detailed coverage was moved into:
+
+- `TypeScriptDeclarationExtractionSeamTest`
+- `TypeScriptTypeRelationshipRegressionTest`
+- `AngularTypeScriptFrameworkSemanticsRegressionTest`
+- `ReactTypeScriptFrameworkSemanticsRegressionTest`
+- `FrontendRoutingExtractionContractRegressionTest`
