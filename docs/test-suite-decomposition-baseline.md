@@ -200,3 +200,16 @@ Shared fixture builders are now available for the most repeated synthetic setups
 - `TypeScriptArchitectureDocumentFixtureBuilder`
 
 These are intended to centralize synthetic parse-result, syntax-node, and TypeScript architecture document setup so future test decomposition work reuses consistent builders instead of hand-assembling the same structures repeatedly.
+
+
+## Step 10 status
+
+File-size and responsibility guardrails are now part of the test-cleanup workstream:
+
+- most new test classes should stay under roughly 250 lines
+- classes above roughly 400 lines should be treated as decomposition candidates
+- one main concern family per test class remains the default rule
+- broad coverage should stay in a small number of regression tests and assert contracts rather than representation
+- shared fixture builders and contract helpers should be reused before adding new ad hoc setup/scanning logic
+
+Current watchlist after Steps 4-9 should be reviewed periodically to prevent regressions in test structure as new extraction and IR work lands.

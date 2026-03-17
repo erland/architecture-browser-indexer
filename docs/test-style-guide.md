@@ -194,3 +194,26 @@ Shared fixture builders are now available for the most repeated synthetic setups
 - `TypeScriptArchitectureDocumentFixtureBuilder`
 
 These are intended to centralize synthetic parse-result, syntax-node, and TypeScript architecture document setup so future test decomposition work reuses consistent builders instead of hand-assembling the same structures repeatedly.
+
+
+## Step 10 guardrails
+
+To keep the suite from drifting back toward giant umbrella tests, apply these guardrails for new or significantly expanded tests:
+
+- Prefer keeping most new test classes under roughly **250 lines**. Going above that should trigger an explicit check whether the class now covers more than one concern.
+- If a test class grows beyond roughly **400 lines**, treat that as a decomposition candidate unless there is a strong documented reason to keep it broad.
+- A single test class should normally cover **one main architectural concern family**.
+- Broad fixture or pipeline coverage should be kept in a small number of `regression` tests and should assert contracts, not incidental representation.
+- Repeated synthetic setup should go through shared fixture builders before adding more ad hoc helpers.
+- Repeated raw map/list scans in regressions should be replaced with shared contract assertion helpers when practical.
+- Service-level tests should stay service-level; extractor/framework-specific expectations belong in lower-level seam or contract tests.
+
+### Review checklist for new or expanded tests
+
+Before merging a large test change, check:
+
+1. Does this class have more than one main reason to fail?
+2. Is there a seam test that should own part of this behavior instead?
+3. Is the assertion contract-oriented rather than representation-oriented?
+4. Can shared fixture builders or contract helpers replace repeated inline setup/scans?
+5. Should this be split into seam, contract/regression, and end-to-end layers?
