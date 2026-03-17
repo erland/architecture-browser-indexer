@@ -319,31 +319,15 @@ See also:
 - `docs/priority1-java-stage-and-ir-assembly-continuation.md`
 
 
-## Wave 2 refactor status
+## Test suite decomposition status
 
-Wave 2 is now structurally complete through Step 11.
+A baseline inventory for the large and coupled test cleanup work is now available in:
+- `docs/test-suite-decomposition-baseline.md`
 
-Current state:
-- TypeScript declaration handling is split into discovery, declaration-family metadata shaping, and framework enrichment seams.
-- IR dependency-view assembly is reduced to phase orchestration over normalization and per-view builders.
-- Dependency relationship enrichment is split into family-specific enrichers.
-- Java semantics are organized by domain-specific supports behind a thin compatibility facade.
-- Frontend routing is split into discovery, normalization, and emission phases.
-- High-value metadata flows now use typed intermediate models in selected IR and Java semantics paths.
-- Broad regressions are hardened around contract-style assertions rather than brittle representation checks.
+Current highest-priority decomposition targets:
+- `TypeScriptStructuralExtractorSafetyNetTest`
+- `StructuralExtractionServiceTest`
+- `TypeScriptArchitectureFixtureRegressionTest`
+- `FrontendArchitectureEndToEndFixtureRegressionTest`
 
-Recommended Wave 2 verification:
-
-```bash
-mvn -Dtest=TypeScriptDeclarationDiscoverySupportTest,TypeScriptDeclarationMetadataShapingSupportTest,TypeScriptFrameworkEnrichmentSupportTest test
-mvn -Dtest=ArchitectureIrDependencyAssemblyPhasesTest,ArchitectureIrDependencyEnrichmentFamiliesTest,TypedMetadataModelAdaptersTest test
-mvn -Dtest=JavaDomainSemanticsSupportsSeamTest,JavaTypedSemanticsModelsTest test
-mvn -Dtest=FrontendRoutingPhasesTest test
-mvn -Dtest=JavaStageEndToEndFixtureRegressionTest,ArchitectureIrCompositionEndToEndFixtureRegressionTest test
-mvn test
-```
-
-See also:
-- `docs/refactoring-wave2-acceptance.md`
-- `docs/refactoring-wave2-continuation.md`
-- `docs/refactoring-wave2-test-contracts.md`
+This baseline step is documentation-only and is intended to define the cleanup target list before test decomposition begins.
