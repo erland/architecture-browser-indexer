@@ -24,44 +24,32 @@ final class TypeScriptDeclarationExtractor {
     static TypeScriptDeclarationResult extract(TypeScriptExtractionContext context) {
         Map<String, ExtractedEntityFact> declaredTypes = new LinkedHashMap<>();
         Map<String, ExtractedEntityFact> namedEntities = new LinkedHashMap<>();
+        TypeScriptDeclarationDiscoverySupport.TypeScriptDiscoveredDeclarations discoveredDeclarations =
+            TypeScriptDeclarationDiscoverySupport.discover(context.root());
 
-        extractNamedTopLevelDeclarations(context, declaredTypes, namedEntities);
-        extractOwnedMembersAndTypeRelationships(context, declaredTypes);
-        extractFunctions(context, namedEntities);
+        extractNamedTopLevelDeclarations(context, discoveredDeclarations, declaredTypes, namedEntities);
+        extractOwnedMembersAndTypeRelationships(context, discoveredDeclarations, declaredTypes);
+        extractFunctions(context, discoveredDeclarations, namedEntities);
 
         return new TypeScriptDeclarationResult(Map.copyOf(declaredTypes), Map.copyOf(namedEntities));
     }
 
     private static void extractNamedTopLevelDeclarations(
         TypeScriptExtractionContext context,
+        TypeScriptDeclarationDiscoverySupport.TypeScriptDiscoveredDeclarations discoveredDeclarations,
         Map<String, ExtractedEntityFact> declaredTypes,
         Map<String, ExtractedEntityFact> namedEntities
     ) {
-        registerTypeDeclarations(context, declaredTypes, namedEntities, "type_alias_declaration", EntityKind.INTERFACE, "type_alias_declaration", "typeAlias");
-        registerTypeDeclarations(context, declaredTypes, namedEntities, "enum_declaration", EntityKind.CLASS, "enum_declaration", "enum");
-        registerTypeDeclarations(context, declaredTypes, namedEntities, "class_declaration", EntityKind.CLASS, "class_declaration", "class");
-        registerTypeDeclarations(context, declaredTypes, namedEntities, "interface_declaration", EntityKind.INTERFACE, "interface_declaration", "interface");
-    }
-
-    private static void registerTypeDeclarations(
-        TypeScriptExtractionContext context,
-        Map<String, ExtractedEntityFact> declaredTypes,
-        Map<String, ExtractedEntityFact> namedEntities,
-        String nodeType,
-        EntityKind entityKind,
-        String matchedKind,
-        String declarationKind
-    ) {
-        for (SyntaxNode node : SyntaxTreeExtractionSupport.findAllByType(context.root(), Set.of(nodeType))) {
+        for (TypeScriptDeclarationDiscoverySupport.DiscoveredTypeDeclaration discoveredType : discoveredDeclarations.namedTypeDeclarations()) {
             ExtractedEntityFact typeEntity = addNamedEntityFromNode(
                 context.parseResult(),
                 context.accumulator(),
                 context.fileEntity().id(),
                 context.relativePath(),
-                node,
-                entityKind,
-                matchedKind,
-                declarationKind,
+                discoveredType.node(),
+                discoveredType.entityKind(),
+                discoveredType.matchedKind(),
+                discoveredType.declarationKind(),
                 context.extractionMode()
             );
             indexNamedEntity(declaredTypes, namedEntities, typeEntity);
@@ -70,16 +58,17 @@ final class TypeScriptDeclarationExtractor {
 
     private static void extractOwnedMembersAndTypeRelationships(
         TypeScriptExtractionContext context,
+        TypeScriptDeclarationDiscoverySupport.TypeScriptDiscoveredDeclarations discoveredDeclarations,
         Map<String, ExtractedEntityFact> declaredTypes
     ) {
-        for (SyntaxNode classNode : SyntaxTreeExtractionSupport.findAllByType(context.root(), Set.of("class_declaration"))) {
+        for (SyntaxNode classNode : discoveredDeclarations.classDeclarations()) {
             ExtractedEntityFact typeEntity = declaredTypes.get(SyntaxTreeExtractionSupport.declarationName(classNode));
             if (typeEntity != null) {
                 addOwnedMembers(context.parseResult(), context.accumulator(), typeEntity, context.relativePath(), classNode, context.extractionMode(), "class", declaredTypes);
                 addTypeRelationships(context.accumulator(), context.relativePath(), classNode, typeEntity, declaredTypes);
             }
         }
-        for (SyntaxNode interfaceNode : SyntaxTreeExtractionSupport.findAllByType(context.root(), Set.of("interface_declaration"))) {
+        for (SyntaxNode interfaceNode : discoveredDeclarations.interfaceDeclarations()) {
             ExtractedEntityFact typeEntity = declaredTypes.get(SyntaxTreeExtractionSupport.declarationName(interfaceNode));
             if (typeEntity != null) {
                 addOwnedMembers(context.parseResult(), context.accumulator(), typeEntity, context.relativePath(), interfaceNode, context.extractionMode(), "interface", declaredTypes);
@@ -88,8 +77,12 @@ final class TypeScriptDeclarationExtractor {
         }
     }
 
-    private static void extractFunctions(TypeScriptExtractionContext context, Map<String, ExtractedEntityFact> namedEntities) {
-        for (SyntaxNode functionNode : SyntaxTreeExtractionSupport.findAllByType(context.root(), Set.of("function_declaration"))) {
+    private static void extractFunctions(
+        TypeScriptExtractionContext context,
+        TypeScriptDeclarationDiscoverySupport.TypeScriptDiscoveredDeclarations discoveredDeclarations,
+        Map<String, ExtractedEntityFact> namedEntities
+    ) {
+        for (SyntaxNode functionNode : discoveredDeclarations.functionDeclarations()) {
             ExtractedEntityFact functionEntity = addNamedEntityFromNode(
                 context.parseResult(),
                 context.accumulator(),
@@ -105,22 +98,20 @@ final class TypeScriptDeclarationExtractor {
                 namedEntities.putIfAbsent(functionEntity.name(), functionEntity);
             }
         }
-        for (SyntaxNode variableDeclarator : SyntaxTreeExtractionSupport.findAllByType(context.root(), Set.of("variable_declarator"))) {
-            if (SyntaxTreeExtractionSupport.containsDescendantType(variableDeclarator, "arrow_function")) {
-                ExtractedEntityFact functionEntity = addNamedEntityFromNode(
-                    context.parseResult(),
-                    context.accumulator(),
-                    context.fileEntity().id(),
-                    context.relativePath(),
-                    variableDeclarator,
-                    EntityKind.FUNCTION,
-                    "arrow_function",
-                    "function",
-                    context.extractionMode()
-                );
-                if (functionEntity != null) {
-                    namedEntities.putIfAbsent(functionEntity.name(), functionEntity);
-                }
+        for (SyntaxNode variableDeclarator : discoveredDeclarations.arrowFunctionDeclarators()) {
+            ExtractedEntityFact functionEntity = addNamedEntityFromNode(
+                context.parseResult(),
+                context.accumulator(),
+                context.fileEntity().id(),
+                context.relativePath(),
+                variableDeclarator,
+                EntityKind.FUNCTION,
+                "arrow_function",
+                "function",
+                context.extractionMode()
+            );
+            if (functionEntity != null) {
+                namedEntities.putIfAbsent(functionEntity.name(), functionEntity);
             }
         }
     }
