@@ -51,7 +51,7 @@ void addCdiEventFacts(
         if (methodEntity == null || ownerTypeEntityId == null || ownerQualifiedName == null || ownerQualifiedName.isBlank()) {
             return;
         }
-        String exactMethodSnippet = JavaSyntaxTreeExtractionStage.exactNodeSnippet(sourceText, methodNode);
+        String exactMethodSnippet = JavaExtractionSemanticsSupport.exactNodeSnippet(sourceText, methodNode);
         if (exactMethodSnippet != null && !exactMethodSnippet.isBlank()) {
             snippet = exactMethodSnippet;
         }
@@ -59,14 +59,14 @@ void addCdiEventFacts(
         LinkedHashMap<String, Object> methodMetadata = new LinkedHashMap<>(methodEntity.metadata());
         boolean methodChanged = false;
 
-        for (JavaSyntaxTreeExtractionStage.PublishedCdiEvent publication : JavaSyntaxTreeExtractionStage.detectCdiPublishedEvents(snippet, ownerTypeSnippet)) {
+        for (JavaExtractionSemanticsSupport.PublishedCdiEvent publication : JavaExtractionSemanticsSupport.detectCdiPublishedEvents(snippet, ownerTypeSnippet)) {
             JavaRelationshipEvidenceEmitter.ResolvedJavaType target = resolveJavaTypeReference(
                 accumulator,
                 publication.eventType(),
                 EntityKind.CLASS,
                 relativePath,
                 packageName,
-                JavaSyntaxTreeExtractionStage.lineOf(ref, methodNode),
+                JavaExtractionSemanticsSupport.lineOf(ref, methodNode),
                 importsBySimpleName,
                 declaredTypes
             );
@@ -112,16 +112,16 @@ void addCdiEventFacts(
             methodChanged = true;
         }
 
-        Optional<JavaSyntaxTreeExtractionStage.ObservedCdiEvent> observer = JavaSyntaxTreeExtractionStage.detectCdiObservedEvent(methodEntity, snippet);
+        Optional<JavaExtractionSemanticsSupport.ObservedCdiEvent> observer = JavaExtractionSemanticsSupport.detectCdiObservedEvent(methodEntity, snippet);
         if (observer.isPresent()) {
-            JavaSyntaxTreeExtractionStage.ObservedCdiEvent observed = observer.get();
+            JavaExtractionSemanticsSupport.ObservedCdiEvent observed = observer.get();
             JavaRelationshipEvidenceEmitter.ResolvedJavaType target = resolveJavaTypeReference(
                 accumulator,
                 observed.eventType(),
                 EntityKind.CLASS,
                 relativePath,
                 packageName,
-                JavaSyntaxTreeExtractionStage.lineOf(ref, methodNode),
+                JavaExtractionSemanticsSupport.lineOf(ref, methodNode),
                 importsBySimpleName,
                 declaredTypes
             );

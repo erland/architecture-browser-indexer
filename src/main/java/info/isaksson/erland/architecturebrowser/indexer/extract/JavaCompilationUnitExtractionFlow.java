@@ -55,7 +55,7 @@ final class JavaCompilationUnitExtractionFlow {
                 continue;
             }
             int line = SyntaxTreeExtractionSupport.oneBasedLine(importNode);
-            String simpleName = JavaSyntaxTreeExtractionStage.simpleName(imported);
+            String simpleName = JavaExtractionSemanticsSupport.simpleName(imported);
             if (simpleName != null && !simpleName.isBlank()) {
                 importsBySimpleName.putIfAbsent(simpleName, imported);
             }

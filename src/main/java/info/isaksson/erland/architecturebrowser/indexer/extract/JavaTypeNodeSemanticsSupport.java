@@ -31,7 +31,7 @@ final class JavaTypeNodeSemanticsSupport {
         Map<String, JavaDeclaredType> declaredTypes
     ) {
         String typeSnippet = typeNodeSnippet(typeNode, typeEntity);
-        if (typeEntity == null || !JavaSyntaxTreeExtractionStage.isJpaPersistentType(typeSnippet, typeEntity)) {
+        if (typeEntity == null || !JavaExtractionSemanticsSupport.isJpaPersistentType(typeSnippet, typeEntity)) {
             return;
         }
         int line = SyntaxTreeExtractionSupport.oneBasedLine(typeNode);
@@ -77,15 +77,15 @@ final class JavaTypeNodeSemanticsSupport {
         String relativePath = typeContext.extractionContext().relativePath();
         SyntaxNode typeNode = typeContext.typeNode();
         ExtractedEntityFact typeEntity = typeContext.typeEntity();
-        if (typeEntity == null || typeEntity.kind() != EntityKind.CLASS || !JavaSyntaxTreeExtractionStage.isJaxRsResource(typeEntity)) {
+        if (typeEntity == null || typeEntity.kind() != EntityKind.CLASS || !JavaExtractionSemanticsSupport.isJaxRsResource(typeEntity)) {
             return;
         }
-        String basePath = JavaSyntaxTreeExtractionStage.extractJaxRsPath(typeEntity.sourceRefs().isEmpty() ? (typeNode == null ? "" : typeNode.textSnippet()) : typeEntity.sourceRefs().getFirst().snippet())
+        String basePath = JavaExtractionSemanticsSupport.extractJaxRsPath(typeEntity.sourceRefs().isEmpty() ? (typeNode == null ? "" : typeNode.textSnippet()) : typeEntity.sourceRefs().getFirst().snippet())
             .orElse("/");
         LinkedHashMap<String, Object> metadata = new LinkedHashMap<>(typeEntity.metadata());
         metadata.put("framework", "jax-rs");
         metadata.put("jaxRsResource", true);
-        metadata.put("jaxRsBasePath", JavaSyntaxTreeExtractionStage.normalizeJaxRsPath(basePath));
+        metadata.put("jaxRsBasePath", JavaExtractionSemanticsSupport.normalizeJaxRsPath(basePath));
         metadata.put("jaxRsResourceQualifiedName", String.valueOf(typeEntity.metadata().getOrDefault("qualifiedName", typeEntity.name())));
         SourceReference ref = typeEntity.sourceRefs().isEmpty()
             ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(typeNode), typeNode.textSnippet(), Map.of("language", "java", "kind", "class_declaration"))
@@ -109,18 +109,18 @@ final class JavaTypeNodeSemanticsSupport {
         String relativePath = typeContext.extractionContext().relativePath();
         String typeSnippet = typeNodeSnippet(typeContext.typeNode(), typeContext.typeEntity());
         ExtractedEntityFact typeEntity = typeContext.typeEntity();
-        if (typeEntity == null || typeEntity.kind() != EntityKind.CLASS || !JavaSyntaxTreeExtractionStage.isJpaPersistentType(typeSnippet, typeEntity)) {
+        if (typeEntity == null || typeEntity.kind() != EntityKind.CLASS || !JavaExtractionSemanticsSupport.isJpaPersistentType(typeSnippet, typeEntity)) {
             return;
         }
         LinkedHashMap<String, Object> metadata = new LinkedHashMap<>(typeEntity.metadata());
         metadata.put("framework", "jpa");
-        String jpaKind = JavaSyntaxTreeExtractionStage.detectJpaTypeKind(typeSnippet, typeEntity).orElse("entity");
+        String jpaKind = JavaExtractionSemanticsSupport.detectJpaTypeKind(typeSnippet, typeEntity).orElse("entity");
         metadata.put("jpaKind", jpaKind);
         metadata.put("jpaEntity", "entity".equals(jpaKind));
         metadata.put("jpaEmbeddable", "embeddable".equals(jpaKind));
         metadata.put("jpaMappedSuperclass", "mapped-superclass".equals(jpaKind));
-        JavaSyntaxTreeExtractionStage.extractJpaTableName(typeSnippet).ifPresent(table -> metadata.put("tableName", table));
-        JavaSyntaxTreeExtractionStage.extractJpaInheritanceStrategy(typeSnippet).ifPresent(strategy -> metadata.put("inheritanceStrategy", strategy));
+        JavaExtractionSemanticsSupport.extractJpaTableName(typeSnippet).ifPresent(table -> metadata.put("tableName", table));
+        JavaExtractionSemanticsSupport.extractJpaInheritanceStrategy(typeSnippet).ifPresent(strategy -> metadata.put("inheritanceStrategy", strategy));
         SourceReference ref = typeEntity.sourceRefs().isEmpty()
             ? ExtractionSupport.sourceRef(relativePath, 1, typeSnippet, Map.of("language", "java", "kind", "class_declaration"))
             : typeEntity.sourceRefs().getFirst();

@@ -39,18 +39,18 @@ void addJpaTypeMetadata(
         String relativePath = typeContext.extractionContext().relativePath();
         String typeSnippet = JavaTypeSemanticsFlow.typeNodeSnippet(typeContext.typeNode(), typeContext.typeEntity());
         ExtractedEntityFact typeEntity = typeContext.typeEntity();
-        if (typeEntity == null || typeEntity.kind() != EntityKind.CLASS || !JavaSyntaxTreeExtractionStage.isJpaPersistentType(typeSnippet, typeEntity)) {
+        if (typeEntity == null || typeEntity.kind() != EntityKind.CLASS || !JavaExtractionSemanticsSupport.isJpaPersistentType(typeSnippet, typeEntity)) {
             return;
         }
         LinkedHashMap<String, Object> metadata = new LinkedHashMap<>(typeEntity.metadata());
         metadata.put("framework", "jpa");
-        String jpaKind = JavaSyntaxTreeExtractionStage.detectJpaTypeKind(typeSnippet, typeEntity).orElse("entity");
+        String jpaKind = JavaExtractionSemanticsSupport.detectJpaTypeKind(typeSnippet, typeEntity).orElse("entity");
         metadata.put("jpaKind", jpaKind);
         metadata.put("jpaEntity", "entity".equals(jpaKind));
         metadata.put("jpaEmbeddable", "embeddable".equals(jpaKind));
         metadata.put("jpaMappedSuperclass", "mapped-superclass".equals(jpaKind));
-        JavaSyntaxTreeExtractionStage.extractJpaTableName(typeSnippet).ifPresent(table -> metadata.put("tableName", table));
-        JavaSyntaxTreeExtractionStage.extractJpaInheritanceStrategy(typeSnippet).ifPresent(strategy -> metadata.put("inheritanceStrategy", strategy));
+        JavaExtractionSemanticsSupport.extractJpaTableName(typeSnippet).ifPresent(table -> metadata.put("tableName", table));
+        JavaExtractionSemanticsSupport.extractJpaInheritanceStrategy(typeSnippet).ifPresent(strategy -> metadata.put("inheritanceStrategy", strategy));
         SourceReference ref = typeEntity.sourceRefs().isEmpty()
             ? ExtractionSupport.sourceRef(relativePath, 1, typeSnippet, Map.of("language", "java", "kind", "class_declaration"))
             : typeEntity.sourceRefs().getFirst();
@@ -80,26 +80,26 @@ void addJpaFieldFacts(
         String ownerTypeSnippet = fieldContext.ownerTypeSnippet();
         Map<String, String> importsBySimpleName = extractionContext.importsBySimpleName();
         Map<String, JavaDeclaredType> declaredTypes = extractionContext.declaredTypes();
-        if (fieldEntity == null || ownerTypeEntityId == null || !JavaSyntaxTreeExtractionStage.isJpaPersistentType(ownerTypeSnippet, null)) {
+        if (fieldEntity == null || ownerTypeEntityId == null || !JavaExtractionSemanticsSupport.isJpaPersistentType(ownerTypeSnippet, null)) {
             return;
         }
         String snippet = fieldEntity.sourceRefs().isEmpty() ? (fieldNode == null ? "" : fieldNode.textSnippet()) : fieldEntity.sourceRefs().getFirst().snippet();
         LinkedHashMap<String, Object> metadata = new LinkedHashMap<>(fieldEntity.metadata());
         metadata.put("framework", "jpa");
         boolean changed = false;
-        if (JavaSyntaxTreeExtractionStage.hasAnnotation(JavaDeclaredTypeSupport.metadataStringList(fieldEntity.metadata().get("annotations")), "Id") || JavaSyntaxTreeExtractionStage.hasAnnotation(JavaDeclaredTypeSupport.metadataStringList(fieldEntity.metadata().get("annotations")), "EmbeddedId")) {
+        if (JavaExtractionSemanticsSupport.hasAnnotation(JavaDeclaredTypeSupport.metadataStringList(fieldEntity.metadata().get("annotations")), "Id") || JavaExtractionSemanticsSupport.hasAnnotation(JavaDeclaredTypeSupport.metadataStringList(fieldEntity.metadata().get("annotations")), "EmbeddedId")) {
             metadata.put("jpaId", true);
             changed = true;
         }
-        if (JavaSyntaxTreeExtractionStage.hasAnnotation(JavaDeclaredTypeSupport.metadataStringList(fieldEntity.metadata().get("annotations")), "Version")) {
+        if (JavaExtractionSemanticsSupport.hasAnnotation(JavaDeclaredTypeSupport.metadataStringList(fieldEntity.metadata().get("annotations")), "Version")) {
             metadata.put("jpaVersion", true);
             changed = true;
         }
-        if (JavaSyntaxTreeExtractionStage.hasAnnotation(JavaDeclaredTypeSupport.metadataStringList(fieldEntity.metadata().get("annotations")), "Embedded") || JavaSyntaxTreeExtractionStage.hasAnnotation(JavaDeclaredTypeSupport.metadataStringList(fieldEntity.metadata().get("annotations")), "EmbeddedId")) {
+        if (JavaExtractionSemanticsSupport.hasAnnotation(JavaDeclaredTypeSupport.metadataStringList(fieldEntity.metadata().get("annotations")), "Embedded") || JavaExtractionSemanticsSupport.hasAnnotation(JavaDeclaredTypeSupport.metadataStringList(fieldEntity.metadata().get("annotations")), "EmbeddedId")) {
             metadata.put("jpaEmbedded", true);
             changed = true;
         }
-        JavaSyntaxTreeExtractionStage.extractJpaColumnName(snippet).ifPresent(column -> {
+        JavaExtractionSemanticsSupport.extractJpaColumnName(snippet).ifPresent(column -> {
             metadata.put("columnName", column);
         });
         if (snippet != null && snippet.contains("nullable = false")) {
@@ -114,16 +114,16 @@ void addJpaFieldFacts(
             metadata.put("unique", true);
             changed = true;
         }
-        if (JavaSyntaxTreeExtractionStage.extractJpaColumnName(snippet).isPresent()) {
+        if (JavaExtractionSemanticsSupport.extractJpaColumnName(snippet).isPresent()) {
             changed = true;
         }
-        Optional<String> association = JavaSyntaxTreeExtractionStage.detectJpaAssociation(snippet);
+        Optional<String> association = JavaExtractionSemanticsSupport.detectJpaAssociation(snippet);
         if (association.isPresent()) {
             String associationKind = association.get();
             metadata.put("jpaAssociation", associationKind);
-            JavaSyntaxTreeExtractionStage.extractJpaMappedBy(snippet).ifPresent(mappedBy -> metadata.put("mappedBy", mappedBy));
-            JavaSyntaxTreeExtractionStage.extractJpaJoinColumn(snippet).ifPresent(joinColumn -> metadata.put("joinColumn", joinColumn));
-            JavaSyntaxTreeExtractionStage.extractJpaJoinTable(snippet).ifPresent(joinTable -> metadata.put("joinTable", joinTable));
+            JavaExtractionSemanticsSupport.extractJpaMappedBy(snippet).ifPresent(mappedBy -> metadata.put("mappedBy", mappedBy));
+            JavaExtractionSemanticsSupport.extractJpaJoinColumn(snippet).ifPresent(joinColumn -> metadata.put("joinColumn", joinColumn));
+            JavaExtractionSemanticsSupport.extractJpaJoinTable(snippet).ifPresent(joinTable -> metadata.put("joinTable", joinTable));
             changed = true;
 
             String declaredType = String.valueOf(fieldEntity.metadata().getOrDefault("declaredType", ""));
@@ -135,7 +135,7 @@ void addJpaFieldFacts(
                     EntityKind.CLASS,
                     relativePath,
                     packageName,
-                    JavaSyntaxTreeExtractionStage.lineOf(fieldEntity.sourceRefs().isEmpty() ? null : fieldEntity.sourceRefs().getFirst(), fieldNode),
+                    JavaExtractionSemanticsSupport.lineOf(fieldEntity.sourceRefs().isEmpty() ? null : fieldEntity.sourceRefs().getFirst(), fieldNode),
                     importsBySimpleName,
                     declaredTypes
                 );
@@ -147,9 +147,9 @@ void addJpaFieldFacts(
                     relationshipMetadata.put("framework", "jpa");
                     relationshipMetadata.put("relationshipType", "hasAssociation");
                     relationshipMetadata.put("jpaAssociation", associationKind);
-                    JavaSyntaxTreeExtractionStage.extractJpaMappedBy(snippet).ifPresent(mappedBy -> relationshipMetadata.put("mappedBy", mappedBy));
-                    JavaSyntaxTreeExtractionStage.extractJpaJoinColumn(snippet).ifPresent(joinColumn -> relationshipMetadata.put("joinColumn", joinColumn));
-                    JavaSyntaxTreeExtractionStage.extractJpaJoinTable(snippet).ifPresent(joinTable -> relationshipMetadata.put("joinTable", joinTable));
+                    JavaExtractionSemanticsSupport.extractJpaMappedBy(snippet).ifPresent(mappedBy -> relationshipMetadata.put("mappedBy", mappedBy));
+                    JavaExtractionSemanticsSupport.extractJpaJoinColumn(snippet).ifPresent(joinColumn -> relationshipMetadata.put("joinColumn", joinColumn));
+                    JavaExtractionSemanticsSupport.extractJpaJoinTable(snippet).ifPresent(joinTable -> relationshipMetadata.put("joinTable", joinTable));
                     relationshipMetadata.put("ownerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName);
                     accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
                         ownerTypeEntityId,
@@ -172,7 +172,7 @@ void addJpaFieldFacts(
                     EntityKind.CLASS,
                     relativePath,
                     packageName,
-                    JavaSyntaxTreeExtractionStage.lineOf(fieldEntity.sourceRefs().isEmpty() ? null : fieldEntity.sourceRefs().getFirst(), fieldNode),
+                    JavaExtractionSemanticsSupport.lineOf(fieldEntity.sourceRefs().isEmpty() ? null : fieldEntity.sourceRefs().getFirst(), fieldNode),
                     importsBySimpleName,
                     declaredTypes
                 );
@@ -226,7 +226,7 @@ void addJpaMethodFacts(
         String snippet = methodContext.snippet();
         Map<String, String> importsBySimpleName = extractionContext.importsBySimpleName();
         Map<String, JavaDeclaredType> declaredTypes = extractionContext.declaredTypes();
-        if (methodEntity == null || ownerTypeEntityId == null || !JavaSyntaxTreeExtractionStage.isJpaPersistentType(ownerTypeSnippet, null) || JavaSyntaxTreeExtractionStage.isConstructor(methodEntity)) {
+        if (methodEntity == null || ownerTypeEntityId == null || !JavaExtractionSemanticsSupport.isJpaPersistentType(ownerTypeSnippet, null) || JavaExtractionSemanticsSupport.isConstructor(methodEntity)) {
             return;
         }
         List<String> annotations = JavaDeclaredTypeSupport.metadataStringList(methodEntity.metadata().get("annotations"));
@@ -240,10 +240,10 @@ void addJpaMethodFacts(
         }
         String parameters = String.valueOf(methodEntity.metadata().getOrDefault("parameters", ""));
         String methodName = methodEntity.name();
-        if (!annotations.stream().anyMatch(a -> a != null && !a.isBlank()) && !JavaSyntaxTreeExtractionStage.containsJpaPropertyAnnotation(snippet)) {
+        if (!annotations.stream().anyMatch(a -> a != null && !a.isBlank()) && !JavaExtractionSemanticsSupport.containsJpaPropertyAnnotation(snippet)) {
             return;
         }
-        String propertyName = JavaSyntaxTreeExtractionStage.deriveJavaPropertyName(methodName, parameters);
+        String propertyName = JavaExtractionSemanticsSupport.deriveJavaPropertyName(methodName, parameters);
         if (propertyName == null || propertyName.isBlank()) {
             return;
         }
@@ -252,19 +252,19 @@ void addJpaMethodFacts(
         metadata.put("jpaPropertyAccess", true);
         metadata.put("jpaPropertyName", propertyName);
         boolean changed = true;
-        if (JavaSyntaxTreeExtractionStage.hasAnnotation(annotations, "Id") || JavaSyntaxTreeExtractionStage.hasAnnotation(annotations, "EmbeddedId")) {
+        if (JavaExtractionSemanticsSupport.hasAnnotation(annotations, "Id") || JavaExtractionSemanticsSupport.hasAnnotation(annotations, "EmbeddedId")) {
             metadata.put("jpaId", true);
             changed = true;
         }
-        if (JavaSyntaxTreeExtractionStage.hasAnnotation(annotations, "Version")) {
+        if (JavaExtractionSemanticsSupport.hasAnnotation(annotations, "Version")) {
             metadata.put("jpaVersion", true);
             changed = true;
         }
-        if (JavaSyntaxTreeExtractionStage.hasAnnotation(annotations, "Embedded") || JavaSyntaxTreeExtractionStage.hasAnnotation(annotations, "EmbeddedId")) {
+        if (JavaExtractionSemanticsSupport.hasAnnotation(annotations, "Embedded") || JavaExtractionSemanticsSupport.hasAnnotation(annotations, "EmbeddedId")) {
             metadata.put("jpaEmbedded", true);
             changed = true;
         }
-        JavaSyntaxTreeExtractionStage.extractJpaColumnName(snippet).ifPresent(column -> metadata.put("columnName", column));
+        JavaExtractionSemanticsSupport.extractJpaColumnName(snippet).ifPresent(column -> metadata.put("columnName", column));
         if (snippet != null && snippet.contains("nullable = false")) {
             metadata.put("nullable", false);
             changed = true;
@@ -277,10 +277,10 @@ void addJpaMethodFacts(
             metadata.put("unique", true);
             changed = true;
         }
-        if (JavaSyntaxTreeExtractionStage.extractJpaColumnName(snippet).isPresent()) {
+        if (JavaExtractionSemanticsSupport.extractJpaColumnName(snippet).isPresent()) {
             changed = true;
         }
-        Optional<String> association = JavaSyntaxTreeExtractionStage.detectJpaAssociation(annotations, snippet);
+        Optional<String> association = JavaExtractionSemanticsSupport.detectJpaAssociation(annotations, snippet);
         if (association.isEmpty()) {
             String loweredSnippet = snippet == null ? "" : snippet.toLowerCase(java.util.Locale.ROOT);
             if (loweredSnippet.contains("manytoone") || loweredSnippet.contains("many_to_one") || loweredSnippet.contains("many-to-one")) {
@@ -295,14 +295,14 @@ void addJpaMethodFacts(
         }
         String declaredType = String.valueOf(methodEntity.metadata().getOrDefault("returnType", ""));
         if (declaredType == null || declaredType.isBlank()) {
-            declaredType = JavaSyntaxTreeExtractionStage.inferJavaMethodReturnTypeFromSnippet(snippet, methodName).orElse("");
+            declaredType = JavaExtractionSemanticsSupport.inferJavaMethodReturnTypeFromSnippet(snippet, methodName).orElse("");
         }
         if (association.isPresent()) {
             String associationKind = association.get();
             metadata.put("jpaAssociation", associationKind);
-            JavaSyntaxTreeExtractionStage.extractJpaMappedBy(snippet).ifPresent(mappedBy -> metadata.put("mappedBy", mappedBy));
-            JavaSyntaxTreeExtractionStage.extractJpaJoinColumn(snippet).ifPresent(joinColumn -> metadata.put("joinColumn", joinColumn));
-            JavaSyntaxTreeExtractionStage.extractJpaJoinTable(snippet).ifPresent(joinTable -> metadata.put("joinTable", joinTable));
+            JavaExtractionSemanticsSupport.extractJpaMappedBy(snippet).ifPresent(mappedBy -> metadata.put("mappedBy", mappedBy));
+            JavaExtractionSemanticsSupport.extractJpaJoinColumn(snippet).ifPresent(joinColumn -> metadata.put("joinColumn", joinColumn));
+            JavaExtractionSemanticsSupport.extractJpaJoinTable(snippet).ifPresent(joinTable -> metadata.put("joinTable", joinTable));
             changed = true;
             List<String> referencedTypes = JavaRelationshipEvidenceEmitter.extractReferencedTypes(declaredType);
             if (!referencedTypes.isEmpty()) {
@@ -312,7 +312,7 @@ void addJpaMethodFacts(
                     EntityKind.CLASS,
                     relativePath,
                     packageName,
-                    JavaSyntaxTreeExtractionStage.lineOf(methodEntity.sourceRefs().isEmpty() ? null : methodEntity.sourceRefs().getFirst(), methodNode),
+                    JavaExtractionSemanticsSupport.lineOf(methodEntity.sourceRefs().isEmpty() ? null : methodEntity.sourceRefs().getFirst(), methodNode),
                     importsBySimpleName,
                     declaredTypes
                 );
@@ -321,9 +321,9 @@ void addJpaMethodFacts(
                     relationshipMetadata.put("framework", "jpa");
                     relationshipMetadata.put("relationshipType", "hasAssociation");
                     relationshipMetadata.put("jpaAssociation", associationKind);
-                    JavaSyntaxTreeExtractionStage.extractJpaMappedBy(snippet).ifPresent(mappedBy -> relationshipMetadata.put("mappedBy", mappedBy));
-                    JavaSyntaxTreeExtractionStage.extractJpaJoinColumn(snippet).ifPresent(joinColumn -> relationshipMetadata.put("joinColumn", joinColumn));
-                    JavaSyntaxTreeExtractionStage.extractJpaJoinTable(snippet).ifPresent(joinTable -> relationshipMetadata.put("joinTable", joinTable));
+                    JavaExtractionSemanticsSupport.extractJpaMappedBy(snippet).ifPresent(mappedBy -> relationshipMetadata.put("mappedBy", mappedBy));
+                    JavaExtractionSemanticsSupport.extractJpaJoinColumn(snippet).ifPresent(joinColumn -> relationshipMetadata.put("joinColumn", joinColumn));
+                    JavaExtractionSemanticsSupport.extractJpaJoinTable(snippet).ifPresent(joinTable -> relationshipMetadata.put("joinTable", joinTable));
                     relationshipMetadata.put("ownerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName);
                     relationshipMetadata.put("ownerMemberKind", "method");
                     relationshipMetadata.put("ownerMemberName", methodName);
@@ -348,7 +348,7 @@ void addJpaMethodFacts(
                     EntityKind.CLASS,
                     relativePath,
                     packageName,
-                    JavaSyntaxTreeExtractionStage.lineOf(methodEntity.sourceRefs().isEmpty() ? null : methodEntity.sourceRefs().getFirst(), methodNode),
+                    JavaExtractionSemanticsSupport.lineOf(methodEntity.sourceRefs().isEmpty() ? null : methodEntity.sourceRefs().getFirst(), methodNode),
                     importsBySimpleName,
                     declaredTypes
                 );
@@ -397,12 +397,12 @@ void addJpaInheritanceFacts(
         Map<String, JavaDeclaredType> declaredTypes
     ) {
         String typeSnippet = JavaTypeSemanticsFlow.typeNodeSnippet(typeNode, typeEntity);
-        if (typeEntity == null || !JavaSyntaxTreeExtractionStage.isJpaPersistentType(typeSnippet, typeEntity)) {
+        if (typeEntity == null || !JavaExtractionSemanticsSupport.isJpaPersistentType(typeSnippet, typeEntity)) {
             return;
         }
         int line = SyntaxTreeExtractionSupport.oneBasedLine(typeNode);
         SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, typeSnippet, Map.of("language", "java", "kind", typeNode.type()));
-        for (String parentType : JavaSyntaxTreeExtractionStage.extractExtendedTypes(typeNode)) {
+        for (String parentType : JavaExtractionSemanticsSupport.extractExtendedTypes(typeNode)) {
             JavaRelationshipEvidenceEmitter.ResolvedJavaType resolved = resolveJavaTypeReference(accumulator, parentType, EntityKind.CLASS, relativePath, packageName, line, importsBySimpleName, declaredTypes);
             if (resolved == null || typeEntity.id().equals(resolved.entityId())) {
                 continue;
