@@ -295,3 +295,17 @@ That means compatibility is currently documented primarily through:
 - real fixture examples
 
 Later steps will strengthen this with schema files and automated validation.
+
+
+## Export-format contributor checklist
+
+When you change the export format:
+
+- update the human-readable spec in `export-format-spec.md`
+- update `contract-boundaries.md` if consumer coupling expectations changed
+- update schema files if the stable structural contract changed
+- update curated examples if representative output changed
+- update contract tests in the same change
+- change `schemaVersion` when the stable core contract changes in a way consumers must react to
+
+Avoid silently promoting enriched metadata into stable contract. If you expect downstream consumers to rely on a formerly enriched field, document that change explicitly and treat it as a contract decision, not a quiet implementation detail.

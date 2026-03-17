@@ -120,3 +120,41 @@ When the export format changes, this package should be updated together:
 - update curated examples if representative output changes
 - update schema files if the stable structural contract changes
 - keep tests aligned so examples and schema do not drift from real output
+
+
+## Contributor guidance for evolving the export safely
+
+When changing the export format, update the documentation package and contract checks in the same change.
+
+### Maintainer checklist
+
+- update `export-format-spec.md` when the meaning or layout of the export changes
+- update `contract-boundaries.md` if a field moves between stable core and enriched metadata
+- update `versioning-and-compatibility.md` when compatibility expectations change
+- update the JSON Schema files when the stable structural contract changes
+- update curated examples when representative output changes
+- update contract tests in the same change so examples, schema, and real output stay aligned
+
+### When to change `schemaVersion`
+
+Change `schemaVersion` when consumers that rely on the stable core contract would need to change how they interpret the payload. Typical reasons include:
+
+- removing or renaming a stable field
+- changing the type or meaning of a stable field
+- changing required top-level structure
+- changing the meaning of a stable enum/value family in a breaking way
+
+You usually do **not** need to change `schemaVersion` for:
+
+- additive enriched metadata
+- additive optional fields in explicitly extensible metadata maps
+- new dependency/browser-view metadata that stays in the enriched layer
+
+### Important caution
+
+Do not silently promote enriched metadata into the stable contract. If a formerly optional/enriched field becomes something downstream consumers are expected to rely on, document that promotion explicitly in:
+
+- `contract-boundaries.md`
+- `export-format-spec.md`
+- `versioning-and-compatibility.md`
+- the schema files and contract tests, if the stable structure changed

@@ -468,3 +468,17 @@ See `docs/export-format/README.md`.
 
 ## Export-format documentation status
 - Step 2 added `docs/export-format/contract-boundaries.md` to distinguish stable core contract from enriched/derived metadata.
+
+
+## Export-format maintenance notes
+
+The export-format documentation package under `docs/export-format/` should be updated together with export contract changes. When changing the stable core export contract, update:
+
+- the human-readable spec
+- contract boundary guidance
+- versioning/compatibility notes
+- schema files
+- curated examples
+- contract tests
+
+Do not silently treat enriched metadata as stable downstream contract without documenting that decision.
