@@ -23,26 +23,21 @@ import java.util.regex.Pattern;
 
 final class JavaSyntaxTreeExtractionStage {
 
-    private final JavaSyntaxTreeTraversal syntaxTreeTraversal = new JavaSyntaxTreeTraversal();
-    private final JavaEntityMapper entityMapper = new JavaEntityMapper();
-    private final JavaRelationshipEvidenceEmitter relationshipEvidenceEmitter = new JavaRelationshipEvidenceEmitter();
-    private final JavaDependencyEmissionFlow dependencyEmissionFlow = new JavaDependencyEmissionFlow(relationshipEvidenceEmitter);
-    private final JavaJaxRsSemantics jaxRsSemantics = new JavaJaxRsSemantics();
-    private final JavaJpaSemantics jpaSemantics = new JavaJpaSemantics();
-    private final JavaCdiSemantics cdiSemantics = new JavaCdiSemantics();
-    private final JavaWritePathSemantics writePathSemantics = new JavaWritePathSemantics();
-    private final JavaTypeSemanticsFlow typeSemanticsFlow = new JavaTypeSemanticsFlow(jaxRsSemantics, jpaSemantics);
-    private final JavaTypeDeclarationFlow typeDeclarationFlow = new JavaTypeDeclarationFlow(entityMapper, dependencyEmissionFlow, typeSemanticsFlow);
-    private final JavaJaxRsMethodSemantics jaxRsMethodSemantics = new JavaJaxRsMethodSemantics(jaxRsSemantics);
-    private final JavaJpaMethodSemantics jpaMethodSemantics = new JavaJpaMethodSemantics(jpaSemantics);
-    private final JavaCdiMethodSemantics cdiMethodSemantics = new JavaCdiMethodSemantics(cdiSemantics);
-    private final JavaWritePathMethodSemantics writePathMethodSemantics = new JavaWritePathMethodSemantics(writePathSemantics);
-    private final JavaMethodSemanticsFlow methodSemanticsFlow = new JavaMethodSemanticsFlow(jaxRsMethodSemantics, jpaMethodSemantics, cdiMethodSemantics, writePathMethodSemantics);
-    private final JavaJpaFieldSemantics jpaFieldSemantics = new JavaJpaFieldSemantics(jpaSemantics);
-    private final JavaFieldExtractionFlow fieldExtractionFlow = new JavaFieldExtractionFlow(entityMapper, dependencyEmissionFlow, jpaFieldSemantics);
-    private final JavaMethodExtractionFlow methodExtractionFlow = new JavaMethodExtractionFlow(entityMapper, dependencyEmissionFlow, methodSemanticsFlow);
-    private final JavaTraversalNodeDispatchFlow traversalNodeDispatchFlow = new JavaTraversalNodeDispatchFlow(typeDeclarationFlow, fieldExtractionFlow, methodExtractionFlow);
-    private final JavaCompilationUnitExtractionFlow compilationUnitExtractionFlow = new JavaCompilationUnitExtractionFlow(syntaxTreeTraversal, traversalNodeDispatchFlow);
+    private final JavaRelationshipEvidenceEmitter relationshipEvidenceEmitter;
+    private final JavaTypeDeclarationFlow typeDeclarationFlow;
+    private final JavaTraversalNodeDispatchFlow traversalNodeDispatchFlow;
+    private final JavaCompilationUnitExtractionFlow compilationUnitExtractionFlow;
+
+    JavaSyntaxTreeExtractionStage() {
+        this(new JavaStageCompositionSupport().composeDefault(this));
+    }
+
+    JavaSyntaxTreeExtractionStage(JavaStageCompositionSupport.JavaStageComposition composition) {
+        this.relationshipEvidenceEmitter = composition.relationshipEvidenceEmitter();
+        this.typeDeclarationFlow = composition.typeDeclarationFlow();
+        this.traversalNodeDispatchFlow = composition.traversalNodeDispatchFlow();
+        this.compilationUnitExtractionFlow = composition.compilationUnitExtractionFlow();
+    }
 
     ParseLanguage language() {
         return ParseLanguage.JAVA;
