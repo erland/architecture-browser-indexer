@@ -463,3 +463,7 @@ Current baseline artifacts:
 
 These files baseline the current payload shape from existing checked-in IR/export fixtures before schema and full prose specification are added.
 
+
+
+## Export-format documentation status
+- Step 2 added `docs/export-format/contract-boundaries.md` to distinguish stable core contract from enriched/derived metadata.
