@@ -454,7 +454,7 @@ The remaining AngularTypeScriptFrameworkSemanticsRegressionTest now acts as a sm
 
 ## Export format documentation status
 
-Implemented through Step 7:
+Implemented through Step 11:
 - export-shape baseline
 - contract boundaries
 - human-readable export spec
@@ -462,13 +462,15 @@ Implemented through Step 7:
 - curated example exports
 - top-level JSON Schema
 - split reusable sub-schemas
+- automated contract checks for curated examples and checked-in fixtures
+- reader-friendly package README
+- contributor guidance for evolving the export safely
+- final acceptance and continuation notes
 
-See `docs/export-format/README.md`.
-
-
-## Export-format documentation status
-- Step 2 added `docs/export-format/contract-boundaries.md` to distinguish stable core contract from enriched/derived metadata.
-
+See:
+- `docs/export-format/README.md`
+- `docs/export-format/final-acceptance.md`
+- `docs/export-format/continuation.md`
 
 ## Export-format maintenance notes
 
