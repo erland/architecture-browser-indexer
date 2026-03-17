@@ -76,9 +76,9 @@ Largest current test files by line count at the time this acceptance doc was gen
 - `FrontendFrameworkBaselineRegressionTest, FrontendRoleInterpretationRegressionTest, FrontendDependencyViewsRegressionTest` — about 548 LOC
 - `ArchitectureDependencyFixtureRegressionTest, ArchitectureDependencyCycleRegressionTest, ArchitectureDependencyReasonRegressionTest` — about 524 LOC
 - `AngularTypeScriptFrameworkSemanticsRegressionTest` — about 485 LOC
-- `ArchitectureIrFactoryStructuralExtractionTest` — about 378 LOC
-- `JavaJpaStructuralExtractionTest` — about 362 LOC
-- `TypeScriptDeclarationExtractionSeamTest` — about 331 LOC
+- `ArchitectureIrFactoryStructuralExtractionTest (reduced; type/package dependency-view checks split out)` — about 378 LOC
+- `JavaJpaStructuralExtractionTest (reduced; property-access checks split out)` — about 362 LOC
+- `TypeScriptDeclarationExtractionSeamTest (reduced; import/member/property seam checks split out)` — about 331 LOC
 
 ## What this means now
 
@@ -120,7 +120,7 @@ This test cleanup wave should be considered **accepted** when the local Maven su
 Java extraction contract regression concerns were decomposed into:
 - JavaDeclarationOwnershipContractRegressionTest
 - JavaHierarchyContractRegressionTest
-- JavaFieldAndMethodDependencyContractRegressionTest
+- JavaFieldAndMethodDependencyContractRegressionTest (reduced; field/method/special-declaration concerns split out)
 
 
 Angular TypeScript framework semantics concerns were decomposed into:

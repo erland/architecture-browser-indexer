@@ -12,8 +12,8 @@ If a future cleanup wave is needed, the most likely next candidates are:
 2. `FrontendFrameworkBaselineRegressionTest, FrontendRoleInterpretationRegressionTest, FrontendDependencyViewsRegressionTest`
 3. `ArchitectureDependencyFixtureRegressionTest, ArchitectureDependencyCycleRegressionTest, ArchitectureDependencyReasonRegressionTest`
 4. `AngularTypeScriptFrameworkSemanticsRegressionTest`
-5. `ArchitectureIrFactoryStructuralExtractionTest`
-6. `JavaJpaStructuralExtractionTest`
+5. `ArchitectureIrFactoryStructuralExtractionTest (reduced; type/package dependency-view checks split out)`
+6. `JavaJpaStructuralExtractionTest (reduced; property-access checks split out)`
 
 ## Suggested next decomposition order
 
@@ -77,7 +77,7 @@ Start another dedicated decomposition pass when one of these becomes true:
 Java extraction contract regression concerns were decomposed into:
 - JavaDeclarationOwnershipContractRegressionTest
 - JavaHierarchyContractRegressionTest
-- JavaFieldAndMethodDependencyContractRegressionTest
+- JavaFieldAndMethodDependencyContractRegressionTest (reduced; field/method/special-declaration concerns split out)
 
 
 Angular TypeScript framework semantics concerns were decomposed into:

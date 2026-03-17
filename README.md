@@ -442,7 +442,7 @@ Current practical conclusion:
 Java extraction contract regression concerns were decomposed into:
 - JavaDeclarationOwnershipContractRegressionTest
 - JavaHierarchyContractRegressionTest
-- JavaFieldAndMethodDependencyContractRegressionTest
+- JavaFieldAndMethodDependencyContractRegressionTest (reduced; field/method/special-declaration concerns split out)
 
 
 Angular TypeScript framework semantics concerns were decomposed into:

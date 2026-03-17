@@ -14,8 +14,8 @@ Largest test files by line count in the current baseline:
 4. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/regression/FrontendArchitectureEndToEndFixtureRegressionTest.java` — 712 LOC
 5. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/regression/FrontendFrameworkBaselineRegressionTest, FrontendRoleInterpretationRegressionTest, FrontendDependencyViewsRegressionTest.java` — 548 LOC
 6. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/regression/ArchitectureDependencyFixtureRegressionTest, ArchitectureDependencyCycleRegressionTest, ArchitectureDependencyReasonRegressionTest.java` — 524 LOC
-7. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/ir/ArchitectureIrFactoryStructuralExtractionTest.java` — 378 LOC
-8. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/extract/JavaJpaStructuralExtractionTest.java` — 362 LOC
+7. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/ir/ArchitectureIrFactoryStructuralExtractionTest (reduced; type/package dependency-view checks split out).java` — 378 LOC
+8. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/extract/JavaJpaStructuralExtractionTest (reduced; property-access checks split out).java` — 362 LOC
 
 These are not all equally urgent, but they are the primary sources of test size, mixed concern coverage, and slower failure localization.
 
@@ -76,7 +76,7 @@ These are not all equally urgent, but they are the primary sources of test size,
 
 **Decomposition target:** secondary priority
 
-### 7. `ArchitectureIrFactoryStructuralExtractionTest`
+### 7. `ArchitectureIrFactoryStructuralExtractionTest (reduced; type/package dependency-view checks split out)`
 **Current role:** IR contract/regression test
 
 **Why it is a target:**
@@ -110,7 +110,7 @@ Recommended decomposition order for the follow-up test cleanup work:
 4. `FrontendArchitectureEndToEndFixtureRegressionTest`
 5. `ArchitectureDependencyFixtureRegressionTest, ArchitectureDependencyCycleRegressionTest, ArchitectureDependencyReasonRegressionTest`
 6. `FrontendFrameworkBaselineRegressionTest, FrontendRoleInterpretationRegressionTest, FrontendDependencyViewsRegressionTest`
-7. `ArchitectureIrFactoryStructuralExtractionTest`
+7. `ArchitectureIrFactoryStructuralExtractionTest (reduced; type/package dependency-view checks split out)`
 
 
 ## Test taxonomy adopted for decomposition work
@@ -152,7 +152,7 @@ Shared contract assertion helpers are now the preferred mechanism for architectu
 
 `TypeScriptStructuralExtractorSafetyNetTest` has been reduced to a smaller cross-cutting safety net. Detailed coverage was moved into:
 
-- `TypeScriptDeclarationExtractionSeamTest`
+- `TypeScriptDeclarationExtractionSeamTest (reduced; import/member/property seam checks split out)`
 - `TypeScriptTypeRelationshipRegressionTest`
 - `AngularTypeScriptFrameworkSemanticsRegressionTest`
 - `ReactTypeScriptFrameworkSemanticsRegressionTest`
@@ -232,7 +232,7 @@ This means:
 Java extraction contract regression concerns were decomposed into:
 - JavaDeclarationOwnershipContractRegressionTest
 - JavaHierarchyContractRegressionTest
-- JavaFieldAndMethodDependencyContractRegressionTest
+- JavaFieldAndMethodDependencyContractRegressionTest (reduced; field/method/special-declaration concerns split out)
 
 
 Angular TypeScript framework semantics concerns were decomposed into:

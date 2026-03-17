@@ -21,113 +21,76 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class JavaJpaStructuralExtractionTest {
+class JavaJpaPropertyAccessStructuralExtractionTest {
 
     @Test
-    void extractsJpaEntityMetadataEmbeddedValuesAndAssociations() {
+    void extractsJpaPropertyAccessFromGetterMethods() {
         String source = """
             package com.example.orders.domain;
 
-            import jakarta.persistence.Column;
-            import jakarta.persistence.Embeddable;
             import jakarta.persistence.Embedded;
             import jakarta.persistence.Entity;
             import jakarta.persistence.Id;
             import jakarta.persistence.JoinColumn;
             import jakarta.persistence.ManyToOne;
-            import jakarta.persistence.Table;
-            import jakarta.persistence.Version;
 
-            @Embeddable
-            class AddressValue {
-                @Column(name = \"street_name\")
-                String street;
-            }
+            class AddressValue {}
+            class CustomerEntity {}
 
             @Entity
-            @Table(name = \"customers\")
-            class CustomerEntity {
-                @Id
-                String id;
-            }
-
-            @Entity
-            @Table(name = \"orders\")
             class OrderEntity {
-                @Id
-                String id;
+                private String id;
+                private AddressValue shippingAddress;
+                private CustomerEntity customer;
 
-                @Version
-                long version;
+                @Id
+                public String getId() { return id; }
 
                 @Embedded
-                AddressValue shippingAddress;
+                public AddressValue getShippingAddress() { return shippingAddress; }
 
                 @ManyToOne
                 @JoinColumn(name = "customer_id", nullable = false)
-                CustomerEntity customer;
+                public CustomerEntity getCustomer() { return customer; }
             }
             """;
 
         SyntaxNode root = program(source,
             packageDecl(0, "package com.example.orders.domain;"),
-            importDecl(1, "import jakarta.persistence.Column;"),
-            importDecl(2, "import jakarta.persistence.Embeddable;"),
-            importDecl(3, "import jakarta.persistence.Embedded;"),
-            importDecl(4, "import jakarta.persistence.Entity;"),
-            importDecl(5, "import jakarta.persistence.Id;"),
-            importDecl(6, "import jakarta.persistence.JoinColumn;"),
-            importDecl(7, "import jakarta.persistence.ManyToOne;"),
-            importDecl(8, "import jakarta.persistence.Table;"),
-            importDecl(9, "import jakarta.persistence.Version;"),
-            classDecl(11, "AddressValue", """
-                @Embeddable
-                class AddressValue {
-                    @Column(name = "street_name")
-                    String street;
-                }
-                """,
-                annotation(11, "@Embeddable"),
-                fieldDecl(13, "@Column(name = \"street_name\") String street;", "street", annotation(13, "@Column(name = \"street_name\")"))
-            ),
-            classDecl(17, "CustomerEntity", """
+            importDecl(1, "import jakarta.persistence.Embedded;"),
+            importDecl(2, "import jakarta.persistence.Entity;"),
+            importDecl(3, "import jakarta.persistence.Id;"),
+            importDecl(4, "import jakarta.persistence.JoinColumn;"),
+            importDecl(5, "import jakarta.persistence.ManyToOne;"),
+            classDecl(7, "AddressValue", "class AddressValue {}"),
+            classDecl(8, "CustomerEntity", "class CustomerEntity {}"),
+            classDecl(11, "OrderEntity", """
                 @Entity
-                @Table(name = "customers")
-                class CustomerEntity {
-                    @Id
-                    String id;
-                }
-                """,
-                annotation(17, "@Entity"),
-                annotation(18, "@Table(name = \"customers\")"),
-                fieldDecl(20, "@Id String id;", "id", annotation(20, "@Id"))
-            ),
-            classDecl(24, "OrderEntity", """
-                @Entity
-                @Table(name = "orders")
                 class OrderEntity {
-                    @Id
-                    String id;
+                    private String id;
+                    private AddressValue shippingAddress;
+                    private CustomerEntity customer;
 
-                    @Version
-                    long version;
+                    @Id
+                    public String getId() { return id; }
 
                     @Embedded
-                    AddressValue shippingAddress;
+                    public AddressValue getShippingAddress() { return shippingAddress; }
 
                     @ManyToOne
                     @JoinColumn(name = "customer_id", nullable = false)
-                    CustomerEntity customer;
+                    public CustomerEntity getCustomer() { return customer; }
                 }
                 """,
-                annotation(24, "@Entity"),
-                annotation(25, "@Table(name = \"orders\")"),
-                fieldDecl(27, "@Id String id;", "id", annotation(27, "@Id")),
-                fieldDecl(30, "@Version long version;", "version", annotation(30, "@Version")),
-                fieldDecl(33, "@Embedded AddressValue shippingAddress;", "shippingAddress", annotation(33, "@Embedded")),
-                fieldDecl(36, "@ManyToOne @JoinColumn(name = \"customer_id\", nullable = false) CustomerEntity customer;", "customer",
-                    annotation(36, "@ManyToOne"),
-                    annotation(36, "@JoinColumn(name = \"customer_id\", nullable = false)")
+                annotation(11, "@Entity"),
+                fieldDecl(13, "private String id;", "id"),
+                fieldDecl(14, "private AddressValue shippingAddress;", "shippingAddress"),
+                fieldDecl(15, "private CustomerEntity customer;", "customer"),
+                methodDecl(18, "@Id public String getId() { return id; }", "getId", "()", annotation(18, "@Id")),
+                methodDecl(21, "@Embedded public AddressValue getShippingAddress() { return shippingAddress; }", "getShippingAddress", "()", annotation(21, "@Embedded")),
+                methodDecl(24, "@ManyToOne @JoinColumn(name = \"customer_id\", nullable = false) public CustomerEntity getCustomer() { return customer; }", "getCustomer", "()",
+                    annotation(24, "@ManyToOne"),
+                    annotation(24, "@JoinColumn(name = \"customer_id\", nullable = false)")
                 )
             )
         );
@@ -135,42 +98,30 @@ class JavaJpaStructuralExtractionTest {
         StructuralExtractionResult result = extract("src/main/java/com/example/orders/domain/OrderEntity.java", source, root);
 
         var orderEntity = entityByQualifiedName(result, "com.example.orders.domain.OrderEntity");
-        assertEquals(Boolean.TRUE, orderEntity.metadata().get("jpaEntity"));
-        assertEquals("orders", orderEntity.metadata().get("tableName"));
-        assertEquals("entity", orderEntity.metadata().get("jpaKind"));
+        var idGetter = method(result, "com.example.orders.domain.OrderEntity", "getId");
+        var embeddedGetter = method(result, "com.example.orders.domain.OrderEntity", "getShippingAddress");
+        var associationGetter = method(result, "com.example.orders.domain.OrderEntity", "getCustomer");
 
-        var customerEntity = entityByQualifiedName(result, "com.example.orders.domain.CustomerEntity");
-        assertEquals(Boolean.TRUE, customerEntity.metadata().get("jpaEntity"));
-        assertEquals("customers", customerEntity.metadata().get("tableName"));
-
-        var addressValue = entityByQualifiedName(result, "com.example.orders.domain.AddressValue");
-        assertEquals(Boolean.TRUE, addressValue.metadata().get("jpaEmbeddable"));
-        assertEquals("embeddable", addressValue.metadata().get("jpaKind"));
-
-        var idField = field(result, "com.example.orders.domain.OrderEntity", "id");
-        assertEquals(Boolean.TRUE, idField.metadata().get("jpaId"));
-
-        var versionField = field(result, "com.example.orders.domain.OrderEntity", "version");
-        assertEquals(Boolean.TRUE, versionField.metadata().get("jpaVersion"));
-
-        var embeddedField = field(result, "com.example.orders.domain.OrderEntity", "shippingAddress");
-        assertEquals(Boolean.TRUE, embeddedField.metadata().get("jpaEmbedded"));
-
-        var associationField = field(result, "com.example.orders.domain.OrderEntity", "customer");
-        assertEquals("many-to-one", associationField.metadata().get("jpaAssociation"));
-        assertEquals("customer_id", associationField.metadata().get("joinColumn"));
-        assertEquals(Boolean.FALSE, associationField.metadata().get("nullable"));
+        assertNotNull(idGetter, "Expected getId() method to be extracted");
+        assertNotNull(embeddedGetter, "Expected getShippingAddress() method to be extracted");
+        assertNotNull(associationGetter, "Expected getCustomer() method to be extracted");
 
         assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
             && rel.fromEntityId().equals(orderEntity.id())
-            && rel.toEntityId().equals(customerEntity.id())
+            && "com.example.orders.domain.AddressValue".equals(rel.label())
+            && "embeds".equals(rel.metadata().get("relationshipType"))
+            && "method".equals(rel.metadata().get("ownerMemberKind"))
+            && "shippingAddress".equals(rel.metadata().get("ownerPropertyName"))),
+            () -> "Expected method-based embeds relationship. Relationships=" + result.relationships());
+
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && rel.fromEntityId().equals(orderEntity.id())
+            && "com.example.orders.domain.CustomerEntity".equals(rel.label())
             && "hasAssociation".equals(rel.metadata().get("relationshipType"))
-            && "many-to-one".equals(rel.metadata().get("jpaAssociation"))));
-
-        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
-            && rel.fromEntityId().equals(orderEntity.id())
-            && rel.toEntityId().equals(addressValue.id())
-            && "embeds".equals(rel.metadata().get("relationshipType"))));
+            && "many-to-one".equals(rel.metadata().get("jpaAssociation"))
+            && "method".equals(rel.metadata().get("ownerMemberKind"))
+            && "customer".equals(rel.metadata().get("ownerPropertyName"))),
+            () -> "Expected method-based association relationship. Relationships=" + result.relationships());
     }
 
 
