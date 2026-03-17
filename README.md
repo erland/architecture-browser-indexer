@@ -450,3 +450,16 @@ Angular TypeScript framework semantics concerns were decomposed into:
 - AngularDependencyInjectionExtractionRegressionTest
 
 The remaining AngularTypeScriptFrameworkSemanticsRegressionTest now acts as a smaller broad baseline for Angular framework relationships and template-composition behavior.
+
+
+## Export format documentation status
+
+Step 1 of the export-format documentation work is now in place under `docs/export-format/`.
+
+Current baseline artifacts:
+- `docs/export-format/export-shape-baseline.md`
+- `docs/export-format/examples/minimal-success.json`
+- `docs/export-format/examples/partial-result.json`
+
+These files baseline the current payload shape from existing checked-in IR/export fixtures before schema and full prose specification are added.
+
