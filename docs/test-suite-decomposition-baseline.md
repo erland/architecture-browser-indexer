@@ -12,7 +12,7 @@ Largest test files by line count in the current baseline:
 2. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/extract/StructuralExtractionServiceTest.java` — 1200 LOC
 3. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/regression/TypeScriptArchitectureFixtureRegressionTest.java` — 780 LOC
 4. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/regression/FrontendArchitectureEndToEndFixtureRegressionTest.java` — 712 LOC
-5. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/regression/FrontendFrameworkBaselineRegressionTest.java` — 548 LOC
+5. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/regression/FrontendFrameworkBaselineRegressionTest, FrontendRoleInterpretationRegressionTest, FrontendDependencyViewsRegressionTest.java` — 548 LOC
 6. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/regression/ArchitectureDependencyFixtureRegressionTest.java` — 524 LOC
 7. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/ir/ArchitectureIrFactoryStructuralExtractionTest.java` — 378 LOC
 8. `src/test/java/info/isaksson/erland/architecturebrowser/indexer/extract/JavaJpaStructuralExtractionTest.java` — 362 LOC
@@ -58,7 +58,7 @@ These are not all equally urgent, but they are the primary sources of test size,
 
 **Decomposition target:** highest priority
 
-### 5. `FrontendFrameworkBaselineRegressionTest`
+### 5. `FrontendFrameworkBaselineRegressionTest, FrontendRoleInterpretationRegressionTest, FrontendDependencyViewsRegressionTest`
 **Current role:** broad framework regression baseline
 
 **Why it is a target:**
@@ -109,7 +109,7 @@ Recommended decomposition order for the follow-up test cleanup work:
 3. `TypeScriptArchitectureFixtureRegressionTest`
 4. `FrontendArchitectureEndToEndFixtureRegressionTest`
 5. `ArchitectureDependencyFixtureRegressionTest`
-6. `FrontendFrameworkBaselineRegressionTest`
+6. `FrontendFrameworkBaselineRegressionTest, FrontendRoleInterpretationRegressionTest, FrontendDependencyViewsRegressionTest`
 7. `ArchitectureIrFactoryStructuralExtractionTest`
 
 

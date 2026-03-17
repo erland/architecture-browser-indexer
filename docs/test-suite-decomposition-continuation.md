@@ -9,7 +9,7 @@ The initial decomposition wave completed the planned work around the largest tar
 If a future cleanup wave is needed, the most likely next candidates are:
 
 1. `JavaStructuralExtractionContractRegressionTest (broad baseline only)`
-2. `FrontendFrameworkBaselineRegressionTest`
+2. `FrontendFrameworkBaselineRegressionTest, FrontendRoleInterpretationRegressionTest, FrontendDependencyViewsRegressionTest`
 3. `ArchitectureDependencyFixtureRegressionTest`
 4. `AngularTypeScriptFrameworkSemanticsRegressionTest`
 5. `ArchitectureIrFactoryStructuralExtractionTest`
