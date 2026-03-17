@@ -29,7 +29,7 @@ final class JavaSyntaxTreeExtractionStage {
     private final JavaCompilationUnitExtractionFlow compilationUnitExtractionFlow;
 
     JavaSyntaxTreeExtractionStage() {
-        this(new JavaStageCompositionSupport().composeDefault(this));
+        this(new JavaStageCompositionSupport().composeDefault());
     }
 
     JavaSyntaxTreeExtractionStage(JavaStageCompositionSupport.JavaStageComposition composition) {
@@ -65,7 +65,7 @@ final class JavaSyntaxTreeExtractionStage {
         return compilationUnitExtractionFlow.extractCompilationUnit(parseResult, accumulator, relativePath, syntaxTree);
     }
 
-    private static List<DetectedWritePath> detectJpaWriteOperations(ExtractedEntityFact methodEntity, String snippet) {
+    static List<DetectedWritePath> detectJpaWriteOperations(ExtractedEntityFact methodEntity, String snippet) {
         if (snippet == null || snippet.isBlank()) {
             return List.of();
         }
@@ -77,7 +77,7 @@ final class JavaSyntaxTreeExtractionStage {
         return List.copyOf(result);
     }
 
-    private static List<DetectedWritePath> detectRepositoryWriteOperations(ExtractedEntityFact methodEntity, String snippet) {
+    static List<DetectedWritePath> detectRepositoryWriteOperations(ExtractedEntityFact methodEntity, String snippet) {
         if (snippet == null || snippet.isBlank()) {
             return List.of();
         }
@@ -107,7 +107,7 @@ final class JavaSyntaxTreeExtractionStage {
         return List.copyOf(result);
     }
 
-    private static String normalizeWriteOperation(String rawOperation) {
+    static String normalizeWriteOperation(String rawOperation) {
         if (rawOperation == null || rawOperation.isBlank()) {
             return null;
         }
@@ -119,7 +119,7 @@ final class JavaSyntaxTreeExtractionStage {
         return null;
     }
 
-    private static Map<String, String> collectMethodVariableTypes(ExtractedEntityFact methodEntity, String snippet) {
+    static Map<String, String> collectMethodVariableTypes(ExtractedEntityFact methodEntity, String snippet) {
         LinkedHashMap<String, String> result = new LinkedHashMap<>();
         String params = String.valueOf(methodEntity.metadata().getOrDefault("parameters", ""));
         List<String> paramTypes = metadataStringList(methodEntity.metadata().get("parameterTypes"));
@@ -143,7 +143,7 @@ final class JavaSyntaxTreeExtractionStage {
         return Map.copyOf(result);
     }
 
-    private static Optional<String> resolveWriteTargetEntityType(String argumentExpression, Map<String, String> variableTypes) {
+    static Optional<String> resolveWriteTargetEntityType(String argumentExpression, Map<String, String> variableTypes) {
         if (argumentExpression == null || argumentExpression.isBlank()) {
             return Optional.empty();
         }
@@ -162,16 +162,16 @@ final class JavaSyntaxTreeExtractionStage {
         return Optional.empty();
     }
 
-    private static String exactNodeSnippet(String sourceText, SyntaxNode node) {
+    static String exactNodeSnippet(String sourceText, SyntaxNode node) {
         return JavaSourceReferenceSupport.exactNodeSnippet(sourceText, node);
     }
 
-    private static List<String> extractParameterNames(String parameterSnippet) {
+    static List<String> extractParameterNames(String parameterSnippet) {
         return JavaDeclaredTypeSupport.extractParameterNames(parameterSnippet);
     }
 
-    private record DetectedWritePath(String operation, String writeKind, String argumentExpression, String viaField, String viaType) {}
-    private static List<PublishedCdiEvent> detectCdiPublishedEvents(String methodSnippet, String ownerTypeSnippet) {
+    record DetectedWritePath(String operation, String writeKind, String argumentExpression, String viaField, String viaType) {}
+    static List<PublishedCdiEvent> detectCdiPublishedEvents(String methodSnippet, String ownerTypeSnippet) {
         if (methodSnippet == null || methodSnippet.isBlank()) {
             return List.of();
         }
@@ -192,7 +192,7 @@ final class JavaSyntaxTreeExtractionStage {
         return List.copyOf(events.values());
     }
 
-    private static Optional<String> extractCdiEventTypeFromField(String ownerTypeSnippet, String publisherField) {
+    static Optional<String> extractCdiEventTypeFromField(String ownerTypeSnippet, String publisherField) {
         if (ownerTypeSnippet == null || ownerTypeSnippet.isBlank() || publisherField == null || publisherField.isBlank()) {
             return Optional.empty();
         }
@@ -203,7 +203,7 @@ final class JavaSyntaxTreeExtractionStage {
         return Optional.empty();
     }
 
-    private static Optional<String> extractCdiEventTypeFromArguments(String args) {
+    static Optional<String> extractCdiEventTypeFromArguments(String args) {
         if (args == null || args.isBlank()) {
             return Optional.empty();
         }
@@ -214,7 +214,7 @@ final class JavaSyntaxTreeExtractionStage {
         return Optional.empty();
     }
 
-    private static Optional<ObservedCdiEvent> detectCdiObservedEvent(ExtractedEntityFact methodEntity, String snippet) {
+    static Optional<ObservedCdiEvent> detectCdiObservedEvent(ExtractedEntityFact methodEntity, String snippet) {
         String parameters = String.valueOf(methodEntity.metadata().getOrDefault("parameters", ""));
         if (parameters == null || parameters.isBlank() || "()".equals(parameters.strip())) {
             parameters = snippet;
@@ -251,7 +251,7 @@ final class JavaSyntaxTreeExtractionStage {
         return resolved == null ? null : new ResolvedJavaType(resolved.entityId(), resolved.label(), resolved.kind());
     }
 
-    private static List<String> extractExtendedTypes(SyntaxNode typeNode) {
+    static List<String> extractExtendedTypes(SyntaxNode typeNode) {
         return JavaRelationshipEvidenceEmitter.extractExtendedTypes(typeNode);
     }
 
@@ -289,18 +289,18 @@ final class JavaSyntaxTreeExtractionStage {
     private record ResolvedJavaType(String entityId, String label, EntityKind kind) {
     }
 
-    private record PublishedCdiEvent(String eventType, boolean async, String publisherField) {
+    record PublishedCdiEvent(String eventType, boolean async, String publisherField) {
     }
 
-    private record ObservedCdiEvent(String eventType, boolean async, List<String> qualifiers) {
+    record ObservedCdiEvent(String eventType, boolean async, List<String> qualifiers) {
     }
 
 
-    private static boolean containsJpaPropertyAnnotation(String snippet) {
+    static boolean containsJpaPropertyAnnotation(String snippet) {
         return hasAnyJpaAnnotation(snippet, "Id", "EmbeddedId", "Version", "Embedded", "Column", "OneToOne", "OneToMany", "ManyToOne", "ManyToMany", "JoinColumn", "JoinTable");
     }
 
-    private static boolean hasAnyJpaAnnotation(String snippet, String... simpleNames) {
+    static boolean hasAnyJpaAnnotation(String snippet, String... simpleNames) {
         if (snippet == null || snippet.isBlank()) {
             return false;
         }
@@ -312,7 +312,7 @@ final class JavaSyntaxTreeExtractionStage {
         return false;
     }
 
-    private static String deriveJavaPropertyName(String methodName, String parameterSnippet) {
+    static String deriveJavaPropertyName(String methodName, String parameterSnippet) {
         if (methodName == null || methodName.isBlank()) {
             return null;
         }
@@ -364,7 +364,7 @@ final class JavaSyntaxTreeExtractionStage {
         return Optional.empty();
     }
 
-    private static boolean hasAnnotation(List<String> annotations, String simpleName) {
+    static boolean hasAnnotation(List<String> annotations, String simpleName) {
         if (annotations == null || simpleName == null || simpleName.isBlank()) {
             return false;
         }
@@ -372,7 +372,7 @@ final class JavaSyntaxTreeExtractionStage {
         return annotations.stream().map(value -> value == null ? "" : value.toLowerCase(Locale.ROOT)).anyMatch(value -> value.endsWith(expected));
     }
 
-    private static boolean containsAnnotationSnippet(String snippet, String simpleName) {
+    static boolean containsAnnotationSnippet(String snippet, String simpleName) {
         if (snippet == null || simpleName == null || simpleName.isBlank()) {
             return false;
         }
@@ -383,19 +383,19 @@ final class JavaSyntaxTreeExtractionStage {
         return extractAnnotationStringAttribute(snippet, "Table", "name");
     }
 
-    private static Optional<String> extractJpaColumnName(String snippet) {
+    static Optional<String> extractJpaColumnName(String snippet) {
         return extractAnnotationStringAttribute(snippet, "Column", "name");
     }
 
-    private static Optional<String> extractJpaJoinColumn(String snippet) {
+    static Optional<String> extractJpaJoinColumn(String snippet) {
         return extractAnnotationStringAttribute(snippet, "JoinColumn", "name");
     }
 
-    private static Optional<String> extractJpaJoinTable(String snippet) {
+    static Optional<String> extractJpaJoinTable(String snippet) {
         return extractAnnotationStringAttribute(snippet, "JoinTable", "name");
     }
 
-    private static Optional<String> extractJpaMappedBy(String snippet) {
+    static Optional<String> extractJpaMappedBy(String snippet) {
         return extractAnnotationStringAttribute(snippet, "OneToMany", "mappedBy")
             .or(() -> extractAnnotationStringAttribute(snippet, "OneToOne", "mappedBy"))
             .or(() -> extractAnnotationStringAttribute(snippet, "ManyToMany", "mappedBy"));
@@ -412,11 +412,11 @@ final class JavaSyntaxTreeExtractionStage {
         return Optional.empty();
     }
 
-    private static Optional<String> detectJpaAssociation(String snippet) {
+    static Optional<String> detectJpaAssociation(String snippet) {
         return detectJpaAssociation(List.of(), snippet);
     }
 
-    private static Optional<String> detectJpaAssociation(List<String> annotations, String snippet) {
+    static Optional<String> detectJpaAssociation(List<String> annotations, String snippet) {
         if (hasAnnotation(annotations, "OneToOne") || containsAnnotationSnippet(snippet, "OneToOne")) return Optional.of("one-to-one");
         if (hasAnnotation(annotations, "OneToMany") || containsAnnotationSnippet(snippet, "OneToMany")) return Optional.of("one-to-many");
         if (hasAnnotation(annotations, "ManyToOne") || containsAnnotationSnippet(snippet, "ManyToOne")) return Optional.of("many-to-one");
@@ -424,7 +424,7 @@ final class JavaSyntaxTreeExtractionStage {
         return Optional.empty();
     }
 
-    private static Optional<String> inferJavaMethodReturnTypeFromSnippet(String snippet, String methodName) {
+    static Optional<String> inferJavaMethodReturnTypeFromSnippet(String snippet, String methodName) {
         if (snippet == null || snippet.isBlank() || methodName == null || methodName.isBlank()) {
             return Optional.empty();
         }
@@ -480,7 +480,7 @@ final class JavaSyntaxTreeExtractionStage {
             .anyMatch(value -> value.endsWith("path"));
     }
 
-    private static Optional<String> jaxRsHttpMethod(List<String> annotations) {
+    static Optional<String> jaxRsHttpMethod(List<String> annotations) {
         for (String annotation : annotations) {
             String value = annotation.toLowerCase(Locale.ROOT);
             if (value.endsWith("get")) return Optional.of("GET");
@@ -524,7 +524,7 @@ final class JavaSyntaxTreeExtractionStage {
         return normalized;
     }
 
-    private static String normalizeJaxRsEndpointPath(String classPath, String methodPath) {
+    static String normalizeJaxRsEndpointPath(String classPath, String methodPath) {
         String base = normalizeJaxRsPath(classPath);
         String method = normalizeJaxRsPath(methodPath);
         if ("/".equals(base) && "/".equals(method)) {
@@ -540,7 +540,7 @@ final class JavaSyntaxTreeExtractionStage {
             + (method.startsWith("/") ? method : "/" + method);
     }
 
-    private static List<Map<String, String>> extractJaxRsParameterDetails(String parameterSnippet) {
+    static List<Map<String, String>> extractJaxRsParameterDetails(String parameterSnippet) {
         if (parameterSnippet == null || parameterSnippet.isBlank() || "()".equals(parameterSnippet.strip())) {
             return List.of();
         }
@@ -569,7 +569,7 @@ final class JavaSyntaxTreeExtractionStage {
         return List.copyOf(result);
     }
 
-    private static List<String> splitTopLevelCommaSeparated(String value) {
+    static List<String> splitTopLevelCommaSeparated(String value) {
         List<String> result = new ArrayList<>();
         if (value == null || value.isBlank()) {
             return List.of();
@@ -599,12 +599,12 @@ final class JavaSyntaxTreeExtractionStage {
         return List.copyOf(result);
     }
 
-    private static String extractParameterName(String snippet) {
+    static String extractParameterName(String snippet) {
         Matcher matcher = Pattern.compile("([A-Za-z_$][\\w$]*)\\s*$").matcher(snippet);
         return matcher.find() ? matcher.group(1) : "";
     }
 
-    private static String extractParameterDeclaredType(String snippet) {
+    static String extractParameterDeclaredType(String snippet) {
         String value = snippet == null ? "" : snippet
             .replaceAll("@[A-Za-z_][\\w.]*\\s*(\\([^)]*\\))?", " ")
             .replaceAll("\\bfinal\\b", " ")
@@ -613,7 +613,7 @@ final class JavaSyntaxTreeExtractionStage {
         return matcher.find() ? matcher.group(1).replaceAll("\\s+", " ").trim() : "";
     }
 
-    private static String classifyJaxRsParameter(String snippet) {
+    static String classifyJaxRsParameter(String snippet) {
         String lower = snippet == null ? "" : snippet.toLowerCase(Locale.ROOT);
         if (lower.contains("@pathparam")) return "PATH";
         if (lower.contains("@queryparam")) return "QUERY";
@@ -635,13 +635,13 @@ final class JavaSyntaxTreeExtractionStage {
         return JavaSourceReferenceSupport.lineOf(ref, fallbackNode);
     }
 
-    private static java.util.Optional<String> importQualifiedName(String snippet) {
+    static java.util.Optional<String> importQualifiedName(String snippet) {
         return SyntaxTreeExtractionSupport.extractQualifiedName(
             snippet == null ? null : snippet.replaceFirst("^\\s*import\\s+", "").replaceFirst(";\\s*$", "")
         );
     }
 
-    private static String derivePackageFromPath(String relativePath) {
+    static String derivePackageFromPath(String relativePath) {
         int marker = relativePath.indexOf("/java/");
         if (marker >= 0) {
             String candidate = relativePath.substring(marker + 6);
@@ -655,772 +655,5 @@ final class JavaSyntaxTreeExtractionStage {
     }
 
 
-    final class JavaJaxRsSemantics {
-void addJaxRsResourceMetadata(
-        ExtractionAccumulator accumulator,
-        JavaTypeContext typeContext
-    ) {
-        String relativePath = typeContext.extractionContext().relativePath();
-        SyntaxNode typeNode = typeContext.typeNode();
-        ExtractedEntityFact typeEntity = typeContext.typeEntity();
-        if (typeEntity == null || typeEntity.kind() != EntityKind.CLASS || !isJaxRsResource(typeEntity)) {
-            return;
-        }
-        String basePath = extractJaxRsPath(typeEntity.sourceRefs().isEmpty() ? (typeNode == null ? "" : typeNode.textSnippet()) : typeEntity.sourceRefs().getFirst().snippet())
-            .orElse("/");
-        LinkedHashMap<String, Object> metadata = new LinkedHashMap<>(typeEntity.metadata());
-        metadata.put("framework", "jax-rs");
-        metadata.put("jaxRsResource", true);
-        metadata.put("jaxRsBasePath", normalizeJaxRsPath(basePath));
-        metadata.put("jaxRsResourceQualifiedName", String.valueOf(typeEntity.metadata().getOrDefault("qualifiedName", typeEntity.name())));
-        SourceReference ref = typeEntity.sourceRefs().isEmpty()
-            ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(typeNode), typeNode.textSnippet(), Map.of("language", "java", "kind", "class_declaration"))
-            : typeEntity.sourceRefs().getFirst();
-        accumulator.addEntity(new ExtractedEntityFact(
-            typeEntity.id(),
-            typeEntity.kind(),
-            typeEntity.origin(),
-            typeEntity.name(),
-            typeEntity.displayName(),
-            typeEntity.scopeId(),
-            List.of(ref),
-            Map.copyOf(metadata)
-        ));
-    }
-
-void addJaxRsEndpointFacts(
-        ExtractionAccumulator accumulator,
-        JavaMethodContext methodContext
-    ) {
-        String relativePath = methodContext.extractionContext().relativePath();
-        SyntaxNode methodNode = methodContext.methodNode();
-        String ownerTypeEntityId = methodContext.ownerTypeEntityId();
-        String ownerQualifiedName = methodContext.ownerQualifiedName();
-        String ownerTypeSnippet = methodContext.ownerTypeSnippet();
-        ExtractedEntityFact methodEntity = methodContext.methodEntity();
-        if (methodEntity == null || ownerTypeEntityId == null || ownerQualifiedName == null || ownerQualifiedName.isBlank()) {
-            return;
-        }
-        List<String> annotations = metadataStringList(methodEntity.metadata().get("annotations"));
-        String httpMethod = jaxRsHttpMethod(annotations).orElse(null);
-        if (httpMethod == null) {
-            return;
-        }
-        SourceReference methodRef = methodEntity.sourceRefs().isEmpty()
-            ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(methodNode), methodNode.textSnippet(), Map.of("language", "java", "kind", methodNode.type()))
-            : methodEntity.sourceRefs().getFirst();
-        String classSnippet = ownerTypeSnippet == null ? "" : ownerTypeSnippet;
-        String classPath = extractJaxRsPath(classSnippet).orElse("");
-        String methodPath = extractJaxRsPath(methodRef.snippet()).orElse("");
-        String resolvedPath = normalizeJaxRsEndpointPath(classPath, methodPath);
-        String endpointName = httpMethod + " " + resolvedPath;
-        int endpointLine = methodRef.startLine() == null ? SyntaxTreeExtractionSupport.oneBasedLine(methodNode) : methodRef.startLine();
-        String endpointId = IdUtils.scopedEntityId("java-endpoint", relativePath, ownerQualifiedName + "#" + endpointName, endpointLine);
-        List<Map<String, String>> parameterDetails = extractJaxRsParameterDetails(String.valueOf(methodEntity.metadata().getOrDefault("parameters", "()")));
-        LinkedHashMap<String, Object> endpointMetadata = new LinkedHashMap<>();
-        endpointMetadata.put("language", "java");
-        endpointMetadata.put("framework", "jax-rs");
-        endpointMetadata.put("httpMethod", httpMethod);
-        endpointMetadata.put("path", resolvedPath);
-        endpointMetadata.put("classLevelPath", normalizeJaxRsPath(classPath));
-        endpointMetadata.put("methodLevelPath", normalizeJaxRsPath(methodPath));
-        endpointMetadata.put("resourceQualifiedName", ownerQualifiedName);
-        endpointMetadata.put("methodName", methodEntity.name());
-        endpointMetadata.put("methodQualifiedName", ownerQualifiedName + "#" + methodEntity.name());
-        endpointMetadata.put("parameterDetails", parameterDetails);
-        endpointMetadata.put("annotations", annotations);
-        accumulator.addEntity(new ExtractedEntityFact(
-            endpointId,
-            EntityKind.ENDPOINT,
-            EntityOrigin.OBSERVED,
-            endpointName,
-            endpointName,
-            methodEntity.scopeId(),
-            List.of(methodRef),
-            Map.copyOf(endpointMetadata)
-        ));
-        accumulator.addRelationship(ExtractionSupport.typedRelationship(
-            info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.EXPOSES,
-            "exposes-jaxrs-endpoint",
-            ownerTypeEntityId,
-            endpointId,
-            endpointName,
-            methodRef,
-            "java",
-            Map.of("framework", "jax-rs", "httpMethod", httpMethod, "path", resolvedPath)
-        ));
-        LinkedHashMap<String, Object> methodMetadata = new LinkedHashMap<>(methodEntity.metadata());
-        methodMetadata.put("framework", "jax-rs");
-        methodMetadata.put("jaxRsEndpoint", true);
-        methodMetadata.put("httpMethod", httpMethod);
-        methodMetadata.put("path", resolvedPath);
-        methodMetadata.put("parameterDetails", parameterDetails);
-        accumulator.addEntity(new ExtractedEntityFact(
-            methodEntity.id(),
-            methodEntity.kind(),
-            methodEntity.origin(),
-            methodEntity.name(),
-            methodEntity.displayName(),
-            methodEntity.scopeId(),
-            List.of(methodRef),
-            Map.copyOf(methodMetadata)
-        ));
-    }
-    }
-
-    final class JavaJpaSemantics {
-void addJpaTypeMetadata(
-        ExtractionAccumulator accumulator,
-        JavaTypeContext typeContext
-    ) {
-        String relativePath = typeContext.extractionContext().relativePath();
-        String typeSnippet = JavaTypeSemanticsFlow.typeNodeSnippet(typeContext.typeNode(), typeContext.typeEntity());
-        ExtractedEntityFact typeEntity = typeContext.typeEntity();
-        if (typeEntity == null || typeEntity.kind() != EntityKind.CLASS || !isJpaPersistentType(typeSnippet, typeEntity)) {
-            return;
-        }
-        LinkedHashMap<String, Object> metadata = new LinkedHashMap<>(typeEntity.metadata());
-        metadata.put("framework", "jpa");
-        String jpaKind = detectJpaTypeKind(typeSnippet, typeEntity).orElse("entity");
-        metadata.put("jpaKind", jpaKind);
-        metadata.put("jpaEntity", "entity".equals(jpaKind));
-        metadata.put("jpaEmbeddable", "embeddable".equals(jpaKind));
-        metadata.put("jpaMappedSuperclass", "mapped-superclass".equals(jpaKind));
-        extractJpaTableName(typeSnippet).ifPresent(table -> metadata.put("tableName", table));
-        extractJpaInheritanceStrategy(typeSnippet).ifPresent(strategy -> metadata.put("inheritanceStrategy", strategy));
-        SourceReference ref = typeEntity.sourceRefs().isEmpty()
-            ? ExtractionSupport.sourceRef(relativePath, 1, typeSnippet, Map.of("language", "java", "kind", "class_declaration"))
-            : typeEntity.sourceRefs().getFirst();
-        accumulator.addEntity(new ExtractedEntityFact(
-            typeEntity.id(),
-            typeEntity.kind(),
-            typeEntity.origin(),
-            typeEntity.name(),
-            typeEntity.displayName(),
-            typeEntity.scopeId(),
-            List.of(ref),
-            Map.copyOf(metadata)
-        ));
-    }
-
-void addJpaFieldFacts(
-        ExtractionAccumulator accumulator,
-        JavaFieldContext fieldContext
-    ) {
-        JavaExtractionContext extractionContext = fieldContext.extractionContext();
-        String relativePath = extractionContext.relativePath();
-        String packageName = extractionContext.packageName();
-        SyntaxNode fieldNode = fieldContext.fieldNode();
-        ExtractedEntityFact fieldEntity = fieldContext.fieldEntity();
-        String ownerTypeEntityId = fieldContext.ownerTypeEntityId();
-        String ownerQualifiedName = fieldContext.ownerQualifiedName();
-        String ownerTypeSnippet = fieldContext.ownerTypeSnippet();
-        Map<String, String> importsBySimpleName = extractionContext.importsBySimpleName();
-        Map<String, JavaDeclaredType> declaredTypes = extractionContext.declaredTypes();
-        if (fieldEntity == null || ownerTypeEntityId == null || !isJpaPersistentType(ownerTypeSnippet, null)) {
-            return;
-        }
-        String snippet = fieldEntity.sourceRefs().isEmpty() ? (fieldNode == null ? "" : fieldNode.textSnippet()) : fieldEntity.sourceRefs().getFirst().snippet();
-        LinkedHashMap<String, Object> metadata = new LinkedHashMap<>(fieldEntity.metadata());
-        metadata.put("framework", "jpa");
-        boolean changed = false;
-        if (hasAnnotation(metadataStringList(fieldEntity.metadata().get("annotations")), "Id") || hasAnnotation(metadataStringList(fieldEntity.metadata().get("annotations")), "EmbeddedId")) {
-            metadata.put("jpaId", true);
-            changed = true;
-        }
-        if (hasAnnotation(metadataStringList(fieldEntity.metadata().get("annotations")), "Version")) {
-            metadata.put("jpaVersion", true);
-            changed = true;
-        }
-        if (hasAnnotation(metadataStringList(fieldEntity.metadata().get("annotations")), "Embedded") || hasAnnotation(metadataStringList(fieldEntity.metadata().get("annotations")), "EmbeddedId")) {
-            metadata.put("jpaEmbedded", true);
-            changed = true;
-        }
-        extractJpaColumnName(snippet).ifPresent(column -> {
-            metadata.put("columnName", column);
-        });
-        if (snippet != null && snippet.contains("nullable = false")) {
-            metadata.put("nullable", false);
-            changed = true;
-        }
-        if (snippet != null && snippet.contains("nullable = true")) {
-            metadata.put("nullable", true);
-            changed = true;
-        }
-        if (snippet != null && snippet.contains("unique = true")) {
-            metadata.put("unique", true);
-            changed = true;
-        }
-        if (extractJpaColumnName(snippet).isPresent()) {
-            changed = true;
-        }
-        Optional<String> association = detectJpaAssociation(snippet);
-        if (association.isPresent()) {
-            String associationKind = association.get();
-            metadata.put("jpaAssociation", associationKind);
-            extractJpaMappedBy(snippet).ifPresent(mappedBy -> metadata.put("mappedBy", mappedBy));
-            extractJpaJoinColumn(snippet).ifPresent(joinColumn -> metadata.put("joinColumn", joinColumn));
-            extractJpaJoinTable(snippet).ifPresent(joinTable -> metadata.put("joinTable", joinTable));
-            changed = true;
-
-            String declaredType = String.valueOf(fieldEntity.metadata().getOrDefault("declaredType", ""));
-            List<String> referencedTypes = extractReferencedTypes(declaredType);
-            if (!referencedTypes.isEmpty()) {
-                ResolvedJavaType target = resolveJavaTypeReference(
-                    accumulator,
-                    referencedTypes.getLast(),
-                    EntityKind.CLASS,
-                    relativePath,
-                    packageName,
-                    lineOf(fieldEntity.sourceRefs().isEmpty() ? null : fieldEntity.sourceRefs().getFirst(), fieldNode),
-                    importsBySimpleName,
-                    declaredTypes
-                );
-                if (target != null && !ownerTypeEntityId.equals(target.entityId())) {
-                    SourceReference ref = fieldEntity.sourceRefs().isEmpty()
-                        ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(fieldNode), snippet, Map.of("language", "java", "kind", "field_declaration"))
-                        : fieldEntity.sourceRefs().getFirst();
-                    LinkedHashMap<String, Object> relationshipMetadata = new LinkedHashMap<>();
-                    relationshipMetadata.put("framework", "jpa");
-                    relationshipMetadata.put("relationshipType", "hasAssociation");
-                    relationshipMetadata.put("jpaAssociation", associationKind);
-                    extractJpaMappedBy(snippet).ifPresent(mappedBy -> relationshipMetadata.put("mappedBy", mappedBy));
-                    extractJpaJoinColumn(snippet).ifPresent(joinColumn -> relationshipMetadata.put("joinColumn", joinColumn));
-                    extractJpaJoinTable(snippet).ifPresent(joinTable -> relationshipMetadata.put("joinTable", joinTable));
-                    relationshipMetadata.put("ownerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName);
-                    accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
-                        ownerTypeEntityId,
-                        target.entityId(),
-                        target.label(),
-                        ref,
-                        "java",
-                        Map.copyOf(relationshipMetadata)
-                    ));
-                }
-            }
-        }
-        if (Boolean.TRUE.equals(metadata.get("jpaEmbedded"))) {
-            String declaredType = String.valueOf(fieldEntity.metadata().getOrDefault("declaredType", ""));
-            List<String> referencedTypes = extractReferencedTypes(declaredType);
-            if (!referencedTypes.isEmpty()) {
-                ResolvedJavaType target = resolveJavaTypeReference(
-                    accumulator,
-                    referencedTypes.getLast(),
-                    EntityKind.CLASS,
-                    relativePath,
-                    packageName,
-                    lineOf(fieldEntity.sourceRefs().isEmpty() ? null : fieldEntity.sourceRefs().getFirst(), fieldNode),
-                    importsBySimpleName,
-                    declaredTypes
-                );
-                if (target != null && !ownerTypeEntityId.equals(target.entityId())) {
-                    SourceReference ref = fieldEntity.sourceRefs().isEmpty()
-                        ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(fieldNode), snippet, Map.of("language", "java", "kind", "field_declaration"))
-                        : fieldEntity.sourceRefs().getFirst();
-                    accumulator.addRelationship(ExtractionSupport.typedRelationship(
-                        info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.DEPENDS_ON,
-                        "embeds-jpa-type",
-                        ownerTypeEntityId,
-                        target.entityId(),
-                        target.label(),
-                        ref,
-                        "java",
-                        Map.of("framework", "jpa", "relationshipType", "embeds", "ownerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName)
-                    ));
-                }
-            }
-        }
-        if (changed) {
-            SourceReference ref = fieldEntity.sourceRefs().isEmpty()
-                ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(fieldNode), snippet, Map.of("language", "java", "kind", "field_declaration"))
-                : fieldEntity.sourceRefs().getFirst();
-            accumulator.addEntity(new ExtractedEntityFact(
-                fieldEntity.id(),
-                fieldEntity.kind(),
-                fieldEntity.origin(),
-                fieldEntity.name(),
-                fieldEntity.displayName(),
-                fieldEntity.scopeId(),
-                List.of(ref),
-                Map.copyOf(metadata)
-            ));
-        }
-    }
-
-void addJpaMethodFacts(
-        ExtractionAccumulator accumulator,
-        JavaMethodContext methodContext
-    ) {
-        JavaExtractionContext extractionContext = methodContext.extractionContext();
-        String relativePath = extractionContext.relativePath();
-        String packageName = extractionContext.packageName();
-        SyntaxNode methodNode = methodContext.methodNode();
-        ExtractedEntityFact methodEntity = methodContext.methodEntity();
-        String ownerTypeEntityId = methodContext.ownerTypeEntityId();
-        String ownerQualifiedName = methodContext.ownerQualifiedName();
-        String ownerTypeSnippet = methodContext.ownerTypeSnippet();
-        SourceReference ref = methodContext.sourceRef();
-        String snippet = methodContext.snippet();
-        Map<String, String> importsBySimpleName = extractionContext.importsBySimpleName();
-        Map<String, JavaDeclaredType> declaredTypes = extractionContext.declaredTypes();
-        if (methodEntity == null || ownerTypeEntityId == null || !isJpaPersistentType(ownerTypeSnippet, null) || isConstructor(methodEntity)) {
-            return;
-        }
-        List<String> annotations = metadataStringList(methodEntity.metadata().get("annotations"));
-        if (methodNode != null) {
-            java.util.LinkedHashSet<String> mergedAnnotations = new java.util.LinkedHashSet<>(annotations);
-            SyntaxTreeExtractionSupport.descendantsByType(methodNode, Set.of("marker_annotation", "annotation")).stream()
-                .flatMap(annotationNode -> SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(annotationNode.textSnippet()).stream())
-                .forEach(mergedAnnotations::add);
-            SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(methodNode.textSnippet()).forEach(mergedAnnotations::add);
-            annotations = List.copyOf(mergedAnnotations);
-        }
-        String parameters = String.valueOf(methodEntity.metadata().getOrDefault("parameters", ""));
-        String methodName = methodEntity.name();
-        if (!annotations.stream().anyMatch(a -> a != null && !a.isBlank()) && !containsJpaPropertyAnnotation(snippet)) {
-            return;
-        }
-        String propertyName = deriveJavaPropertyName(methodName, parameters);
-        if (propertyName == null || propertyName.isBlank()) {
-            return;
-        }
-        LinkedHashMap<String, Object> metadata = new LinkedHashMap<>(methodEntity.metadata());
-        metadata.put("framework", "jpa");
-        metadata.put("jpaPropertyAccess", true);
-        metadata.put("jpaPropertyName", propertyName);
-        boolean changed = true;
-        if (hasAnnotation(annotations, "Id") || hasAnnotation(annotations, "EmbeddedId")) {
-            metadata.put("jpaId", true);
-            changed = true;
-        }
-        if (hasAnnotation(annotations, "Version")) {
-            metadata.put("jpaVersion", true);
-            changed = true;
-        }
-        if (hasAnnotation(annotations, "Embedded") || hasAnnotation(annotations, "EmbeddedId")) {
-            metadata.put("jpaEmbedded", true);
-            changed = true;
-        }
-        extractJpaColumnName(snippet).ifPresent(column -> metadata.put("columnName", column));
-        if (snippet != null && snippet.contains("nullable = false")) {
-            metadata.put("nullable", false);
-            changed = true;
-        }
-        if (snippet != null && snippet.contains("nullable = true")) {
-            metadata.put("nullable", true);
-            changed = true;
-        }
-        if (snippet != null && snippet.contains("unique = true")) {
-            metadata.put("unique", true);
-            changed = true;
-        }
-        if (extractJpaColumnName(snippet).isPresent()) {
-            changed = true;
-        }
-        Optional<String> association = detectJpaAssociation(annotations, snippet);
-        if (association.isEmpty()) {
-            String loweredSnippet = snippet == null ? "" : snippet.toLowerCase(java.util.Locale.ROOT);
-            if (loweredSnippet.contains("manytoone") || loweredSnippet.contains("many_to_one") || loweredSnippet.contains("many-to-one")) {
-                association = Optional.of("many-to-one");
-            } else if (loweredSnippet.contains("onetomany") || loweredSnippet.contains("one_to_many") || loweredSnippet.contains("one-to-many")) {
-                association = Optional.of("one-to-many");
-            } else if (loweredSnippet.contains("onetoone") || loweredSnippet.contains("one_to_one") || loweredSnippet.contains("one-to-one")) {
-                association = Optional.of("one-to-one");
-            } else if (loweredSnippet.contains("manytomany") || loweredSnippet.contains("many_to_many") || loweredSnippet.contains("many-to-many")) {
-                association = Optional.of("many-to-many");
-            }
-        }
-        String declaredType = String.valueOf(methodEntity.metadata().getOrDefault("returnType", ""));
-        if (declaredType == null || declaredType.isBlank()) {
-            declaredType = inferJavaMethodReturnTypeFromSnippet(snippet, methodName).orElse("");
-        }
-        if (association.isPresent()) {
-            String associationKind = association.get();
-            metadata.put("jpaAssociation", associationKind);
-            extractJpaMappedBy(snippet).ifPresent(mappedBy -> metadata.put("mappedBy", mappedBy));
-            extractJpaJoinColumn(snippet).ifPresent(joinColumn -> metadata.put("joinColumn", joinColumn));
-            extractJpaJoinTable(snippet).ifPresent(joinTable -> metadata.put("joinTable", joinTable));
-            changed = true;
-            List<String> referencedTypes = extractReferencedTypes(declaredType);
-            if (!referencedTypes.isEmpty()) {
-                ResolvedJavaType target = resolveJavaTypeReference(
-                    accumulator,
-                    referencedTypes.getLast(),
-                    EntityKind.CLASS,
-                    relativePath,
-                    packageName,
-                    lineOf(methodEntity.sourceRefs().isEmpty() ? null : methodEntity.sourceRefs().getFirst(), methodNode),
-                    importsBySimpleName,
-                    declaredTypes
-                );
-                if (target != null && !ownerTypeEntityId.equals(target.entityId())) {
-                    LinkedHashMap<String, Object> relationshipMetadata = new LinkedHashMap<>();
-                    relationshipMetadata.put("framework", "jpa");
-                    relationshipMetadata.put("relationshipType", "hasAssociation");
-                    relationshipMetadata.put("jpaAssociation", associationKind);
-                    extractJpaMappedBy(snippet).ifPresent(mappedBy -> relationshipMetadata.put("mappedBy", mappedBy));
-                    extractJpaJoinColumn(snippet).ifPresent(joinColumn -> relationshipMetadata.put("joinColumn", joinColumn));
-                    extractJpaJoinTable(snippet).ifPresent(joinTable -> relationshipMetadata.put("joinTable", joinTable));
-                    relationshipMetadata.put("ownerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName);
-                    relationshipMetadata.put("ownerMemberKind", "method");
-                    relationshipMetadata.put("ownerMemberName", methodName);
-                    relationshipMetadata.put("ownerPropertyName", propertyName);
-                    accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
-                        ownerTypeEntityId,
-                        target.entityId(),
-                        target.label(),
-                        ref,
-                        "java",
-                        Map.copyOf(relationshipMetadata)
-                    ));
-                }
-            }
-        }
-        if (Boolean.TRUE.equals(metadata.get("jpaEmbedded"))) {
-            List<String> referencedTypes = extractReferencedTypes(declaredType);
-            if (!referencedTypes.isEmpty()) {
-                ResolvedJavaType target = resolveJavaTypeReference(
-                    accumulator,
-                    referencedTypes.getLast(),
-                    EntityKind.CLASS,
-                    relativePath,
-                    packageName,
-                    lineOf(methodEntity.sourceRefs().isEmpty() ? null : methodEntity.sourceRefs().getFirst(), methodNode),
-                    importsBySimpleName,
-                    declaredTypes
-                );
-                if (target != null && !ownerTypeEntityId.equals(target.entityId())) {
-                    accumulator.addRelationship(ExtractionSupport.typedRelationship(
-                        info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.DEPENDS_ON,
-                        "embeds-jpa-property-type",
-                        ownerTypeEntityId,
-                        target.entityId(),
-                        target.label(),
-                        ref,
-                        "java",
-                        Map.of(
-                            "framework", "jpa",
-                            "relationshipType", "embeds",
-                            "ownerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName,
-                            "ownerMemberKind", "method",
-                            "ownerMemberName", methodName,
-                            "ownerPropertyName", propertyName
-                        )
-                    ));
-                }
-            }
-        }
-        if (changed) {
-            accumulator.addEntity(new ExtractedEntityFact(
-                methodEntity.id(),
-                methodEntity.kind(),
-                methodEntity.origin(),
-                methodEntity.name(),
-                methodEntity.displayName(),
-                methodEntity.scopeId(),
-                List.of(ref),
-                Map.copyOf(metadata)
-            ));
-        }
-    }
-
-void addJpaInheritanceFacts(
-        ExtractionAccumulator accumulator,
-        String relativePath,
-        String packageName,
-        SyntaxNode typeNode,
-        ExtractedEntityFact typeEntity,
-        Map<String, String> importsBySimpleName,
-        Map<String, JavaDeclaredType> declaredTypes
-    ) {
-        String typeSnippet = JavaTypeSemanticsFlow.typeNodeSnippet(typeNode, typeEntity);
-        if (typeEntity == null || !isJpaPersistentType(typeSnippet, typeEntity)) {
-            return;
-        }
-        int line = SyntaxTreeExtractionSupport.oneBasedLine(typeNode);
-        SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, typeSnippet, Map.of("language", "java", "kind", typeNode.type()));
-        for (String parentType : extractExtendedTypes(typeNode)) {
-            ResolvedJavaType resolved = resolveJavaTypeReference(accumulator, parentType, EntityKind.CLASS, relativePath, packageName, line, importsBySimpleName, declaredTypes);
-            if (resolved == null || typeEntity.id().equals(resolved.entityId())) {
-                continue;
-            }
-            accumulator.addRelationship(ExtractionSupport.typedRelationship(
-                info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.EXTENDS,
-                "inherits-persistence-model",
-                typeEntity.id(),
-                resolved.entityId(),
-                resolved.label(),
-                ref,
-                "java",
-                Map.of("framework", "jpa", "relationshipType", "inheritsPersistenceModel")
-            ));
-        }
-    }
-    }
-
-    final class JavaCdiSemantics {
-void addCdiEventFacts(
-        ExtractionAccumulator accumulator,
-        JavaMethodContext methodContext
-    ) {
-        JavaExtractionContext extractionContext = methodContext.extractionContext();
-        String relativePath = extractionContext.relativePath();
-        String packageName = extractionContext.packageName();
-        SyntaxNode methodNode = methodContext.methodNode();
-        ExtractedEntityFact methodEntity = methodContext.methodEntity();
-        String ownerTypeEntityId = methodContext.ownerTypeEntityId();
-        String ownerQualifiedName = methodContext.ownerQualifiedName();
-        String ownerTypeSnippet = methodContext.ownerTypeSnippet();
-        String sourceText = extractionContext.sourceText();
-        SourceReference ref = methodContext.sourceRef();
-        String snippet = methodContext.snippet();
-        Map<String, String> importsBySimpleName = extractionContext.importsBySimpleName();
-        Map<String, JavaDeclaredType> declaredTypes = extractionContext.declaredTypes();
-        if (methodEntity == null || ownerTypeEntityId == null || ownerQualifiedName == null || ownerQualifiedName.isBlank()) {
-            return;
-        }
-        String exactMethodSnippet = exactNodeSnippet(sourceText, methodNode);
-        if (exactMethodSnippet != null && !exactMethodSnippet.isBlank()) {
-            snippet = exactMethodSnippet;
-        }
-
-        LinkedHashMap<String, Object> methodMetadata = new LinkedHashMap<>(methodEntity.metadata());
-        boolean methodChanged = false;
-
-        for (PublishedCdiEvent publication : detectCdiPublishedEvents(snippet, ownerTypeSnippet)) {
-            ResolvedJavaType target = resolveJavaTypeReference(
-                accumulator,
-                publication.eventType(),
-                EntityKind.CLASS,
-                relativePath,
-                packageName,
-                lineOf(ref, methodNode),
-                importsBySimpleName,
-                declaredTypes
-            );
-            if (target == null) {
-                continue;
-            }
-            LinkedHashMap<String, Object> relationshipMetadata = new LinkedHashMap<>();
-            relationshipMetadata.put("framework", "cdi");
-            relationshipMetadata.put("relationshipType", "publishesEvent");
-            relationshipMetadata.put("frameworkRelationship", "publishesEvent");
-            relationshipMetadata.put("dependencySource", "eventPublish");
-            relationshipMetadata.put("eventType", target.label());
-            relationshipMetadata.put("publisherMethod", methodEntity.name());
-            relationshipMetadata.put("publisherQualifiedName", ownerQualifiedName);
-            relationshipMetadata.put("publisherAsync", publication.async());
-            if (publication.publisherField() != null && !publication.publisherField().isBlank()) {
-                relationshipMetadata.put("publisherField", publication.publisherField());
-            }
-            accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
-                ownerTypeEntityId,
-                target.entityId(),
-                target.label(),
-                ref,
-                "java",
-                Map.copyOf(relationshipMetadata)
-            ));
-            LinkedHashMap<String, Object> methodRelationshipMetadata = new LinkedHashMap<>(relationshipMetadata);
-            methodRelationshipMetadata.put("dependencySource", "eventPublishMethod");
-            methodRelationshipMetadata.put("ownerMemberKind", "method");
-            methodRelationshipMetadata.put("ownerMemberName", methodEntity.name());
-            accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
-                methodEntity.id(),
-                target.entityId(),
-                target.label(),
-                ref,
-                "java",
-                Map.copyOf(methodRelationshipMetadata)
-            ));
-            methodMetadata.put("framework", "cdi");
-            methodMetadata.put("cdiEventPublisher", true);
-            methodMetadata.put("cdiPublishedEventType", target.label());
-            methodMetadata.put("cdiPublisherAsync", publication.async());
-            methodChanged = true;
-        }
-
-        Optional<ObservedCdiEvent> observer = detectCdiObservedEvent(methodEntity, snippet);
-        if (observer.isPresent()) {
-            ObservedCdiEvent observed = observer.get();
-            ResolvedJavaType target = resolveJavaTypeReference(
-                accumulator,
-                observed.eventType(),
-                EntityKind.CLASS,
-                relativePath,
-                packageName,
-                lineOf(ref, methodNode),
-                importsBySimpleName,
-                declaredTypes
-            );
-            if (target != null) {
-                LinkedHashMap<String, Object> eventToObserverMetadata = new LinkedHashMap<>();
-                eventToObserverMetadata.put("framework", "cdi");
-                eventToObserverMetadata.put("relationshipType", "eventObservedBy");
-                eventToObserverMetadata.put("frameworkRelationship", "observesEvent");
-                eventToObserverMetadata.put("eventType", target.label());
-                eventToObserverMetadata.put("observerQualifiedName", ownerQualifiedName);
-                eventToObserverMetadata.put("observerMethod", methodEntity.name());
-                eventToObserverMetadata.put("observerAsync", observed.async());
-                if (!observed.qualifiers().isEmpty()) {
-                    eventToObserverMetadata.put("observerQualifiers", observed.qualifiers());
-                }
-                accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
-                    target.entityId(),
-                    ownerTypeEntityId,
-                    ownerQualifiedName,
-                    ref,
-                    "java",
-                    Map.copyOf(eventToObserverMetadata)
-                ));
-                LinkedHashMap<String, Object> methodToEventMetadata = new LinkedHashMap<>();
-                methodToEventMetadata.put("framework", "cdi");
-                methodToEventMetadata.put("relationshipType", "observesEvent");
-                methodToEventMetadata.put("frameworkRelationship", "observesEvent");
-                methodToEventMetadata.put("eventType", target.label());
-                methodToEventMetadata.put("observerAsync", observed.async());
-                methodToEventMetadata.put("ownerMemberKind", "method");
-                methodToEventMetadata.put("ownerMemberName", methodEntity.name());
-                if (!observed.qualifiers().isEmpty()) {
-                    methodToEventMetadata.put("observerQualifiers", observed.qualifiers());
-                }
-                accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
-                    methodEntity.id(),
-                    target.entityId(),
-                    target.label(),
-                    ref,
-                    "java",
-                    Map.copyOf(methodToEventMetadata)
-                ));
-                methodMetadata.put("framework", "cdi");
-                methodMetadata.put("cdiObserver", true);
-                methodMetadata.put("cdiObservedEventType", target.label());
-                methodMetadata.put("observerAsync", observed.async());
-                methodMetadata.put("observerQualifiers", observed.qualifiers());
-                methodChanged = true;
-            }
-        }
-
-        if (methodChanged) {
-            accumulator.addEntity(new ExtractedEntityFact(
-                methodEntity.id(),
-                methodEntity.kind(),
-                methodEntity.origin(),
-                methodEntity.name(),
-                methodEntity.displayName(),
-                methodEntity.scopeId(),
-                List.of(ref),
-                Map.copyOf(methodMetadata)
-            ));
-        }
-    }
-    }
-
-    final class JavaWritePathSemantics {
-void addWritePathFacts(
-        ExtractionAccumulator accumulator,
-        JavaMethodContext methodContext
-    ) {
-        JavaExtractionContext extractionContext = methodContext.extractionContext();
-        String relativePath = extractionContext.relativePath();
-        String packageName = extractionContext.packageName();
-        SyntaxNode methodNode = methodContext.methodNode();
-        ExtractedEntityFact methodEntity = methodContext.methodEntity();
-        String ownerTypeEntityId = methodContext.ownerTypeEntityId();
-        String ownerQualifiedName = methodContext.ownerQualifiedName();
-        SourceReference ref = methodContext.sourceRef();
-        String snippet = methodContext.snippet();
-        Map<String, String> importsBySimpleName = extractionContext.importsBySimpleName();
-        Map<String, JavaDeclaredType> declaredTypes = extractionContext.declaredTypes();
-        if (methodEntity == null || ownerTypeEntityId == null) {
-            return;
-        }
-
-        List<DetectedWritePath> detections = new ArrayList<>();
-        detections.addAll(detectJpaWriteOperations(methodEntity, snippet));
-        detections.addAll(detectRepositoryWriteOperations(methodEntity, snippet));
-        if (detections.isEmpty()) {
-            return;
-        }
-
-        Map<String, String> variableTypes = collectMethodVariableTypes(methodEntity, snippet);
-        LinkedHashMap<String, Object> methodMetadata = new LinkedHashMap<>(methodEntity.metadata());
-        java.util.LinkedHashSet<String> writeOperations = new java.util.LinkedHashSet<>(metadataStringList(methodMetadata.get("writeOperations")));
-        java.util.LinkedHashSet<String> writeTargets = new java.util.LinkedHashSet<>(metadataStringList(methodMetadata.get("writeEntityTypes")));
-        boolean changed = false;
-
-        for (DetectedWritePath detection : detections) {
-            String entityType = resolveWriteTargetEntityType(detection.argumentExpression(), variableTypes).orElse(null);
-            if (entityType == null || entityType.isBlank()) {
-                continue;
-            }
-            ResolvedJavaType target = resolveJavaTypeReference(
-                accumulator,
-                entityType,
-                EntityKind.CLASS,
-                relativePath,
-                packageName,
-                lineOf(ref, methodNode),
-                importsBySimpleName,
-                declaredTypes
-            );
-            if (target == null) {
-                continue;
-            }
-            LinkedHashMap<String, Object> relationshipMetadata = new LinkedHashMap<>();
-            relationshipMetadata.put("framework", "jpa");
-            relationshipMetadata.put("relationshipType", "writePath");
-            relationshipMetadata.put("writeOperation", detection.operation());
-            relationshipMetadata.put("writeKind", detection.writeKind());
-            relationshipMetadata.put("writerMethod", methodEntity.name());
-            relationshipMetadata.put("writerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName);
-            relationshipMetadata.put("entityType", target.label());
-            if (detection.viaField() != null && !detection.viaField().isBlank()) {
-                relationshipMetadata.put("writeViaField", detection.viaField());
-            }
-            if (detection.viaType() != null && !detection.viaType().isBlank()) {
-                relationshipMetadata.put("writeViaType", detection.viaType());
-            }
-            accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
-                ownerTypeEntityId,
-                target.entityId(),
-                target.label(),
-                ref,
-                "java",
-                Map.copyOf(relationshipMetadata)
-            ));
-            LinkedHashMap<String, Object> methodRelationshipMetadata = new LinkedHashMap<>(relationshipMetadata);
-            methodRelationshipMetadata.put("ownerMemberKind", "method");
-            methodRelationshipMetadata.put("ownerMemberName", methodEntity.name());
-            accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
-                methodEntity.id(),
-                target.entityId(),
-                target.label(),
-                ref,
-                "java",
-                Map.copyOf(methodRelationshipMetadata)
-            ));
-            writeOperations.add(detection.operation());
-            writeTargets.add(target.label());
-            changed = true;
-        }
-
-        if (changed) {
-            methodMetadata.put("writePath", true);
-            methodMetadata.put("writeOperations", List.copyOf(writeOperations));
-            methodMetadata.put("writeEntityTypes", List.copyOf(writeTargets));
-            accumulator.addEntity(new ExtractedEntityFact(
-                methodEntity.id(),
-                methodEntity.kind(),
-                methodEntity.origin(),
-                methodEntity.name(),
-                methodEntity.displayName(),
-                methodEntity.scopeId(),
-                List.of(ref),
-                Map.copyOf(methodMetadata)
-            ));
-        }
-    }
-    }
 
 }

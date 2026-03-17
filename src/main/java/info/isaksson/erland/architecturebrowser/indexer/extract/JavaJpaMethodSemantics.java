@@ -1,9 +1,9 @@
 package info.isaksson.erland.architecturebrowser.indexer.extract;
 
 final class JavaJpaMethodSemantics {
-    private final JavaSyntaxTreeExtractionStage.JavaJpaSemantics jpaSemantics;
+    private final JavaJpaSemanticsSupport jpaSemantics;
 
-    JavaJpaMethodSemantics(JavaSyntaxTreeExtractionStage.JavaJpaSemantics jpaSemantics) {
+    JavaJpaMethodSemantics(JavaJpaSemanticsSupport jpaSemantics) {
         this.jpaSemantics = jpaSemantics;
     }
 

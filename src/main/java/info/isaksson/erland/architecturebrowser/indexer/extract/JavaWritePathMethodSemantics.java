@@ -1,9 +1,9 @@
 package info.isaksson.erland.architecturebrowser.indexer.extract;
 
 final class JavaWritePathMethodSemantics {
-    private final JavaSyntaxTreeExtractionStage.JavaWritePathSemantics writePathSemantics;
+    private final JavaWritePathSemanticsSupport writePathSemantics;
 
-    JavaWritePathMethodSemantics(JavaSyntaxTreeExtractionStage.JavaWritePathSemantics writePathSemantics) {
+    JavaWritePathMethodSemantics(JavaWritePathSemanticsSupport writePathSemantics) {
         this.writePathSemantics = writePathSemantics;
     }
 

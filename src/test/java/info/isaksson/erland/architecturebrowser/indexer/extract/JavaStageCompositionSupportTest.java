@@ -9,8 +9,7 @@ final class JavaStageCompositionSupportTest {
 
     @Test
     void composesStageCollaboratorsWithStableFlowHandoff() {
-        JavaSyntaxTreeExtractionStage stageSeed = new JavaSyntaxTreeExtractionStage();
-        JavaStageCompositionSupport.JavaStageComposition composition = new JavaStageCompositionSupport().composeDefault(stageSeed);
+        JavaStageCompositionSupport.JavaStageComposition composition = new JavaStageCompositionSupport().composeDefault();
 
         assertNotNull(composition.relationshipEvidenceEmitter());
         assertNotNull(composition.typeDeclarationFlow());

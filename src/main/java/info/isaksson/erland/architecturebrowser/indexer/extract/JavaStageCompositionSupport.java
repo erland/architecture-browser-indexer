@@ -2,14 +2,9 @@ package info.isaksson.erland.architecturebrowser.indexer.extract;
 
 final class JavaStageCompositionSupport {
 
-    JavaStageComposition composeDefault(JavaSyntaxTreeExtractionStage stage) {
+    JavaStageComposition composeDefault() {
         JavaRelationshipEvidenceEmitter relationshipEvidenceEmitter = new JavaRelationshipEvidenceEmitter();
         JavaDependencyEmissionFlow dependencyEmissionFlow = new JavaDependencyEmissionFlow(relationshipEvidenceEmitter);
-
-        JavaSyntaxTreeExtractionStage.JavaJaxRsSemantics jaxRsSemantics = stage.new JavaJaxRsSemantics();
-        JavaSyntaxTreeExtractionStage.JavaJpaSemantics jpaSemantics = stage.new JavaJpaSemantics();
-        JavaSyntaxTreeExtractionStage.JavaCdiSemantics cdiSemantics = stage.new JavaCdiSemantics();
-        JavaSyntaxTreeExtractionStage.JavaWritePathSemantics writePathSemantics = stage.new JavaWritePathSemantics();
 
         JavaEntityMapper entityMapper = new JavaEntityMapper();
         JavaTypeSemanticsFlow typeSemanticsFlow = new JavaTypeSemanticsFlow(new JavaTypeNodeSemanticsSupport(relationshipEvidenceEmitter));
@@ -20,16 +15,16 @@ final class JavaStageCompositionSupport {
         );
 
         JavaMethodSemanticsFlow methodSemanticsFlow = new JavaMethodSemanticsFlow(
-            new JavaJaxRsMethodSemantics(jaxRsSemantics),
-            new JavaJpaMethodSemantics(jpaSemantics),
-            new JavaCdiMethodSemantics(cdiSemantics),
-            new JavaWritePathMethodSemantics(writePathSemantics)
+            new JavaJaxRsMethodSemantics(new JavaJaxRsSemanticsSupport()),
+            new JavaJpaMethodSemantics(new JavaJpaSemanticsSupport(relationshipEvidenceEmitter)),
+            new JavaCdiMethodSemantics(new JavaCdiSemanticsSupport(relationshipEvidenceEmitter)),
+            new JavaWritePathMethodSemantics(new JavaWritePathSemanticsSupport(relationshipEvidenceEmitter))
         );
 
         JavaFieldExtractionFlow fieldExtractionFlow = new JavaFieldExtractionFlow(
             entityMapper,
             dependencyEmissionFlow,
-            new JavaJpaFieldSemantics(jpaSemantics)
+            new JavaJpaFieldSemantics(new JavaJpaSemanticsSupport(relationshipEvidenceEmitter))
         );
         JavaMethodExtractionFlow methodExtractionFlow = new JavaMethodExtractionFlow(
             entityMapper,

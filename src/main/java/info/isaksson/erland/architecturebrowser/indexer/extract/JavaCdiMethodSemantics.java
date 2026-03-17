@@ -1,9 +1,9 @@
 package info.isaksson.erland.architecturebrowser.indexer.extract;
 
 final class JavaCdiMethodSemantics {
-    private final JavaSyntaxTreeExtractionStage.JavaCdiSemantics cdiSemantics;
+    private final JavaCdiSemanticsSupport cdiSemantics;
 
-    JavaCdiMethodSemantics(JavaSyntaxTreeExtractionStage.JavaCdiSemantics cdiSemantics) {
+    JavaCdiMethodSemantics(JavaCdiSemanticsSupport cdiSemantics) {
         this.cdiSemantics = cdiSemantics;
     }
 

@@ -1,9 +1,9 @@
 package info.isaksson.erland.architecturebrowser.indexer.extract;
 
 final class JavaJaxRsMethodSemantics {
-    private final JavaSyntaxTreeExtractionStage.JavaJaxRsSemantics jaxRsSemantics;
+    private final JavaJaxRsSemanticsSupport jaxRsSemantics;
 
-    JavaJaxRsMethodSemantics(JavaSyntaxTreeExtractionStage.JavaJaxRsSemantics jaxRsSemantics) {
+    JavaJaxRsMethodSemantics(JavaJaxRsSemanticsSupport jaxRsSemantics) {
         this.jaxRsSemantics = jaxRsSemantics;
     }
 
