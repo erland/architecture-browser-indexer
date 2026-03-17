@@ -9,12 +9,8 @@ final class TypeScriptFrontendSemanticsExtractor {
     }
 
     static void extract(TypeScriptExtractionContext context, Map<String, ExtractedEntityFact> namedEntities) {
-        AngularFrameworkRelationshipExtractor.extract(context.accumulator(), context.relativePath(), namedEntities);
-        AngularTemplateCompositionExtractor.extract(context.accumulator(), context.relativePath(), namedEntities);
-        AngularDependencyInjectionExtractor.extract(context.accumulator(), context.relativePath(), context.parseResult().request().sourceText(), namedEntities);
-        ReactJsxCompositionExtractor.extract(context.accumulator(), context.relativePath(), namedEntities);
-        ReactContextGraphExtractor.extract(context.accumulator(), context.relativePath(), context.parseResult().request().sourceText(), namedEntities);
-        ReactCustomHookExtractor.extract(context.accumulator(), context.relativePath(), context.parseResult().request().sourceText(), namedEntities);
+        AngularTypeScriptFrameworkEnrichmentSupport.extract(context, namedEntities);
+        ReactTypeScriptFrameworkEnrichmentSupport.extract(context, namedEntities);
         FrontendRoutingExtractor.extract(context.accumulator(), context.relativePath(), context.parseResult().request().sourceText(), namedEntities);
     }
 }
