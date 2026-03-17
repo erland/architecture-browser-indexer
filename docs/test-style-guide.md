@@ -163,3 +163,6 @@ Prefer keeping `StructuralExtractionService*` tests focused on orchestration con
 - mode selection / fallback policy
 
 Move Java- or TypeScript-specific extraction expectations into dedicated contract/regression tests closer to the extractor behavior they describe.
+
+
+Step 6 update: `TypeScriptArchitectureFixtureRegressionTest` has been decomposed into focused architecture concern tests including `TypeScriptArchitectureDependencyRegressionTest` and `TypeScriptArchitectureFrameworkRegressionTest`, while the original fixture regression now remains as a smaller broad-picture baseline.

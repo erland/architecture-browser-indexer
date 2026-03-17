@@ -169,3 +169,6 @@ Implemented decomposition split:
 - `AbstractStructuralExtractionServiceTestSupport` centralizes the shared `extract(ParseBatchResult)` helper
 
 This step reduces service-level failure blast radius by keeping extractor-specific assertions out of the service orchestration test class.
+
+
+Step 6 update: `TypeScriptArchitectureFixtureRegressionTest` has been decomposed into focused architecture concern tests including `TypeScriptArchitectureDependencyRegressionTest` and `TypeScriptArchitectureFrameworkRegressionTest`, while the original fixture regression now remains as a smaller broad-picture baseline.

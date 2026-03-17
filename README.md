@@ -378,3 +378,6 @@ Completed so far:
   - `TypeScriptStructuralExtractionContractRegressionTest`
 
 This keeps service-level tests focused on orchestration and moves language-specific expectations into dedicated regression classes.
+
+
+Step 6 update: `TypeScriptArchitectureFixtureRegressionTest` has been decomposed into focused architecture concern tests including `TypeScriptArchitectureDependencyRegressionTest` and `TypeScriptArchitectureFrameworkRegressionTest`, while the original fixture regression now remains as a smaller broad-picture baseline.
