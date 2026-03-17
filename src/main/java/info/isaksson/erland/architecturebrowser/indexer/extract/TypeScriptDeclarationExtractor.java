@@ -41,7 +41,7 @@ final class TypeScriptDeclarationExtractor {
         Map<String, ExtractedEntityFact> namedEntities
     ) {
         for (TypeScriptDeclarationDiscoverySupport.DiscoveredTypeDeclaration discoveredType : discoveredDeclarations.namedTypeDeclarations()) {
-            ExtractedEntityFact typeEntity = addNamedEntityFromNode(
+            ExtractedEntityFact typeEntity = TypeScriptNamedDeclarationSemanticsSupport.addNamedEntityFromNode(
                 context.parseResult(),
                 context.accumulator(),
                 context.fileEntity().id(),
@@ -83,7 +83,7 @@ final class TypeScriptDeclarationExtractor {
         Map<String, ExtractedEntityFact> namedEntities
     ) {
         for (SyntaxNode functionNode : discoveredDeclarations.functionDeclarations()) {
-            ExtractedEntityFact functionEntity = addNamedEntityFromNode(
+            ExtractedEntityFact functionEntity = TypeScriptNamedDeclarationSemanticsSupport.addNamedEntityFromNode(
                 context.parseResult(),
                 context.accumulator(),
                 context.fileEntity().id(),
@@ -99,7 +99,7 @@ final class TypeScriptDeclarationExtractor {
             }
         }
         for (SyntaxNode variableDeclarator : discoveredDeclarations.arrowFunctionDeclarators()) {
-            ExtractedEntityFact functionEntity = addNamedEntityFromNode(
+            ExtractedEntityFact functionEntity = TypeScriptNamedDeclarationSemanticsSupport.addNamedEntityFromNode(
                 context.parseResult(),
                 context.accumulator(),
                 context.fileEntity().id(),
@@ -146,7 +146,7 @@ final class TypeScriptDeclarationExtractor {
         String ownerQualifiedName = String.valueOf(ownerEntity.metadata().getOrDefault("qualifiedName", ownerEntity.name()));
         for (SyntaxNode memberNode : ownerNode.children()) {
             if (SyntaxTreeExtractionSupport.isTypeScriptMethodLikeDeclaration(memberNode)) {
-                ExtractedEntityFact methodEntity = toTypeScriptMethodEntity(parseResult, relativePath, extractionMode, ownerEntity.scopeId(), memberNode, ownerQualifiedName, ownerDeclarationKind);
+                ExtractedEntityFact methodEntity = TypeScriptMethodDeclarationSemanticsSupport.toTypeScriptMethodEntity(parseResult, relativePath, extractionMode, ownerEntity.scopeId(), memberNode, ownerQualifiedName, ownerDeclarationKind);
                 if (methodEntity != null) {
                     accumulator.addEntity(methodEntity);
                     SourceReference ref = methodEntity.sourceRefs().isEmpty()
@@ -156,7 +156,7 @@ final class TypeScriptDeclarationExtractor {
                     addMethodTypeDependencies(accumulator, ownerEntity, methodEntity, relativePath, lineOf(ref, memberNode), ref, declaredTypes);
                 }
             } else if (SyntaxTreeExtractionSupport.isTypeScriptPropertyLikeDeclaration(memberNode)) {
-                ExtractedEntityFact propertyEntity = toTypeScriptPropertyEntity(parseResult, relativePath, extractionMode, ownerEntity.scopeId(), memberNode, ownerQualifiedName, ownerDeclarationKind);
+                ExtractedEntityFact propertyEntity = TypeScriptPropertyDeclarationSemanticsSupport.toTypeScriptPropertyEntity(parseResult, relativePath, extractionMode, ownerEntity.scopeId(), memberNode, ownerQualifiedName, ownerDeclarationKind);
                 if (propertyEntity != null) {
                     accumulator.addEntity(propertyEntity);
                     SourceReference ref = propertyEntity.sourceRefs().isEmpty()
@@ -279,143 +279,8 @@ final class TypeScriptDeclarationExtractor {
         return new ResolvedTypeScriptType(inferred.id(), normalized, inferred.kind(), internalCandidate ? "inferred-internal-type" : "external-package-target", internalCandidate ? "internal" : "external");
     }
 
-    private static ExtractedEntityFact addNamedEntityFromNode(
-        SourceParseResult parseResult,
-        ExtractionAccumulator accumulator,
-        String parentEntityId,
-        String relativePath,
-        SyntaxNode node,
-        EntityKind kind,
-        String matchedKind,
-        String declarationKind,
-        ExtractionMode extractionMode
-    ) {
-        String name = SyntaxTreeExtractionSupport.declarationName(node);
-        if (name == null || name.isBlank()) {
-            return null;
-        }
-        int line = SyntaxTreeExtractionSupport.oneBasedLine(node);
-        SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, node.textSnippet(), Map.of("language", "typescript", "kind", matchedKind));
-        List<String> decorators = SyntaxTreeExtractionSupport.descendantsByType(node, Set.of("decorator")).stream()
-            .flatMap(candidate -> SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(candidate.textSnippet()).stream())
-            .distinct()
-            .toList();
-        Map<String, Object> metadata = new LinkedHashMap<>();
-        metadata.put("language", "typescript");
-        metadata.put("declarationKind", declarationKind);
-        metadata.put("decorators", decorators);
-        metadata.putAll(AngularDecoratorMetadataExtractor.extract(node));
-        metadata.put("parseStatus", parseResult.status().name());
-        metadata.put("extractionMode", extractionMode.name());
-        if (kind == EntityKind.CLASS || kind == EntityKind.INTERFACE) {
-            metadata.put("qualifiedName", name);
-        }
-        ExtractedEntityFact entity = new ExtractedEntityFact(
-            IdUtils.scopedEntityId("typescript", relativePath, name, line),
-            kind,
-            EntityOrigin.OBSERVED,
-            name,
-            DisplayNamePolicy.entityDisplayName(kind, name, "typescript"),
-            IdUtils.scopeId("file", relativePath),
-            List.of(ref),
-            Map.copyOf(metadata)
-        );
-        accumulator.addEntity(entity);
-        accumulator.addRelationship(ExtractionSupport.containsRelationship(parentEntityId, entity.id(), ref));
-        return entity;
-    }
 
-    private static ExtractedEntityFact toTypeScriptMethodEntity(
-        SourceParseResult parseResult,
-        String relativePath,
-        ExtractionMode extractionMode,
-        String fileScopeId,
-        SyntaxNode methodNode,
-        String ownerQualifiedName,
-        String ownerDeclarationKind
-    ) {
-        String methodName = SyntaxTreeExtractionSupport.declarationName(methodNode);
-        if (methodName == null || methodName.isBlank()) {
-            return null;
-        }
-        String parameterSnippet = SyntaxTreeExtractionSupport.parameterSnippet(methodNode);
-        int line = SyntaxTreeExtractionSupport.oneBasedLine(methodNode);
-        SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, methodNode.textSnippet(), Map.of("language", "typescript", "kind", methodNode.type()));
-        List<String> decorators = SyntaxTreeExtractionSupport.descendantsByType(methodNode, Set.of("decorator")).stream()
-            .flatMap(node -> SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(node.textSnippet()).stream())
-            .distinct()
-            .toList();
-        String canonicalName = ownerQualifiedName == null || ownerQualifiedName.isBlank() ? methodName : ownerQualifiedName + "#" + methodName;
-        return new ExtractedEntityFact(
-            IdUtils.scopedEntityId("typescript", relativePath, canonicalName, line),
-            EntityKind.FUNCTION,
-            EntityOrigin.OBSERVED,
-            methodName,
-            DisplayNamePolicy.entityDisplayName(EntityKind.FUNCTION, canonicalName, "typescript"),
-            fileScopeId,
-            List.of(ref),
-            Map.of(
-                "language", "typescript",
-                "parameters", parameterSnippet,
-                "returnType", SyntaxTreeExtractionSupport.typeScriptMethodReturnType(methodNode),
-                "parameterTypes", SyntaxTreeExtractionSupport.typeScriptMethodParameterDeclaredTypes(methodNode),
-                "decorators", decorators,
-                "ownerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName,
-                "ownerDeclarationKind", ownerDeclarationKind == null ? "" : ownerDeclarationKind,
-                "parseStatus", parseResult.status().name(),
-                "extractionMode", extractionMode.name()
-            )
-        );
-    }
 
-    private static ExtractedEntityFact toTypeScriptPropertyEntity(
-        SourceParseResult parseResult,
-        String relativePath,
-        ExtractionMode extractionMode,
-        String fileScopeId,
-        SyntaxNode propertyNode,
-        String ownerQualifiedName,
-        String ownerDeclarationKind
-    ) {
-        String propertyName = SyntaxTreeExtractionSupport.declarationName(propertyNode);
-        if (propertyName == null || propertyName.isBlank()) {
-            return null;
-        }
-        int line = SyntaxTreeExtractionSupport.oneBasedLine(propertyNode);
-        SourceReference ref = ExtractionSupport.sourceRef(relativePath, line, propertyNode.textSnippet(), Map.of("language", "typescript", "kind", propertyNode.type()));
-        List<String> decorators = SyntaxTreeExtractionSupport.descendantsByType(propertyNode, Set.of("decorator")).stream()
-            .flatMap(node -> SyntaxTreeExtractionSupport.extractAnnotationsFromSnippet(node.textSnippet()).stream())
-            .distinct()
-            .toList();
-        String declaredType = SyntaxTreeExtractionSupport.typeScriptDeclaredType(propertyNode);
-        List<String> modifiers = SyntaxTreeExtractionSupport.typeScriptModifiers(propertyNode);
-        boolean optional = SyntaxTreeExtractionSupport.typeScriptOptional(propertyNode);
-        boolean readonly = SyntaxTreeExtractionSupport.typeScriptReadonly(propertyNode);
-        String accessibility = SyntaxTreeExtractionSupport.typeScriptAccessibility(propertyNode);
-        String canonicalName = ownerQualifiedName == null || ownerQualifiedName.isBlank() ? propertyName : ownerQualifiedName + "#" + propertyName;
-        java.util.Map<String, Object> metadata = new java.util.LinkedHashMap<>();
-        metadata.put("language", "typescript");
-        metadata.put("declaredType", declaredType);
-        metadata.put("optional", optional);
-        metadata.put("readonly", readonly);
-        metadata.put("accessibility", accessibility);
-        metadata.put("modifiers", modifiers);
-        metadata.put("decorators", decorators);
-        metadata.put("ownerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName);
-        metadata.put("ownerDeclarationKind", ownerDeclarationKind == null ? "" : ownerDeclarationKind);
-        metadata.put("parseStatus", parseResult.status().name());
-        metadata.put("extractionMode", extractionMode.name());
-        return new ExtractedEntityFact(
-            IdUtils.scopedEntityId("typescript", relativePath, canonicalName, line),
-            EntityKind.FIELD,
-            EntityOrigin.OBSERVED,
-            propertyName,
-            DisplayNamePolicy.entityDisplayName(EntityKind.FIELD, canonicalName, "typescript"),
-            fileScopeId,
-            List.of(ref),
-            Map.copyOf(metadata)
-        );
-    }
 
     private static void addPropertyTypeDependencies(
         ExtractionAccumulator accumulator,
