@@ -102,20 +102,34 @@ final class ArchitectureIrPackageDependencyViewBuilder {
         }
 
         private Map<String, Object> toMetadataMap() {
-            Map<String, Object> metadata = new LinkedHashMap<>();
-            metadata.put("sourcePackageName", sourcePackageName);
-            metadata.put("targetPackageName", targetPackageName);
-            metadata.put("relationshipKind", relationshipKind.name());
-            ArchitectureIrDependencyMetadataSupport.putSummaryCollections(metadata, dependencySources, dependencyCategories, frameworks, frameworkRelationships, architectureViewKinds, evidenceRelationshipIds, evidenceLabels);
-            metadata.put("sourceBoundary", sourceBoundary);
-            metadata.put("targetBoundary", targetBoundary);
-            metadata.put("targetPackageClassification", targetPackageClassification);
-            metadata.put("internalTarget", internalTarget);
-            metadata.put("externalTarget", externalTarget);
-            metadata.put("underlyingRelationshipCount", evidenceRelationshipIds.size());
-            metadata.put("sourceTypeCount", sourceTypeIds.size());
-            metadata.put("targetTypeCount", targetTypeIds.size());
-            return ArchitectureIrDependencyMetadataSupport.immutable(metadata);
+            Map<String, Object> identifiers = new LinkedHashMap<>();
+            identifiers.put("sourcePackageName", sourcePackageName);
+            identifiers.put("targetPackageName", targetPackageName);
+            identifiers.put("relationshipKind", relationshipKind.name());
+            Map<String, Object> metrics = new LinkedHashMap<>();
+            metrics.put("underlyingRelationshipCount", evidenceRelationshipIds.size());
+            metrics.put("sourceTypeCount", sourceTypeIds.size());
+            metrics.put("targetTypeCount", targetTypeIds.size());
+            Map<String, Object> flags = new LinkedHashMap<>();
+            flags.put("sourceBoundary", sourceBoundary);
+            flags.put("targetBoundary", targetBoundary);
+            flags.put("targetPackageClassification", targetPackageClassification);
+            flags.put("internalTarget", internalTarget);
+            flags.put("externalTarget", externalTarget);
+            return DependencyViewEntry.of(
+                identifiers,
+                new DependencyViewEntry.DependencyViewSummary(
+                    List.copyOf(dependencySources),
+                    List.copyOf(dependencyCategories),
+                    List.copyOf(frameworks),
+                    List.copyOf(frameworkRelationships),
+                    List.copyOf(architectureViewKinds),
+                    List.copyOf(evidenceRelationshipIds),
+                    List.copyOf(evidenceLabels)
+                ),
+                metrics,
+                flags
+            ).toMetadataMap();
         }
     }
 }

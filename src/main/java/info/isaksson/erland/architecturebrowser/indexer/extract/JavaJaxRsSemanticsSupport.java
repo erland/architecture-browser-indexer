@@ -72,18 +72,17 @@ void addJaxRsEndpointFacts(
         int endpointLine = methodRef.startLine() == null ? SyntaxTreeExtractionSupport.oneBasedLine(methodNode) : methodRef.startLine();
         String endpointId = IdUtils.scopedEntityId("java-endpoint", relativePath, ownerQualifiedName + "#" + endpointName, endpointLine);
         List<Map<String, String>> parameterDetails = JavaJaxRsDomainSemanticsSupport.extractJaxRsParameterDetails(String.valueOf(methodEntity.metadata().getOrDefault("parameters", "()")));
-        LinkedHashMap<String, Object> endpointMetadata = new LinkedHashMap<>();
-        endpointMetadata.put("language", "java");
-        endpointMetadata.put("framework", "jax-rs");
-        endpointMetadata.put("httpMethod", httpMethod);
-        endpointMetadata.put("path", resolvedPath);
-        endpointMetadata.put("classLevelPath", JavaJaxRsDomainSemanticsSupport.normalizeJaxRsPath(classPath));
-        endpointMetadata.put("methodLevelPath", JavaJaxRsDomainSemanticsSupport.normalizeJaxRsPath(methodPath));
-        endpointMetadata.put("resourceQualifiedName", ownerQualifiedName);
-        endpointMetadata.put("methodName", methodEntity.name());
-        endpointMetadata.put("methodQualifiedName", ownerQualifiedName + "#" + methodEntity.name());
-        endpointMetadata.put("parameterDetails", parameterDetails);
-        endpointMetadata.put("annotations", annotations);
+        JavaEndpointSemantics endpointSemantics = new JavaEndpointSemantics(
+            httpMethod,
+            resolvedPath,
+            JavaJaxRsDomainSemanticsSupport.normalizeJaxRsPath(classPath),
+            JavaJaxRsDomainSemanticsSupport.normalizeJaxRsPath(methodPath),
+            ownerQualifiedName,
+            methodEntity.name(),
+            ownerQualifiedName + "#" + methodEntity.name(),
+            parameterDetails,
+            annotations
+        );
         accumulator.addEntity(new ExtractedEntityFact(
             endpointId,
             EntityKind.ENDPOINT,
@@ -92,7 +91,7 @@ void addJaxRsEndpointFacts(
             endpointName,
             methodEntity.scopeId(),
             List.of(methodRef),
-            Map.copyOf(endpointMetadata)
+            endpointSemantics.endpointMetadata()
         ));
         accumulator.addRelationship(ExtractionSupport.typedRelationship(
             info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.EXPOSES,
@@ -104,12 +103,7 @@ void addJaxRsEndpointFacts(
             "java",
             Map.of("framework", "jax-rs", "httpMethod", httpMethod, "path", resolvedPath)
         ));
-        LinkedHashMap<String, Object> methodMetadata = new LinkedHashMap<>(methodEntity.metadata());
-        methodMetadata.put("framework", "jax-rs");
-        methodMetadata.put("jaxRsEndpoint", true);
-        methodMetadata.put("httpMethod", httpMethod);
-        methodMetadata.put("path", resolvedPath);
-        methodMetadata.put("parameterDetails", parameterDetails);
+        Map<String, Object> methodMetadata = endpointSemantics.methodMetadata(methodEntity.metadata());
         accumulator.addEntity(new ExtractedEntityFact(
             methodEntity.id(),
             methodEntity.kind(),
@@ -118,7 +112,7 @@ void addJaxRsEndpointFacts(
             methodEntity.displayName(),
             methodEntity.scopeId(),
             List.of(methodRef),
-            Map.copyOf(methodMetadata)
+            methodMetadata
         ));
     }
     

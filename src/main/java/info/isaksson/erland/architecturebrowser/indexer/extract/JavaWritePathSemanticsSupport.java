@@ -120,9 +120,8 @@ void addWritePathFacts(
         }
 
         if (changed) {
-            methodMetadata.put("writePath", true);
-            methodMetadata.put("writeOperations", List.copyOf(writeOperations));
-            methodMetadata.put("writeEntityTypes", List.copyOf(writeTargets));
+            JavaWritePathSemantics writePathSemantics = new JavaWritePathSemantics(List.copyOf(writeOperations), List.copyOf(writeTargets));
+            Map<String, Object> typedMethodMetadata = writePathSemantics.methodMetadata(methodMetadata);
             accumulator.addEntity(new ExtractedEntityFact(
                 methodEntity.id(),
                 methodEntity.kind(),
@@ -131,7 +130,7 @@ void addWritePathFacts(
                 methodEntity.displayName(),
                 methodEntity.scopeId(),
                 List.of(ref),
-                Map.copyOf(methodMetadata)
+                typedMethodMetadata
             ));
         }
     }

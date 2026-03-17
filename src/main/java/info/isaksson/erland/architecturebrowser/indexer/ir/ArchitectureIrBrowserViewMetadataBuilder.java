@@ -352,18 +352,23 @@ final class ArchitectureIrBrowserViewMetadataBuilder {
         private Map<String, Object> toMetadataMap() {
             List<Map<String, Object>> filteredTypeDependencies = filterDependenciesForFrontendBrowserView(typeDependencies, framework, frameworkRelationships);
             List<Map<String, Object>> filteredModuleDependencies = filterDependenciesForFrontendBrowserView(moduleDependencies, framework, frameworkRelationships);
-            Map<String, Object> metadata = new LinkedHashMap<>();
-            metadata.put("id", id);
-            metadata.put("title", title);
-            metadata.put("description", description);
-            metadata.put("framework", framework);
+            Map<String, Object> metadata = new LinkedHashMap<>(new BrowserViewDescriptor(
+                id,
+                title,
+                description,
+                framework,
+                architectureViewKind,
+                typeDependencyView,
+                moduleDependencyView,
+                frameworkRelationships,
+                !filteredTypeDependencies.isEmpty() || !filteredModuleDependencies.isEmpty(),
+                filteredTypeDependencies.size(),
+                filteredModuleDependencies.size()
+            ).toMetadataMap());
             metadata.put("architectureViewKind", architectureViewKind);
             metadata.put("typeDependencyView", typeDependencyView);
             metadata.put("moduleDependencyView", moduleDependencyView);
             metadata.put("frameworkRelationships", List.copyOf(frameworkRelationships));
-            metadata.put("available", !filteredTypeDependencies.isEmpty() || !filteredModuleDependencies.isEmpty());
-            metadata.put("typeDependencyCount", filteredTypeDependencies.size());
-            metadata.put("moduleDependencyCount", filteredModuleDependencies.size());
             metadata.put("preferredDependencyView", !filteredTypeDependencies.isEmpty() ? typeDependencyView : moduleDependencyView);
             metadata.put("browserViewKind", "graph");
             metadata.put("recommendedForArchitectureViews", true);
@@ -384,18 +389,23 @@ final class ArchitectureIrBrowserViewMetadataBuilder {
         List<Map<String, Object>> moduleDependencies
     ) {
         private Map<String, Object> toMetadataMap() {
-            Map<String, Object> metadata = new LinkedHashMap<>();
-            metadata.put("id", id);
-            metadata.put("title", title);
-            metadata.put("description", description);
-            metadata.put("framework", framework);
+            Map<String, Object> metadata = new LinkedHashMap<>(new BrowserViewDescriptor(
+                id,
+                title,
+                description,
+                framework,
+                architectureViewKind,
+                typeDependencyView,
+                moduleDependencyView,
+                frameworkRelationships,
+                !typeDependencies.isEmpty() || !moduleDependencies.isEmpty(),
+                typeDependencies.size(),
+                moduleDependencies.size()
+            ).toMetadataMap());
             metadata.put("architectureViewKind", architectureViewKind);
             metadata.put("typeDependencyView", typeDependencyView);
             metadata.put("moduleDependencyView", moduleDependencyView);
             metadata.put("frameworkRelationships", List.copyOf(frameworkRelationships));
-            metadata.put("available", !typeDependencies.isEmpty() || !moduleDependencies.isEmpty());
-            metadata.put("typeDependencyCount", typeDependencies.size());
-            metadata.put("moduleDependencyCount", moduleDependencies.size());
             metadata.put("preferredDependencyView", !typeDependencies.isEmpty() ? typeDependencyView : moduleDependencyView);
             metadata.put("browserViewKind", "graph");
             metadata.put("recommendedForArchitectureViews", true);

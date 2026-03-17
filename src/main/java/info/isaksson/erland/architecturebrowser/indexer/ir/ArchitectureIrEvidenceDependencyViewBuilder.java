@@ -89,22 +89,36 @@ final class ArchitectureIrEvidenceDependencyViewBuilder {
         }
 
         private Map<String, Object> toMetadataMap() {
-            Map<String, Object> metadata = new LinkedHashMap<>();
-            metadata.put("sourceEntityId", sourceEntityId);
-            metadata.put("targetEntityId", targetEntityId);
-            metadata.put("relationshipKind", relationshipKind.name());
-            metadata.put("sourceName", sourceName);
-            metadata.put("targetName", targetName);
-            metadata.put("sourceBoundary", sourceBoundary);
-            metadata.put("targetBoundary", targetBoundary);
-            metadata.put("targetClassification", targetClassification);
-            ArchitectureIrDependencyMetadataSupport.putSummaryCollections(metadata, dependencySources, dependencyCategories, frameworks, frameworkRelationships, architectureViewKinds, evidenceRelationshipIds, evidenceLabels);
-            metadata.put("underlyingRelationshipCount", evidenceRelationshipIds.size());
-            metadata.put("dependencyTier", "supporting-evidence");
-            metadata.put("architecturePrimary", false);
-            metadata.put("recommendedForArchitectureViews", false);
-            metadata.put("evidenceKind", "file-import");
-            return ArchitectureIrDependencyMetadataSupport.immutable(metadata);
+            Map<String, Object> identifiers = new LinkedHashMap<>();
+            identifiers.put("sourceEntityId", sourceEntityId);
+            identifiers.put("targetEntityId", targetEntityId);
+            identifiers.put("relationshipKind", relationshipKind.name());
+            identifiers.put("sourceName", sourceName);
+            identifiers.put("targetName", targetName);
+            Map<String, Object> metrics = new LinkedHashMap<>();
+            metrics.put("underlyingRelationshipCount", evidenceRelationshipIds.size());
+            Map<String, Object> flags = new LinkedHashMap<>();
+            flags.put("sourceBoundary", sourceBoundary);
+            flags.put("targetBoundary", targetBoundary);
+            flags.put("targetClassification", targetClassification);
+            flags.put("dependencyTier", "supporting-evidence");
+            flags.put("architecturePrimary", false);
+            flags.put("recommendedForArchitectureViews", false);
+            flags.put("evidenceKind", "file-import");
+            return DependencyViewEntry.of(
+                identifiers,
+                new DependencyViewEntry.DependencyViewSummary(
+                    List.copyOf(dependencySources),
+                    List.copyOf(dependencyCategories),
+                    List.copyOf(frameworks),
+                    List.copyOf(frameworkRelationships),
+                    List.copyOf(architectureViewKinds),
+                    List.copyOf(evidenceRelationshipIds),
+                    List.copyOf(evidenceLabels)
+                ),
+                metrics,
+                flags
+            ).toMetadataMap();
         }
     }
 }

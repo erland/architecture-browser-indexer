@@ -164,11 +164,9 @@ void addCdiEventFacts(
                     "java",
                     Map.copyOf(methodToEventMetadata)
                 ));
-                methodMetadata.put("framework", "cdi");
-                methodMetadata.put("cdiObserver", true);
-                methodMetadata.put("cdiObservedEventType", target.label());
-                methodMetadata.put("observerAsync", observed.async());
-                methodMetadata.put("observerQualifiers", observed.qualifiers());
+                JavaObserverSemantics observerSemantics = new JavaObserverSemantics(target.label(), observed.async(), observed.qualifiers());
+                methodMetadata.clear();
+                methodMetadata.putAll(observerSemantics.methodMetadata(methodEntity.metadata()));
                 methodChanged = true;
             }
         }

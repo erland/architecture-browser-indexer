@@ -97,24 +97,38 @@ final class ArchitectureIrTypeDependencyViewBuilder {
         }
 
         private Map<String, Object> toMetadataMap() {
-            Map<String, Object> metadata = new LinkedHashMap<>();
-            metadata.put("sourceTypeId", sourceTypeId);
-            metadata.put("targetTypeId", targetTypeId);
-            metadata.put("relationshipKind", relationshipKind.name());
+            Map<String, Object> identifiers = new LinkedHashMap<>();
+            identifiers.put("sourceTypeId", sourceTypeId);
+            identifiers.put("targetTypeId", targetTypeId);
+            identifiers.put("relationshipKind", relationshipKind.name());
             if (sourceTypeName != null) {
-                metadata.put("sourceTypeName", sourceTypeName);
+                identifiers.put("sourceTypeName", sourceTypeName);
             }
             if (targetTypeName != null) {
-                metadata.put("targetTypeName", targetTypeName);
+                identifiers.put("targetTypeName", targetTypeName);
             }
-            ArchitectureIrDependencyMetadataSupport.putSummaryCollections(metadata, dependencySources, dependencyCategories, frameworks, frameworkRelationships, architectureViewKinds, evidenceRelationshipIds, evidenceLabels);
-            metadata.put("sourceBoundary", sourceBoundary);
-            metadata.put("targetBoundary", targetBoundary);
-            metadata.put("targetClassification", targetClassification);
-            metadata.put("internalTarget", internalTarget);
-            metadata.put("externalTarget", externalTarget);
-            metadata.put("evidenceRelationshipCount", evidenceRelationshipIds.size());
-            return ArchitectureIrDependencyMetadataSupport.immutable(metadata);
+            Map<String, Object> metrics = new LinkedHashMap<>();
+            metrics.put("evidenceRelationshipCount", evidenceRelationshipIds.size());
+            Map<String, Object> flags = new LinkedHashMap<>();
+            flags.put("sourceBoundary", sourceBoundary);
+            flags.put("targetBoundary", targetBoundary);
+            flags.put("targetClassification", targetClassification);
+            flags.put("internalTarget", internalTarget);
+            flags.put("externalTarget", externalTarget);
+            return DependencyViewEntry.of(
+                identifiers,
+                new DependencyViewEntry.DependencyViewSummary(
+                    List.copyOf(dependencySources),
+                    List.copyOf(dependencyCategories),
+                    List.copyOf(frameworks),
+                    List.copyOf(frameworkRelationships),
+                    List.copyOf(architectureViewKinds),
+                    List.copyOf(evidenceRelationshipIds),
+                    List.copyOf(evidenceLabels)
+                ),
+                metrics,
+                flags
+            ).toMetadataMap();
         }
     }
 }
