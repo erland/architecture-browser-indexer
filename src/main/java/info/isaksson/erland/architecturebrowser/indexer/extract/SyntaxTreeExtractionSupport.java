@@ -81,7 +81,7 @@ final class SyntaxTreeExtractionSupport {
     }
 
     static int oneBasedLine(SyntaxNode node) {
-        return node == null ? 1 : node.startLine() + 1;
+        return SyntaxTreeNavigationSupport.oneBasedLine(node);
     }
 
     static String declarationName(SyntaxNode node) {
