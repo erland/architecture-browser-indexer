@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./diagnostic.schema.json",
+  "title": "Diagnostic",
+  "description": "Diagnostic object for architecture export.",
+  "type": "object",
+  "required": [
+    "severity",
+    "code",
+    "message",
+    "path",
+    "line",
+    "column",
+    "metadata"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "severity": {
+      "type": "string"
+    },
+    "code": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    },
+    "path": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "line": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "column": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "metadata": {
+      "$ref": "./common.schema.json#/$defs/stringMap"
+    }
+  }
+}

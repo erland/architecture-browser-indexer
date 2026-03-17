@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./scope.schema.json",
+  "title": "Scope",
+  "description": "Scope object for architecture export.",
+  "type": "object",
+  "required": [
+    "id",
+    "kind",
+    "name",
+    "displayName",
+    "parentScopeId",
+    "sourceRefs",
+    "metadata"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "displayName": {
+      "type": "string"
+    },
+    "parentScopeId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sourceRefs": {
+      "type": "array",
+      "items": {
+        "$ref": "./common.schema.json#/$defs/sourceReference"
+      }
+    },
+    "metadata": {
+      "$ref": "./common.schema.json#/$defs/stringMap"
+    }
+  }
+}

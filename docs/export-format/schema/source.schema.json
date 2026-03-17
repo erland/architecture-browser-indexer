@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./source.schema.json",
+  "title": "Source descriptor",
+  "description": "Source descriptor object for architecture export.",
+  "type": "object",
+  "required": [
+    "repositoryId",
+    "acquisitionType",
+    "path",
+    "remoteUrl",
+    "branch",
+    "revision",
+    "acquiredAt",
+    "metadata"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "repositoryId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "acquisitionType": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "path": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "remoteUrl": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "branch": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "revision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "acquiredAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "metadata": {
+      "$ref": "./common.schema.json#/$defs/stringMap"
+    }
+  }
+}

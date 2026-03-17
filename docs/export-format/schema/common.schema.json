@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./common.schema.json",
+  "title": "Common export schema definitions",
+  "$defs": {
+    "stringMap": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "sourceReference": {
+      "type": "object",
+      "required": [
+        "path",
+        "metadata"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "startLine": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "endLine": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "snippet": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "metadata": {
+          "$ref": "#/$defs/stringMap"
+        }
+      }
+    }
+  }
+}

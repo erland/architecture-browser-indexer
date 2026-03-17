@@ -26,25 +26,39 @@
       "type": "string",
       "description": "Indexer build/version string for operational traceability."
     },
-    "runMetadata": { "$ref": "#/$defs/runMetadata" },
-    "source": { "$ref": "#/$defs/source" },
+    "runMetadata": {
+      "$ref": "./runMetadata.schema.json"
+    },
+    "source": {
+      "$ref": "./source.schema.json"
+    },
     "scopes": {
       "type": "array",
-      "items": { "$ref": "#/$defs/scope" }
+      "items": {
+        "$ref": "./scope.schema.json"
+      }
     },
     "entities": {
       "type": "array",
-      "items": { "$ref": "#/$defs/entity" }
+      "items": {
+        "$ref": "./entity.schema.json"
+      }
     },
     "relationships": {
       "type": "array",
-      "items": { "$ref": "#/$defs/relationship" }
+      "items": {
+        "$ref": "./relationship.schema.json"
+      }
     },
     "diagnostics": {
       "type": "array",
-      "items": { "$ref": "#/$defs/diagnostic" }
+      "items": {
+        "$ref": "./diagnostic.schema.json"
+      }
     },
-    "completeness": { "$ref": "#/$defs/completeness" },
+    "completeness": {
+      "$ref": "./completeness.schema.json"
+    },
     "metadata": {
       "type": "object",
       "description": "Document-level enriched metadata. The schema intentionally leaves this extensible.",
@@ -60,139 +74,6 @@
           "type": "object",
           "description": "Optional summary and overview metadata.",
           "additionalProperties": true
-        }
-      }
-    }
-  },
-  "$defs": {
-    "stringMap": {
-      "type": "object",
-      "additionalProperties": true
-    },
-    "sourceReference": {
-      "type": "object",
-      "required": ["path", "metadata"],
-      "additionalProperties": false,
-      "properties": {
-        "path": { "type": "string" },
-        "startLine": { "type": ["integer", "null"], "minimum": 1 },
-        "endLine": { "type": ["integer", "null"], "minimum": 1 },
-        "snippet": { "type": ["string", "null"] },
-        "metadata": { "$ref": "#/$defs/stringMap" }
-      }
-    },
-    "runMetadata": {
-      "type": "object",
-      "required": ["startedAt", "completedAt", "outcome", "detectedTechnologies", "metadata"],
-      "additionalProperties": false,
-      "properties": {
-        "startedAt": { "type": ["string", "null"], "format": "date-time" },
-        "completedAt": { "type": ["string", "null"], "format": "date-time" },
-        "outcome": { "type": "string" },
-        "detectedTechnologies": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "metadata": { "$ref": "#/$defs/stringMap" }
-      }
-    },
-    "source": {
-      "type": "object",
-      "required": ["repositoryId", "acquisitionType", "path", "remoteUrl", "branch", "revision", "acquiredAt", "metadata"],
-      "additionalProperties": false,
-      "properties": {
-        "repositoryId": { "type": ["string", "null"] },
-        "acquisitionType": { "type": ["string", "null"] },
-        "path": { "type": ["string", "null"] },
-        "remoteUrl": { "type": ["string", "null"] },
-        "branch": { "type": ["string", "null"] },
-        "revision": { "type": ["string", "null"] },
-        "acquiredAt": { "type": ["string", "null"], "format": "date-time" },
-        "metadata": { "$ref": "#/$defs/stringMap" }
-      }
-    },
-    "scope": {
-      "type": "object",
-      "required": ["id", "kind", "name", "displayName", "parentScopeId", "sourceRefs", "metadata"],
-      "additionalProperties": false,
-      "properties": {
-        "id": { "type": "string" },
-        "kind": { "type": "string" },
-        "name": { "type": "string" },
-        "displayName": { "type": "string" },
-        "parentScopeId": { "type": ["string", "null"] },
-        "sourceRefs": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/sourceReference" }
-        },
-        "metadata": { "$ref": "#/$defs/stringMap" }
-      }
-    },
-    "entity": {
-      "type": "object",
-      "required": ["id", "kind", "origin", "name", "displayName", "scopeId", "sourceRefs", "metadata"],
-      "additionalProperties": false,
-      "properties": {
-        "id": { "type": "string" },
-        "kind": { "type": "string" },
-        "origin": { "type": "string" },
-        "name": { "type": "string" },
-        "displayName": { "type": "string" },
-        "scopeId": { "type": ["string", "null"] },
-        "sourceRefs": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/sourceReference" }
-        },
-        "metadata": { "$ref": "#/$defs/stringMap" }
-      }
-    },
-    "relationship": {
-      "type": "object",
-      "required": ["id", "kind", "fromEntityId", "toEntityId", "label", "sourceRefs", "metadata"],
-      "additionalProperties": false,
-      "properties": {
-        "id": { "type": "string" },
-        "kind": { "type": "string" },
-        "fromEntityId": { "type": "string" },
-        "toEntityId": { "type": "string" },
-        "label": { "type": ["string", "null"] },
-        "sourceRefs": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/sourceReference" }
-        },
-        "metadata": { "$ref": "#/$defs/stringMap" }
-      }
-    },
-    "diagnostic": {
-      "type": "object",
-      "required": ["severity", "code", "message", "path", "line", "column", "metadata"],
-      "additionalProperties": false,
-      "properties": {
-        "severity": { "type": "string" },
-        "code": { "type": "string" },
-        "message": { "type": "string" },
-        "path": { "type": ["string", "null"] },
-        "line": { "type": ["integer", "null"], "minimum": 1 },
-        "column": { "type": ["integer", "null"], "minimum": 1 },
-        "metadata": { "$ref": "#/$defs/stringMap" }
-      }
-    },
-    "completeness": {
-      "type": "object",
-      "required": ["status", "indexedFileCount", "totalFileCount", "degradedFileCount", "omittedPaths", "notes"],
-      "additionalProperties": false,
-      "properties": {
-        "status": { "type": "string" },
-        "indexedFileCount": { "type": "integer", "minimum": 0 },
-        "totalFileCount": { "type": "integer", "minimum": 0 },
-        "degradedFileCount": { "type": "integer", "minimum": 0 },
-        "omittedPaths": {
-          "type": "array",
-          "items": { "type": "string" }
-        },
-        "notes": {
-          "type": "array",
-          "items": { "type": "string" }
         }
       }
     }

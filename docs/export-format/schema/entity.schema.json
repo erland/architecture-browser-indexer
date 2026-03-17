@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./entity.schema.json",
+  "title": "Entity",
+  "description": "Entity object for architecture export.",
+  "type": "object",
+  "required": [
+    "id",
+    "kind",
+    "origin",
+    "name",
+    "displayName",
+    "scopeId",
+    "sourceRefs",
+    "metadata"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "origin": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "displayName": {
+      "type": "string"
+    },
+    "scopeId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sourceRefs": {
+      "type": "array",
+      "items": {
+        "$ref": "./common.schema.json#/$defs/sourceReference"
+      }
+    },
+    "metadata": {
+      "$ref": "./common.schema.json#/$defs/stringMap"
+    }
+  }
+}

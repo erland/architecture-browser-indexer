@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./runMetadata.schema.json",
+  "title": "Run metadata",
+  "description": "Run metadata object for architecture export.",
+  "type": "object",
+  "required": [
+    "startedAt",
+    "completedAt",
+    "outcome",
+    "detectedTechnologies",
+    "metadata"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "startedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "completedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "outcome": {
+      "type": "string"
+    },
+    "detectedTechnologies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "metadata": {
+      "$ref": "./common.schema.json#/$defs/stringMap"
+    }
+  }
+}
