@@ -112,6 +112,21 @@ Recommended decomposition order for the follow-up test cleanup work:
 6. `FrontendFrameworkBaselineRegressionTest`
 7. `ArchitectureIrFactoryStructuralExtractionTest`
 
+
+## Test taxonomy adopted for decomposition work
+
+The cleanup work now uses this taxonomy:
+
+- **Seam tests** — narrow collaborator behavior at one seam
+- **Contract/regression tests** — stable architect-facing behavior for a subsystem or feature family
+- **End-to-end acceptance tests** — broader fixture/pipeline coverage across several layers
+
+Naming and placement guidance is documented in:
+
+- `docs/test-style-guide.md`
+
+Existing large tests do not need to be mass-renamed immediately, but each decomposition step should move their replacements toward this taxonomy and keep broad acceptance tests under `src/test/java/.../regression`.
+
 ## Acceptance criteria for this baseline step
 
 This baseline step is complete when:

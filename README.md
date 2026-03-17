@@ -319,6 +319,22 @@ See also:
 - `docs/priority1-java-stage-and-ir-assembly-continuation.md`
 
 
+
+## Test taxonomy and placement
+
+The test suite decomposition work now uses an explicit taxonomy:
+
+- **Seam tests** for narrow collaborator behavior
+- **Contract/regression tests** for stable subsystem behavior
+- **End-to-end acceptance tests** for broader fixture/pipeline coverage
+
+Guidance for naming, placement, and decomposition targets is documented in:
+
+- `docs/test-style-guide.md`
+- `docs/test-suite-decomposition-baseline.md`
+
+The intent is to keep most new tests narrow, keep broad acceptance tests under `src/test/java/.../regression`, and move away from large umbrella tests that mix several architectural concerns in one file.
+
 ## Test suite decomposition status
 
 A baseline inventory for the large and coupled test cleanup work is now available in:
