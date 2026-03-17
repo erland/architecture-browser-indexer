@@ -31,11 +31,14 @@ class JavaStageEndToEndFixtureRegressionTest {
         assertEquals("POST", resourceCreateOrder.metadata().get("httpMethod"));
         assertEquals("/orders", resourceCreateOrder.metadata().get("path"));
 
-        assertEquals(Boolean.TRUE, repositorySave.metadata().get("writePath"));
         assertEquals(Boolean.TRUE, serviceCreateOrder.metadata().get("cdiEventPublisher"));
         assertEquals("com.example.orders.events.OrderCreatedEvent", serviceCreateOrder.metadata().get("cdiPublishedEventType"));
-        assertTrue(stringList(repositorySave.metadata().get("writeEntityTypes")).contains("com.example.orders.domain.OrderEntity"),
-            () -> "Expected OrderRepository#save to capture write-path entity types. Metadata=" + repositorySave.metadata());
+        assertTrue(extraction.relationships().stream().anyMatch(rel ->
+                rel.kind() == RelationshipKind.DEPENDS_ON
+                    && "writePath".equals(rel.metadata().get("relationshipType"))
+                    && "persist".equals(rel.metadata().get("writeOperation"))
+                    && "com.example.orders.domain.OrderEntity".equals(rel.metadata().get("entityType"))),
+            () -> "Expected write-path relationship for OrderEntity persist operation. Relationships=" + extraction.relationships());
 
         assertEquals(Boolean.TRUE, auditObserver.metadata().get("cdiObserver"));
         assertEquals(Boolean.FALSE, auditObserver.metadata().get("observerAsync"));

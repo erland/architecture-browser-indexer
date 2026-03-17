@@ -292,18 +292,28 @@ Priority 3 hotspot reduction is now structurally complete through Step 10. The J
 
 ## Priority 1 refactor status
 
-The Java-stage hotspot refactor is now structurally complete through Step 10.
+The Java-stage and IR-assembly hotspot refactor is now complete through Step 13.
 
 Current state:
-- `JavaSyntaxTreeExtractionStage` acts as an orchestration boundary rather than the main holder of Java extraction detail logic.
-- Java extraction work is split across dedicated flows for compilation-unit setup, traversal dispatch, type handling, field handling, method handling, dependency emission, and semantics.
-- `ArchitectureIrAssemblyCompositionSupport` remains reduced compared with the earlier baseline and is no longer the main urgent broad refactor target.
+- `JavaSyntaxTreeExtractionStage` is reduced to orchestration-first extraction setup and delegates detailed work to dedicated flows and semantics supports.
+- Java traversal now uses explicit dispatch results instead of relying on implicit local coordination.
+- `ArchitectureIrAssemblyCompositionSupport` is reduced to orchestration-first composition logic and the main IR assembly path now runs through explicit composition inputs/results.
+- Dependency-view assembly, browser/dependency handoff, and compatibility wrappers are split into explicit collaborators instead of being mixed into the main composition seam.
+- Broader end-to-end regression checks now cover both hotspot areas.
 
 Primary follow-up should now be:
-- keeping seam tests aligned with real stable contracts
-- doing only small helper cleanups where they clearly reduce duplication
-- adding future Java semantics in the dedicated owning flow/helper instead of re-growing the stage
+- keeping seam tests aligned with stable architect-facing contracts
+- making only small duplication-reduction cleanups inside extracted helpers
+- adding future Java or IR semantics in the dedicated owning collaborator instead of re-growing the orchestration seams
+
+Recommended hotspot verification:
+
+```bash
+mvn -Dtest=JavaCompilationUnitExtractionFlowTest,JavaTraversalNodeDispatchFlowTest,JavaTypeDeclarationFlowTest,JavaFieldExtractionFlowTest,JavaMethodExtractionFlowTest test
+mvn -Dtest=ArchitectureIrDependencyRelationshipEnricherTest,ArchitectureIrDependencyViewAssemblySupportTest,ArchitectureIrDependencyViewCatalogSupportTest,ArchitectureIrBrowserDependencyViewHandoffSupportTest,ArchitectureIrAssemblyCompositionOrchestrationTest test
+mvn -Dtest=JavaStageEndToEndFixtureRegressionTest,ArchitectureIrCompositionEndToEndFixtureRegressionTest test
+```
 
 See also:
-- `docs/priority1-java-stage-step10-final-cleanup.md`
-- `docs/priority1-java-stage-final-seams.md`
+- `docs/priority1-java-stage-and-ir-assembly-final-cleanup.md`
+- `docs/priority1-java-stage-and-ir-assembly-continuation.md`

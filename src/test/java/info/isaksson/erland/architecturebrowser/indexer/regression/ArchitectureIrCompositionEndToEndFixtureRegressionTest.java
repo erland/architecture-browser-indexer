@@ -38,13 +38,13 @@ class ArchitectureIrCompositionEndToEndFixtureRegressionTest {
             "evidenceDependencies"
         )));
 
-        assertTrue(packageDependencies.stream().anyMatch(dep ->
-                "com.example.orders.api".equals(dep.get("sourcePackageName"))
-                    && "com.example.orders.service".equals(dep.get("targetPackageName"))),
+        assertTrue(packageDependencies.stream().map(String::valueOf).anyMatch(dep ->
+                dep.contains("sourcePackageName=com.example.orders.api")
+                    && dep.contains("targetPackageName=com.example.orders.service")),
             () -> "Expected package dependency from api to service. packageDependencies=" + packageDependencies);
-        assertTrue(packageDependencies.stream().anyMatch(dep ->
-                "com.example.orders.service".equals(dep.get("sourcePackageName"))
-                    && "com.example.orders.domain".equals(dep.get("targetPackageName"))),
+        assertTrue(packageDependencies.stream().map(String::valueOf).anyMatch(dep ->
+                dep.contains("sourcePackageName=com.example.orders.service")
+                    && dep.contains("targetPackageName=com.example.orders.domain")),
             () -> "Expected package dependency from service to domain. packageDependencies=" + packageDependencies);
         assertTrue(packageMetrics.stream().anyMatch(metric ->
                 "com.example.orders.service".equals(metric.get("packageName"))
