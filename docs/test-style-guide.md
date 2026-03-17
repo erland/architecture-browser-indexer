@@ -166,3 +166,6 @@ Move Java- or TypeScript-specific extraction expectations into dedicated contrac
 
 
 Step 6 update: `TypeScriptArchitectureFixtureRegressionTest` has been decomposed into focused architecture concern tests including `TypeScriptArchitectureDependencyRegressionTest` and `TypeScriptArchitectureFrameworkRegressionTest`, while the original fixture regression now remains as a smaller broad-picture baseline.
+
+
+Step 7 update: `FrontendArchitectureEndToEndFixtureRegressionTest` has been decomposed into focused acceptance slices including `FrontendRoutingAcceptanceRegressionTest`, `FrontendFrameworkCompositionAcceptanceRegressionTest`, and `FrontendStateProviderAcceptanceRegressionTest`.
