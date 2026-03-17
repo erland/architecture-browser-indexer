@@ -44,7 +44,7 @@
       "id": "scope:package:com.example",
       "kind": "PACKAGE",
       "name": "com.example",
-      "displayName": "com.example",
+      "displayName": "example",
       "parentScopeId": "scope:repo",
       "sourceRefs": [
         {
@@ -66,7 +66,7 @@
       "kind": "CLASS",
       "origin": "OBSERVED",
       "name": "DemoController",
-      "displayName": "com.example.DemoController",
+      "displayName": "DemoController",
       "scopeId": "scope:package:com.example",
       "sourceRefs": [
         {
@@ -85,7 +85,7 @@
       "id": "entity:endpoint:demo",
       "kind": "ENDPOINT",
       "origin": "INFERRED",
-      "name": "Demo endpoint",
+      "name": "GET /demo",
       "displayName": "GET /demo",
       "scopeId": "scope:package:com.example",
       "sourceRefs": [

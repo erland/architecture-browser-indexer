@@ -5,7 +5,11 @@
     "startedAt": "2026-03-10T12:00:00Z",
     "completedAt": "2026-03-10T12:00:04Z",
     "outcome": "SUCCESS",
-    "detectedTechnologies": ["java", "typescript", "react"],
+    "detectedTechnologies": [
+      "java",
+      "typescript",
+      "react"
+    ],
     "metadata": {
       "exampleKind": "mixed-full"
     }
@@ -64,7 +68,7 @@
       "kind": "CLASS",
       "origin": "OBSERVED",
       "name": "OrderEntity",
-      "displayName": "com.example.domain.OrderEntity",
+      "displayName": "OrderEntity",
       "scopeId": "scope:repo",
       "sourceRefs": [],
       "metadata": {
@@ -114,9 +118,15 @@
           "sourceTypeName": "OrdersPage",
           "targetTypeName": "POST /orders",
           "relationshipKind": "DEPENDS_ON",
-          "dependencyCategories": ["api"],
-          "dependencySources": ["http-client"],
-          "frameworks": ["react"],
+          "dependencyCategories": [
+            "api"
+          ],
+          "dependencySources": [
+            "http-client"
+          ],
+          "frameworks": [
+            "react"
+          ],
           "frameworkRelationships": [],
           "architectureViewKinds": []
         }
@@ -126,9 +136,15 @@
           "sourceTypeName": "OrdersPage",
           "targetTypeName": "POST /orders",
           "relationshipKind": "DEPENDS_ON",
-          "frameworks": ["jax-rs"],
-          "frameworkRelationships": ["endpoint"],
-          "architectureViewKinds": ["endpoint"]
+          "frameworks": [
+            "jax-rs"
+          ],
+          "frameworkRelationships": [
+            "endpoint"
+          ],
+          "architectureViewKinds": [
+            "endpoint"
+          ]
         }
       ],
       "entityModelTypeDependencies": [
@@ -136,9 +152,15 @@
           "sourceTypeName": "POST /orders",
           "targetTypeName": "OrderEntity",
           "relationshipKind": "DEPENDS_ON",
-          "frameworks": ["jpa"],
-          "frameworkRelationships": ["hasAssociation"],
-          "architectureViewKinds": ["entity-model"]
+          "frameworks": [
+            "jpa"
+          ],
+          "frameworkRelationships": [
+            "hasAssociation"
+          ],
+          "architectureViewKinds": [
+            "entity-model"
+          ]
         }
       ],
       "observerTypeDependencies": [
@@ -146,9 +168,15 @@
           "sourceTypeName": "POST /orders",
           "targetTypeName": "OrderCreatedEvent",
           "relationshipKind": "DEPENDS_ON",
-          "frameworks": ["cdi"],
-          "frameworkRelationships": ["publishesEvent"],
-          "architectureViewKinds": ["observer-event"]
+          "frameworks": [
+            "cdi"
+          ],
+          "frameworkRelationships": [
+            "publishesEvent"
+          ],
+          "architectureViewKinds": [
+            "observer-event"
+          ]
         }
       ],
       "routeTypeDependencies": [
@@ -156,9 +184,15 @@
           "sourceTypeName": "/orders",
           "targetTypeName": "OrdersPage",
           "relationshipKind": "DEPENDS_ON",
-          "frameworks": ["react"],
-          "frameworkRelationships": ["targets"],
-          "architectureViewKinds": ["route"]
+          "frameworks": [
+            "react"
+          ],
+          "frameworkRelationships": [
+            "targets"
+          ],
+          "architectureViewKinds": [
+            "route"
+          ]
         }
       ],
       "recommendedEntryPoints": [
@@ -188,7 +222,13 @@
             "architectureViewKind": "route",
             "typeDependencyView": "routeTypeDependencies",
             "moduleDependencyView": "routeModuleDependencies",
-            "frameworkRelationships": ["targets", "childOf", "lazyLoads", "guards", "resolves"],
+            "frameworkRelationships": [
+              "targets",
+              "childOf",
+              "lazyLoads",
+              "guards",
+              "resolves"
+            ],
             "available": true,
             "typeDependencyCount": 1,
             "moduleDependencyCount": 0,
@@ -197,7 +237,9 @@
             "recommendedForArchitectureViews": true
           }
         ],
-        "availableViews": ["routeGraph"],
+        "availableViews": [
+          "routeGraph"
+        ],
         "defaultViewId": "routeGraph",
         "description": "Browser-facing frontend graph descriptors derived from existing dependency rollups."
       },
@@ -211,17 +253,26 @@
             "architectureViewKind": "endpoint",
             "typeDependencyView": "endpointTypeDependencies",
             "moduleDependencyView": "endpointModuleDependencies",
-            "frameworkRelationships": ["exposesEndpoint", "endpoint"],
+            "frameworkRelationships": [
+              "exposesEndpoint",
+              "endpoint"
+            ],
             "available": true,
             "typeDependencyCount": 1,
             "moduleDependencyCount": 0,
             "preferredDependencyView": "endpointTypeDependencies",
             "browserViewKind": "graph",
             "recommendedForArchitectureViews": true,
-            "typeRelationshipKinds": ["DEPENDS_ON"],
+            "typeRelationshipKinds": [
+              "DEPENDS_ON"
+            ],
             "moduleRelationshipKinds": [],
-            "availableFrameworks": ["jax-rs"],
-            "availableArchitectureViewKinds": ["endpoint"]
+            "availableFrameworks": [
+              "jax-rs"
+            ],
+            "availableArchitectureViewKinds": [
+              "endpoint"
+            ]
           },
           {
             "id": "javaEventFlowGraph",
@@ -231,23 +282,41 @@
             "architectureViewKind": "observer-event",
             "typeDependencyView": "observerTypeDependencies",
             "moduleDependencyView": "observerModuleDependencies",
-            "frameworkRelationships": ["publishesEvent", "observesEvent", "eventObservedBy"],
+            "frameworkRelationships": [
+              "publishesEvent",
+              "observesEvent",
+              "eventObservedBy"
+            ],
             "available": true,
             "typeDependencyCount": 1,
             "moduleDependencyCount": 0,
             "preferredDependencyView": "observerTypeDependencies",
             "browserViewKind": "graph",
             "recommendedForArchitectureViews": true,
-            "typeRelationshipKinds": ["DEPENDS_ON"],
+            "typeRelationshipKinds": [
+              "DEPENDS_ON"
+            ],
             "moduleRelationshipKinds": [],
-            "availableFrameworks": ["cdi"],
-            "availableArchitectureViewKinds": ["observer-event"]
+            "availableFrameworks": [
+              "cdi"
+            ],
+            "availableArchitectureViewKinds": [
+              "observer-event"
+            ]
           }
         ],
-        "availableViews": ["javaEndpointGraph", "javaEventFlowGraph"],
+        "availableViews": [
+          "javaEndpointGraph",
+          "javaEventFlowGraph"
+        ],
         "defaultViewId": "javaEndpointGraph",
         "description": "Browser-facing Java backend graph descriptors derived from framework-aware dependency rollups.",
-        "recommendedEntryPoints": ["javaEndpointGraph", "javaEntityModelGraph", "javaEventFlowGraph", "javaWritePathGraph"]
+        "recommendedEntryPoints": [
+          "javaEndpointGraph",
+          "javaEntityModelGraph",
+          "javaEventFlowGraph",
+          "javaWritePathGraph"
+        ]
       },
       "browserViewCatalog": {
         "families": [
@@ -255,7 +324,9 @@
             "id": "frontend",
             "title": "Frontend browser views",
             "available": true,
-            "availableViewIds": ["routeGraph"],
+            "availableViewIds": [
+              "routeGraph"
+            ],
             "defaultViewId": "routeGraph",
             "viewCount": 1,
             "description": "Browser-facing frontend graph descriptors derived from existing dependency rollups."
@@ -264,19 +335,84 @@
             "id": "java",
             "title": "Java backend browser views",
             "available": true,
-            "availableViewIds": ["javaEndpointGraph", "javaEventFlowGraph"],
+            "availableViewIds": [
+              "javaEndpointGraph",
+              "javaEventFlowGraph"
+            ],
             "defaultViewId": "javaEndpointGraph",
             "viewCount": 2,
             "description": "Browser-facing Java backend graph descriptors derived from framework-aware dependency rollups."
           }
         ],
-        "availableFamilies": ["frontend", "java"],
+        "availableFamilies": [
+          "frontend",
+          "java"
+        ],
         "defaultFamily": "frontend",
         "description": "High-level browser view families exported with the architecture index document."
       },
       "hasFrontendBrowserView": true,
       "hasJavaBrowserView": true,
-      "evidenceStatus": "available"
+      "evidenceStatus": "available",
+      "packageDependencies": [],
+      "moduleDependencies": [],
+      "evidenceDependencies": [],
+      "frameworkTypeDependencies": [],
+      "frameworkModuleDependencies": [],
+      "compositionTypeDependencies": [],
+      "compositionModuleDependencies": [],
+      "routeModuleDependencies": [],
+      "providerTypeDependencies": [],
+      "providerModuleDependencies": [],
+      "hookTypeDependencies": [],
+      "hookModuleDependencies": [],
+      "endpointModuleDependencies": [],
+      "entityModelModuleDependencies": [],
+      "observerModuleDependencies": [],
+      "writePathTypeDependencies": [],
+      "writePathModuleDependencies": [],
+      "packageMetrics": [],
+      "boundarySummary": {},
+      "frontendArchitectureViews": {
+        "frameworkAware": [
+          "frameworkTypeDependencies",
+          "frameworkModuleDependencies"
+        ],
+        "composition": [
+          "compositionTypeDependencies",
+          "compositionModuleDependencies"
+        ],
+        "routing": [
+          "routeTypeDependencies",
+          "routeModuleDependencies"
+        ],
+        "providerAndDi": [
+          "providerTypeDependencies",
+          "providerModuleDependencies"
+        ],
+        "hooks": [
+          "hookTypeDependencies",
+          "hookModuleDependencies"
+        ]
+      },
+      "javaFrameworkArchitectureViews": {
+        "endpoints": [
+          "endpointTypeDependencies",
+          "endpointModuleDependencies"
+        ],
+        "entityModel": [
+          "entityModelTypeDependencies",
+          "entityModelModuleDependencies"
+        ],
+        "observerEvents": [
+          "observerTypeDependencies",
+          "observerModuleDependencies"
+        ],
+        "writePaths": [
+          "writePathTypeDependencies",
+          "writePathModuleDependencies"
+        ]
+      }
     },
     "summary": {
       "entityCount": 4,

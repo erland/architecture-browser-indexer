@@ -378,7 +378,7 @@ A scope object currently has this broad shape:
   "id": "scope:package:com.example",
   "kind": "PACKAGE",
   "name": "com.example",
-  "displayName": "com.example",
+  "displayName": "example",
   "parentScopeId": "scope:repo",
   "sourceRefs": [
     {
@@ -417,7 +417,7 @@ Consumers should treat these as the primary architecture-node contract:
 - `id` — document-unique node identity
 - `kind` — broad entity category
 - `origin` — observed vs inferred
-- `name` / `displayName` — logical and display-oriented naming
+- `name` / `displayName` — logical and display-oriented naming. For many observed declarations, both are short names; fully qualified canonical names commonly live in `metadata.qualifiedName`. Some interpreted entities such as endpoints use `name` for the stable canonical label and `displayName` for a richer UI-oriented label.
 - `scopeId` — where the entity belongs structurally
 
 ### Entity metadata
@@ -440,7 +440,7 @@ These fields are valuable, but many are enriched/derived rather than the narrowe
   "kind": "CLASS",
   "origin": "OBSERVED",
   "name": "DemoController",
-  "displayName": "com.example.DemoController",
+  "displayName": "DemoController",
   "scopeId": "scope:package:com.example",
   "sourceRefs": [
     {
@@ -464,8 +464,8 @@ These fields are valuable, but many are enriched/derived rather than the narrowe
   "id": "entity:endpoint:demo",
   "kind": "ENDPOINT",
   "origin": "INFERRED",
-  "name": "Demo endpoint",
-  "displayName": "GET /demo",
+  "name": "GET /demo",
+  "displayName": "DemoController endpoint GET /demo",
   "scopeId": "scope:package:com.example",
   "sourceRefs": [
     {

@@ -158,3 +158,8 @@ Do not silently promote enriched metadata into the stable contract. If a formerl
 - `export-format-spec.md`
 - `versioning-and-compatibility.md`
 - the schema files and contract tests, if the stable structure changed
+
+
+## Name vs displayName note
+
+The current code does **not** treat `name` as a universally fully qualified canonical name with `displayName` as a universally short name. In current emitters, many observed declarations use short names for both `name` and `displayName`, while canonical fully qualified values often live in metadata such as `metadata.qualifiedName`. Some interpreted entities, especially endpoints, use `name` for the stable canonical label (for example `GET /orders`) and `displayName` for a richer UI-oriented label (for example `OrderResource endpoint GET /orders`).

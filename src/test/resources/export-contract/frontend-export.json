@@ -5,7 +5,10 @@
     "startedAt": "2026-03-10T12:00:00Z",
     "completedAt": "2026-03-10T12:00:02Z",
     "outcome": "SUCCESS",
-    "detectedTechnologies": ["typescript", "react"],
+    "detectedTechnologies": [
+      "typescript",
+      "react"
+    ],
     "metadata": {
       "exampleKind": "frontend"
     }
@@ -55,7 +58,7 @@
       "metadata": {
         "framework": "react",
         "moduleProfile": "component",
-        "qualifiedName": "src/app/OrdersPage.tsx::OrdersPage"
+        "qualifiedName": "OrdersPage"
       }
     },
     {
@@ -107,8 +110,12 @@
       "label": "targets OrdersPage",
       "sourceRefs": [],
       "metadata": {
-        "frameworks": ["react"],
-        "frameworkRelationships": ["targets"]
+        "frameworks": [
+          "react"
+        ],
+        "frameworkRelationships": [
+          "targets"
+        ]
       }
     },
     {
@@ -119,8 +126,12 @@
       "label": "uses hook",
       "sourceRefs": [],
       "metadata": {
-        "frameworks": ["react"],
-        "frameworkRelationships": ["usesHook"]
+        "frameworks": [
+          "react"
+        ],
+        "frameworkRelationships": [
+          "usesHook"
+        ]
       }
     }
   ],
@@ -140,9 +151,15 @@
           "sourceTypeName": "OrdersProvider",
           "targetTypeName": "OrdersPage",
           "relationshipKind": "DEPENDS_ON",
-          "frameworks": ["react"],
-          "frameworkRelationships": ["renders"],
-          "architectureViewKinds": ["composition"]
+          "frameworks": [
+            "react"
+          ],
+          "frameworkRelationships": [
+            "renders"
+          ],
+          "architectureViewKinds": [
+            "composition"
+          ]
         }
       ],
       "routeTypeDependencies": [
@@ -150,9 +167,15 @@
           "sourceTypeName": "/orders",
           "targetTypeName": "OrdersPage",
           "relationshipKind": "DEPENDS_ON",
-          "frameworks": ["react"],
-          "frameworkRelationships": ["targets"],
-          "architectureViewKinds": ["route"]
+          "frameworks": [
+            "react"
+          ],
+          "frameworkRelationships": [
+            "targets"
+          ],
+          "architectureViewKinds": [
+            "route"
+          ]
         }
       ],
       "providerTypeDependencies": [
@@ -160,9 +183,15 @@
           "sourceTypeName": "OrdersProvider",
           "targetTypeName": "OrdersPage",
           "relationshipKind": "DEPENDS_ON",
-          "frameworks": ["react"],
-          "frameworkRelationships": ["providesContext"],
-          "architectureViewKinds": ["provider-di"]
+          "frameworks": [
+            "react"
+          ],
+          "frameworkRelationships": [
+            "providesContext"
+          ],
+          "architectureViewKinds": [
+            "provider-di"
+          ]
         }
       ],
       "hookTypeDependencies": [
@@ -170,25 +199,27 @@
           "sourceTypeName": "OrdersPage",
           "targetTypeName": "useOrders",
           "relationshipKind": "DEPENDS_ON",
-          "frameworks": ["react"],
-          "frameworkRelationships": ["usesHook"],
-          "architectureViewKinds": ["hook"]
+          "frameworks": [
+            "react"
+          ],
+          "frameworkRelationships": [
+            "usesHook"
+          ],
+          "architectureViewKinds": [
+            "hook"
+          ]
         }
       ],
       "recommendedEntryPoints": [
         "packageDependencies",
         "typeDependencies",
         "moduleDependencies",
-        "frameworkTypeDependencies",
-        "frameworkModuleDependencies",
         "evidenceDependencies"
       ],
       "primaryArchitectureViews": [
         "packageDependencies",
         "typeDependencies",
-        "moduleDependencies",
-        "frameworkTypeDependencies",
-        "frameworkModuleDependencies"
+        "moduleDependencies"
       ],
       "frontendBrowserViews": {
         "views": [
@@ -200,7 +231,13 @@
             "architectureViewKind": "route",
             "typeDependencyView": "routeTypeDependencies",
             "moduleDependencyView": "routeModuleDependencies",
-            "frameworkRelationships": ["targets", "childOf", "lazyLoads", "guards", "resolves"],
+            "frameworkRelationships": [
+              "targets",
+              "childOf",
+              "lazyLoads",
+              "guards",
+              "resolves"
+            ],
             "available": true,
             "typeDependencyCount": 1,
             "moduleDependencyCount": 0,
@@ -216,7 +253,10 @@
             "architectureViewKind": "provider-di",
             "typeDependencyView": "providerTypeDependencies",
             "moduleDependencyView": "providerModuleDependencies",
-            "frameworkRelationships": ["providesContext", "consumesContext"],
+            "frameworkRelationships": [
+              "providesContext",
+              "consumesContext"
+            ],
             "available": true,
             "typeDependencyCount": 1,
             "moduleDependencyCount": 0,
@@ -225,7 +265,10 @@
             "recommendedForArchitectureViews": true
           }
         ],
-        "availableViews": ["routeGraph", "reactContextGraph"],
+        "availableViews": [
+          "routeGraph",
+          "reactContextGraph"
+        ],
         "defaultViewId": "routeGraph",
         "description": "Browser-facing frontend graph descriptors derived from existing dependency rollups."
       },
@@ -235,18 +278,83 @@
             "id": "frontend",
             "title": "Frontend browser views",
             "available": true,
-            "availableViewIds": ["routeGraph", "reactContextGraph"],
+            "availableViewIds": [
+              "routeGraph",
+              "reactContextGraph"
+            ],
             "defaultViewId": "routeGraph",
             "viewCount": 2,
             "description": "Browser-facing frontend graph descriptors derived from existing dependency rollups."
           }
         ],
-        "availableFamilies": ["frontend"],
+        "availableFamilies": [
+          "frontend"
+        ],
         "defaultFamily": "frontend",
         "description": "High-level browser view families exported with the architecture index document."
       },
       "hasFrontendBrowserView": true,
-      "evidenceStatus": "available"
+      "evidenceStatus": "available",
+      "typeDependencies": [],
+      "packageDependencies": [],
+      "moduleDependencies": [],
+      "evidenceDependencies": [],
+      "frameworkTypeDependencies": [],
+      "frameworkModuleDependencies": [],
+      "compositionModuleDependencies": [],
+      "routeModuleDependencies": [],
+      "providerModuleDependencies": [],
+      "hookModuleDependencies": [],
+      "endpointTypeDependencies": [],
+      "endpointModuleDependencies": [],
+      "entityModelTypeDependencies": [],
+      "entityModelModuleDependencies": [],
+      "observerTypeDependencies": [],
+      "observerModuleDependencies": [],
+      "writePathTypeDependencies": [],
+      "writePathModuleDependencies": [],
+      "packageMetrics": [],
+      "boundarySummary": {},
+      "frontendArchitectureViews": {
+        "frameworkAware": [
+          "frameworkTypeDependencies",
+          "frameworkModuleDependencies"
+        ],
+        "composition": [
+          "compositionTypeDependencies",
+          "compositionModuleDependencies"
+        ],
+        "routing": [
+          "routeTypeDependencies",
+          "routeModuleDependencies"
+        ],
+        "providerAndDi": [
+          "providerTypeDependencies",
+          "providerModuleDependencies"
+        ],
+        "hooks": [
+          "hookTypeDependencies",
+          "hookModuleDependencies"
+        ]
+      },
+      "javaFrameworkArchitectureViews": {
+        "endpoints": [
+          "endpointTypeDependencies",
+          "endpointModuleDependencies"
+        ],
+        "entityModel": [
+          "entityModelTypeDependencies",
+          "entityModelModuleDependencies"
+        ],
+        "observerEvents": [
+          "observerTypeDependencies",
+          "observerModuleDependencies"
+        ],
+        "writePaths": [
+          "writePathTypeDependencies",
+          "writePathModuleDependencies"
+        ]
+      }
     }
   }
 }

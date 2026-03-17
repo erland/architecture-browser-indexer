@@ -5,7 +5,9 @@
     "startedAt": "2026-03-10T12:00:00Z",
     "completedAt": "2026-03-10T12:00:01Z",
     "outcome": "SUCCESS",
-    "detectedTechnologies": ["java"],
+    "detectedTechnologies": [
+      "java"
+    ],
     "metadata": {
       "exampleKind": "minimal"
     }
@@ -37,7 +39,7 @@
       "kind": "CLASS",
       "origin": "OBSERVED",
       "name": "DemoController",
-      "displayName": "com.example.DemoController",
+      "displayName": "DemoController",
       "scopeId": "scope:repo",
       "sourceRefs": [
         {
