@@ -443,3 +443,10 @@ Java extraction contract regression concerns were decomposed into:
 - JavaDeclarationOwnershipContractRegressionTest
 - JavaHierarchyContractRegressionTest
 - JavaFieldAndMethodDependencyContractRegressionTest
+
+
+Angular TypeScript framework semantics concerns were decomposed into:
+- AngularDecoratorPayloadExtractionRegressionTest
+- AngularDependencyInjectionExtractionRegressionTest
+
+The remaining AngularTypeScriptFrameworkSemanticsRegressionTest now acts as a smaller broad baseline for Angular framework relationships and template-composition behavior.
