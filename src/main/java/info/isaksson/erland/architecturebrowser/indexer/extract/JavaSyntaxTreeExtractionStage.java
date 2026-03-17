@@ -340,7 +340,7 @@ final class JavaSyntaxTreeExtractionStage {
     }
 
 
-    private static boolean isJpaPersistentType(String snippet, ExtractedEntityFact entity) {
+    static boolean isJpaPersistentType(String snippet, ExtractedEntityFact entity) {
         if (hasAnnotation(metadataStringList(entity == null ? null : entity.metadata().get("annotations")), "Entity")
             || hasAnnotation(metadataStringList(entity == null ? null : entity.metadata().get("annotations")), "Embeddable")
             || hasAnnotation(metadataStringList(entity == null ? null : entity.metadata().get("annotations")), "MappedSuperclass")) {
@@ -350,7 +350,7 @@ final class JavaSyntaxTreeExtractionStage {
         return lower.contains("@entity") || lower.contains("@embeddable") || lower.contains("@mappedsuperclass");
     }
 
-    private static Optional<String> detectJpaTypeKind(String snippet, ExtractedEntityFact entity) {
+    static Optional<String> detectJpaTypeKind(String snippet, ExtractedEntityFact entity) {
         List<String> annotations = metadataStringList(entity == null ? null : entity.metadata().get("annotations"));
         if (hasAnnotation(annotations, "Embeddable") || containsAnnotationSnippet(snippet, "Embeddable")) {
             return Optional.of("embeddable");
@@ -379,7 +379,7 @@ final class JavaSyntaxTreeExtractionStage {
         return snippet.toLowerCase(Locale.ROOT).contains("@" + simpleName.toLowerCase(Locale.ROOT));
     }
 
-    private static Optional<String> extractJpaTableName(String snippet) {
+    static Optional<String> extractJpaTableName(String snippet) {
         return extractAnnotationStringAttribute(snippet, "Table", "name");
     }
 
@@ -401,7 +401,7 @@ final class JavaSyntaxTreeExtractionStage {
             .or(() -> extractAnnotationStringAttribute(snippet, "ManyToMany", "mappedBy"));
     }
 
-    private static Optional<String> extractJpaInheritanceStrategy(String snippet) {
+    static Optional<String> extractJpaInheritanceStrategy(String snippet) {
         if (snippet == null || snippet.isBlank()) {
             return Optional.empty();
         }
@@ -474,7 +474,7 @@ final class JavaSyntaxTreeExtractionStage {
 
 
 
-    private static boolean isJaxRsResource(ExtractedEntityFact entity) {
+    static boolean isJaxRsResource(ExtractedEntityFact entity) {
         return metadataStringList(entity.metadata().get("annotations")).stream()
             .map(value -> value.toLowerCase(Locale.ROOT))
             .anyMatch(value -> value.endsWith("path"));
@@ -494,7 +494,7 @@ final class JavaSyntaxTreeExtractionStage {
         return Optional.empty();
     }
 
-    private static Optional<String> extractJaxRsPath(String snippet) {
+    static Optional<String> extractJaxRsPath(String snippet) {
         if (snippet == null || snippet.isBlank()) {
             return Optional.empty();
         }
@@ -509,7 +509,7 @@ final class JavaSyntaxTreeExtractionStage {
         return Optional.empty();
     }
 
-    private static String normalizeJaxRsPath(String value) {
+    static String normalizeJaxRsPath(String value) {
         if (value == null || value.isBlank()) {
             return "/";
         }

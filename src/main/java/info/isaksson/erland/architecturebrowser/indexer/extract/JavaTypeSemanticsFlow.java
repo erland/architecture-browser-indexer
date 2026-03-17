@@ -8,20 +8,14 @@ import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxNode;
 import java.util.Map;
 
 final class JavaTypeSemanticsFlow {
-    private final JavaSyntaxTreeExtractionStage.JavaJaxRsSemantics jaxRsSemantics;
-    private final JavaSyntaxTreeExtractionStage.JavaJpaSemantics jpaSemantics;
+    private final JavaTypeNodeSemanticsSupport typeNodeSemanticsSupport;
 
-    JavaTypeSemanticsFlow(
-        JavaSyntaxTreeExtractionStage.JavaJaxRsSemantics jaxRsSemantics,
-        JavaSyntaxTreeExtractionStage.JavaJpaSemantics jpaSemantics
-    ) {
-        this.jaxRsSemantics = jaxRsSemantics;
-        this.jpaSemantics = jpaSemantics;
+    JavaTypeSemanticsFlow(JavaTypeNodeSemanticsSupport typeNodeSemanticsSupport) {
+        this.typeNodeSemanticsSupport = typeNodeSemanticsSupport;
     }
 
     void applyTypeSemantics(ExtractionAccumulator accumulator, JavaTypeContext typeContext) {
-        jaxRsSemantics.addJaxRsResourceMetadata(accumulator, typeContext);
-        jpaSemantics.addJpaTypeMetadata(accumulator, typeContext);
+        typeNodeSemanticsSupport.applyTypeSemantics(accumulator, typeContext);
     }
 
     void applyJpaInheritanceFacts(
@@ -33,13 +27,10 @@ final class JavaTypeSemanticsFlow {
         Map<String, String> importsBySimpleName,
         Map<String, JavaDeclaredType> declaredTypes
     ) {
-        jpaSemantics.addJpaInheritanceFacts(accumulator, relativePath, packageName, typeNode, typeEntity, importsBySimpleName, declaredTypes);
+        typeNodeSemanticsSupport.addJpaInheritanceFacts(accumulator, relativePath, packageName, typeNode, typeEntity, importsBySimpleName, declaredTypes);
     }
 
     static String typeNodeSnippet(SyntaxNode typeNode, ExtractedEntityFact typeEntity) {
-        if (typeEntity != null && !typeEntity.sourceRefs().isEmpty() && typeEntity.sourceRefs().getFirst().snippet() != null) {
-            return typeEntity.sourceRefs().getFirst().snippet();
-        }
-        return typeNode == null ? "" : typeNode.textSnippet();
+        return JavaTypeNodeSemanticsSupport.typeNodeSnippet(typeNode, typeEntity);
     }
 }

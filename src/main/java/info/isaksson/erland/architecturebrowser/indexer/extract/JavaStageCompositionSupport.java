@@ -12,7 +12,7 @@ final class JavaStageCompositionSupport {
         JavaSyntaxTreeExtractionStage.JavaWritePathSemantics writePathSemantics = stage.new JavaWritePathSemantics();
 
         JavaEntityMapper entityMapper = new JavaEntityMapper();
-        JavaTypeSemanticsFlow typeSemanticsFlow = new JavaTypeSemanticsFlow(jaxRsSemantics, jpaSemantics);
+        JavaTypeSemanticsFlow typeSemanticsFlow = new JavaTypeSemanticsFlow(new JavaTypeNodeSemanticsSupport(relationshipEvidenceEmitter));
         JavaTypeDeclarationFlow typeDeclarationFlow = new JavaTypeDeclarationFlow(
             entityMapper,
             dependencyEmissionFlow,
