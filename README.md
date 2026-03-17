@@ -347,3 +347,8 @@ Current highest-priority decomposition targets:
 - `FrontendArchitectureEndToEndFixtureRegressionTest`
 
 This baseline step is documentation-only and is intended to define the cleanup target list before test decomposition begins.
+
+
+## Shared contract assertion helpers
+
+Broad architecture regressions should prefer `ArchitectureContractAssertions` helpers over repeated raw metadata scans. This keeps tests closer to architect-facing contracts and reduces brittleness during internal refactors.

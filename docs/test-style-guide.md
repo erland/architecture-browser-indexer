@@ -141,3 +141,8 @@ During the decomposition work:
 - feature-family regressions should use regression-oriented names
 - broad fixture acceptance tests should stay under `regression`
 - existing large file names do not need to be mass-renamed in one pass, but each decomposition step should move toward this taxonomy
+
+
+## Contract Assertion Helpers
+
+Use shared helpers in `src/test/java/.../testing/ArchitectureContractAssertions` for architecture-level expectations instead of repeating raw list/map scans in large regression tests. Prefer helpers such as `assertHasEndpoint(...)`, `assertHasPackageDependency(...)`, `assertPublishesEvent(...)`, `assertObservesEvent(...)`, `assertHasFrameworkDependencyView(...)`, and `assertContainsViews(...)` when the goal is to assert stable behavior rather than internal representation shape.

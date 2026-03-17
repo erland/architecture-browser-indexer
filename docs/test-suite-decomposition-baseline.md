@@ -141,3 +141,8 @@ This baseline step is complete when:
 ## Immediate next step
 
 Proceed to defining an explicit test taxonomy and naming/placement guidance so the later decomposition work has a consistent structure.
+
+
+## Step 3 status
+
+Shared contract assertion helpers are now the preferred mechanism for architecture-level assertions in broad regression tests. The next decomposition steps should migrate repeated raw scans toward these helpers before splitting the largest umbrella test classes.

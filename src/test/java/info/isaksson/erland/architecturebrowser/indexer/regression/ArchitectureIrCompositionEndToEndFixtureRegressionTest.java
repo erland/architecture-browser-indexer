@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertContainsViews;
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasFrameworkDependencyView;
 import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasPackageDependency;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

@@ -7,7 +7,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasEndpoint;
 import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasRelationshipByLabel;
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasRelationshipKind;
 import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertObservesEvent;
 import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertPublishesEvent;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,9 +32,7 @@ class JavaStageEndToEndFixtureRegressionTest {
         ExtractedEntityFact auditObserver = methodByFile(extraction, "src/main/java/com/example/orders/events/OrderCreatedAuditObserver.java", "onOrderCreated");
         ExtractedEntityFact asyncObserver = methodByFile(extraction, "src/main/java/com/example/orders/events/OrderCreatedAsyncProjector.java", "onOrderCreatedAsync");
 
-        assertEquals(Boolean.TRUE, resourceCreateOrder.metadata().get("jaxRsEndpoint"));
-        assertEquals("POST", resourceCreateOrder.metadata().get("httpMethod"));
-        assertEquals("/orders", resourceCreateOrder.metadata().get("path"));
+        assertHasEndpoint(resourceCreateOrder, "POST", "/orders");
 
         assertEquals(Boolean.TRUE, serviceCreateOrder.metadata().get("cdiEventPublisher"));
         assertEquals("com.example.orders.events.OrderCreatedEvent", serviceCreateOrder.metadata().get("cdiPublishedEventType"));
@@ -52,16 +52,8 @@ class JavaStageEndToEndFixtureRegressionTest {
         assertPublishesEvent(extraction.relationships(), "com.example.orders.events.OrderCreatedEvent", "createOrder");
         assertObservesEvent(extraction.relationships(), "com.example.orders.events.OrderCreatedEvent", "onOrderCreated", null);
         assertObservesEvent(extraction.relationships(), "com.example.orders.events.OrderCreatedEvent", "onOrderCreatedAsync", Boolean.TRUE);
-        assertTrue(extraction.relationships().stream().anyMatch(rel ->
-                rel.kind() == RelationshipKind.DEPENDS_ON
-                    && "hasAssociation".equals(rel.metadata().get("relationshipType"))
-                    && "com.example.orders.domain.CustomerEntity".equals(rel.label())),
-            () -> "Expected JPA association relationship. Relationships=" + extraction.relationships());
-        assertTrue(extraction.relationships().stream().anyMatch(rel ->
-                rel.kind() == RelationshipKind.DEPENDS_ON
-                    && "embeds".equals(rel.metadata().get("relationshipType"))
-                    && "com.example.orders.domain.AddressValue".equals(rel.label())),
-            () -> "Expected JPA embedded-value relationship. Relationships=" + extraction.relationships());
+        assertHasRelationshipKind(extraction.relationships(), RelationshipKind.DEPENDS_ON, "hasAssociation");
+        assertHasRelationshipKind(extraction.relationships(), RelationshipKind.DEPENDS_ON, "embeds");
     }
 
     private static ExtractedEntityFact methodByFile(StructuralExtractionResult result, String path, String name) {
@@ -71,12 +63,5 @@ class JavaStageEndToEndFixtureRegressionTest {
             .filter(entity -> entity.sourceRefs().stream().anyMatch(ref -> path.equals(ref.path())))
             .findFirst()
             .orElseThrow(() -> new AssertionError("Missing method " + path + "#" + name + ". Entities=" + result.entities()));
-    }
-
-    private static List<String> stringList(Object value) {
-        if (value instanceof List<?> list) {
-            return list.stream().map(String::valueOf).toList();
-        }
-        return List.of();
     }
 }
