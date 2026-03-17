@@ -21,77 +21,22 @@ final class ArchitectureIrGenericDependencyCategoryEnricher {
         Map<String, Object> metadata,
         Map<String, ArchitectureEntity> entitiesById
     ) {
-        boolean packageRollup = hasRollup(relationship, "package-package");
-        boolean moduleRollup = hasRollup(relationship, "module-module");
-        boolean packageDependencyRelationship = packageRollup || isPackageDependencyRelationship(relationship, source, target);
-        boolean moduleDependencyRelationship = moduleRollup || isModuleDependencyRelationship(relationship, source, target);
-        if (isTypeDependencyRelationship(relationship, source, target)) {
-            metadata.put("dependencyView", "type");
-            metadata.put("dependencySourceTypeId", source == null ? relationship.fromEntityId() : source.id());
-            metadata.put("dependencyTargetTypeId", target == null ? relationship.toEntityId() : target.id());
-            metadata.put("dependencySourceBoundary", boundaryForEntity(source));
-            metadata.put("dependencyTargetBoundary", boundaryForEntity(target));
-            metadata.put("dependencyTargetInternal", isInternalEntity(target));
-            metadata.put("dependencyTargetExternal", isExternalEntity(target));
-            metadata.put("dependencyTargetClassification", typeClassificationForEntity(target));
-            String sourcePackageName = packageNameForDependencyEntity(source);
-            String targetPackageName = packageNameForDependencyEntity(target);
-            if (sourcePackageName != null) {
-                metadata.put("dependencySourcePackageName", sourcePackageName);
-                metadata.put("dependencySourcePackageBoundary", packageBoundaryForName(sourcePackageName, entitiesById));
-            }
-            if (targetPackageName != null) {
-                metadata.put("dependencyTargetPackageName", targetPackageName);
-                metadata.put("dependencyTargetPackageBoundary", packageBoundaryForName(targetPackageName, entitiesById));
-                metadata.put("dependencyTargetPackageClassification", packageClassificationForName(targetPackageName, entitiesById));
-            }
-            return metadata;
+        if (ArchitectureIrTypeDependencyCategoryEnricher.shouldEnrich(relationship, source, target)) {
+            return ArchitectureIrTypeDependencyCategoryEnricher.enrich(relationship, source, target, metadata, entitiesById);
         }
-        if (packageDependencyRelationship) {
-            metadata.put("dependencyView", "package");
-            metadata.put("dependencySourcePackageId", relationship.fromEntityId());
-            metadata.put("dependencyTargetPackageId", relationship.toEntityId());
-            String sourcePackageName = source == null ? null : source.name();
-            String targetPackageName = target == null ? null : target.name();
-            if (sourcePackageName != null) {
-                metadata.put("dependencySourcePackageName", sourcePackageName);
-                metadata.put("dependencySourcePackageBoundary", packageBoundaryForName(sourcePackageName, entitiesById));
-            }
-            if (targetPackageName != null) {
-                metadata.put("dependencyTargetPackageName", targetPackageName);
-                metadata.put("dependencyTargetPackageBoundary", packageBoundaryForName(targetPackageName, entitiesById));
-                metadata.put("dependencyTargetPackageClassification", packageClassificationForName(targetPackageName, entitiesById));
-            }
-            metadata.put("dependencyTargetBoundary", targetPackageName == null ? "unknown" : packageBoundaryForName(targetPackageName, entitiesById));
-            return metadata;
+        if (ArchitectureIrPackageDependencyCategoryEnricher.shouldEnrich(relationship, source, target)) {
+            return ArchitectureIrPackageDependencyCategoryEnricher.enrich(relationship, source, target, metadata, entitiesById);
         }
-        if (moduleDependencyRelationship) {
-            metadata.put("dependencyView", "module");
-            metadata.put("dependencySourceModuleId", relationship.fromEntityId());
-            metadata.put("dependencyTargetModuleId", relationship.toEntityId());
-            String sourceModuleName = source == null ? null : moduleNameForDependencyEntity(source);
-            String targetModuleName = target == null ? null : moduleNameForDependencyEntity(target);
-            if (sourceModuleName != null) {
-                metadata.put("dependencySourceModuleName", sourceModuleName);
-                metadata.put("dependencySourceModuleBoundary", moduleBoundaryForName(sourceModuleName, entitiesById));
-            }
-            if (targetModuleName != null) {
-                metadata.put("dependencyTargetModuleName", targetModuleName);
-                metadata.put("dependencyTargetModuleBoundary", moduleBoundaryForName(targetModuleName, entitiesById));
-                metadata.put("dependencyTargetModuleClassification", moduleClassificationForName(targetModuleName, entitiesById));
-            }
-            metadata.put("dependencyTargetBoundary", targetModuleName == null ? "unknown" : moduleBoundaryForName(targetModuleName, entitiesById));
-            metadata.put("sameModule", Objects.equals(sourceModuleName, targetModuleName));
+        if (ArchitectureIrModuleDependencyCategoryEnricher.shouldEnrich(relationship, source, target)) {
+            return ArchitectureIrModuleDependencyCategoryEnricher.enrich(relationship, source, target, metadata, entitiesById);
         }
         return metadata;
     }
 
     static boolean shouldEnrich(ArchitectureRelationship relationship, ArchitectureEntity source, ArchitectureEntity target) {
-        return isTypeDependencyRelationship(relationship, source, target)
-            || hasRollup(relationship, "package-package")
-            || hasRollup(relationship, "module-module")
-            || isPackageDependencyRelationship(relationship, source, target)
-            || isModuleDependencyRelationship(relationship, source, target);
+        return ArchitectureIrTypeDependencyCategoryEnricher.shouldEnrich(relationship, source, target)
+            || ArchitectureIrPackageDependencyCategoryEnricher.shouldEnrich(relationship, source, target)
+            || ArchitectureIrModuleDependencyCategoryEnricher.shouldEnrich(relationship, source, target);
     }
 
     static boolean isDependencyRelationship(RelationshipKind kind) {
@@ -101,13 +46,13 @@ final class ArchitectureIrGenericDependencyCategoryEnricher {
             || kind == RelationshipKind.EXPOSES;
     }
 
-    private static boolean hasRollup(ArchitectureRelationship relationship, String expectedRollup) {
+    static boolean hasRollup(ArchitectureRelationship relationship, String expectedRollup) {
         return relationship != null
             && relationship.metadata() != null
             && Objects.equals(expectedRollup, relationship.metadata().get("rollup"));
     }
 
-    private static boolean isTypeDependencyRelationship(
+    static boolean isTypeDependencyRelationship(
         ArchitectureRelationship relationship,
         ArchitectureEntity source,
         ArchitectureEntity target
@@ -115,7 +60,7 @@ final class ArchitectureIrGenericDependencyCategoryEnricher {
         return isDependencyRelationship(relationship.kind()) && isTypeEntity(source) && isTypeEntity(target);
     }
 
-    private static boolean isPackageDependencyRelationship(
+    static boolean isPackageDependencyRelationship(
         ArchitectureRelationship relationship,
         ArchitectureEntity source,
         ArchitectureEntity target
@@ -130,7 +75,7 @@ final class ArchitectureIrGenericDependencyCategoryEnricher {
             && isPackageEntity(target);
     }
 
-    private static boolean isModuleDependencyRelationship(
+    static boolean isModuleDependencyRelationship(
         ArchitectureRelationship relationship,
         ArchitectureEntity source,
         ArchitectureEntity target
@@ -145,7 +90,7 @@ final class ArchitectureIrGenericDependencyCategoryEnricher {
             && isSourceRootEntity(target);
     }
 
-    private static String packageNameForDependencyEntity(ArchitectureEntity entity) {
+    static String packageNameForDependencyEntity(ArchitectureEntity entity) {
         if (entity == null) {
             return null;
         }
@@ -176,7 +121,7 @@ final class ArchitectureIrGenericDependencyCategoryEnricher {
         return qualifiedName.substring(0, lastDot);
     }
 
-    private static String moduleNameForDependencyEntity(ArchitectureEntity entity) {
+    static String moduleNameForDependencyEntity(ArchitectureEntity entity) {
         if (entity == null) {
             return null;
         }
@@ -221,14 +166,14 @@ final class ArchitectureIrGenericDependencyCategoryEnricher {
         return relativePath;
     }
 
-    private static String moduleBoundaryForName(String moduleName, Map<String, ArchitectureEntity> entitiesById) {
+    static String moduleBoundaryForName(String moduleName, Map<String, ArchitectureEntity> entitiesById) {
         if (moduleName == null || moduleName.isBlank()) {
             return "unknown";
         }
         return findSourceRootEntityIdByName(moduleName, entitiesById) != null ? "internal" : "external";
     }
 
-    private static String moduleClassificationForName(String moduleName, Map<String, ArchitectureEntity> entitiesById) {
+    static String moduleClassificationForName(String moduleName, Map<String, ArchitectureEntity> entitiesById) {
         if (moduleName == null || moduleName.isBlank()) {
             return "unknown";
         }
@@ -244,14 +189,14 @@ final class ArchitectureIrGenericDependencyCategoryEnricher {
         return null;
     }
 
-    private static String packageBoundaryForName(String packageName, Map<String, ArchitectureEntity> entitiesById) {
+    static String packageBoundaryForName(String packageName, Map<String, ArchitectureEntity> entitiesById) {
         if (packageName == null || packageName.isBlank()) {
             return "unknown";
         }
         return findPackageEntityIdByName(packageName, entitiesById) != null ? "internal" : "external";
     }
 
-    private static String packageClassificationForName(String packageName, Map<String, ArchitectureEntity> entitiesById) {
+    static String packageClassificationForName(String packageName, Map<String, ArchitectureEntity> entitiesById) {
         if (packageName == null || packageName.isBlank()) {
             return "unknown";
         }
@@ -270,7 +215,7 @@ final class ArchitectureIrGenericDependencyCategoryEnricher {
         return null;
     }
 
-    private static String boundaryForEntity(ArchitectureEntity entity) {
+    static String boundaryForEntity(ArchitectureEntity entity) {
         if (isInternalEntity(entity)) {
             return "internal";
         }
@@ -280,7 +225,7 @@ final class ArchitectureIrGenericDependencyCategoryEnricher {
         return "unknown";
     }
 
-    private static String typeClassificationForEntity(ArchitectureEntity entity) {
+    static String typeClassificationForEntity(ArchitectureEntity entity) {
         if (entity == null) {
             return "unknown";
         }
@@ -293,7 +238,7 @@ final class ArchitectureIrGenericDependencyCategoryEnricher {
         return "unknown";
     }
 
-    private static boolean isInternalEntity(ArchitectureEntity entity) {
+    static boolean isInternalEntity(ArchitectureEntity entity) {
         if (entity == null) {
             return false;
         }
@@ -301,7 +246,7 @@ final class ArchitectureIrGenericDependencyCategoryEnricher {
         return !Boolean.TRUE.equals(external) && entity.origin() == EntityOrigin.OBSERVED;
     }
 
-    private static boolean isExternalEntity(ArchitectureEntity entity) {
+    static boolean isExternalEntity(ArchitectureEntity entity) {
         if (entity == null) {
             return false;
         }
@@ -317,21 +262,21 @@ final class ArchitectureIrGenericDependencyCategoryEnricher {
         return value instanceof String s && !s.isBlank() ? s : defaultValue;
     }
 
-    private static boolean isPackageEntity(ArchitectureEntity entity) {
+    static boolean isPackageEntity(ArchitectureEntity entity) {
         return entity != null
             && entity.kind() == EntityKind.MODULE
             && entity.metadata() != null
             && Objects.equals("package", entity.metadata().get("logicalRole"));
     }
 
-    private static boolean isSourceRootEntity(ArchitectureEntity entity) {
+    static boolean isSourceRootEntity(ArchitectureEntity entity) {
         return entity != null
             && entity.kind() == EntityKind.MODULE
             && entity.metadata() != null
             && Objects.equals("source-root", entity.metadata().get("logicalRole"));
     }
 
-    private static boolean isTypeEntity(ArchitectureEntity entity) {
+    static boolean isTypeEntity(ArchitectureEntity entity) {
         if (entity == null) {
             return false;
         }
