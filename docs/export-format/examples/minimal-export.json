@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1.0.0",
+  "indexerVersion": "0.1.0-SNAPSHOT",
+  "runMetadata": {
+    "startedAt": "2026-03-10T12:00:00Z",
+    "completedAt": "2026-03-10T12:00:01Z",
+    "outcome": "SUCCESS",
+    "detectedTechnologies": ["java"],
+    "metadata": {
+      "exampleKind": "minimal"
+    }
+  },
+  "source": {
+    "repositoryId": "fixture-minimal",
+    "acquisitionType": "local-path",
+    "path": "/fixtures/minimal",
+    "remoteUrl": null,
+    "branch": "main",
+    "revision": "abc123",
+    "acquiredAt": "2026-03-10T12:00:00Z",
+    "metadata": {}
+  },
+  "scopes": [
+    {
+      "id": "scope:repo",
+      "kind": "REPOSITORY",
+      "name": "fixture-minimal",
+      "displayName": "fixture-minimal",
+      "parentScopeId": null,
+      "sourceRefs": [],
+      "metadata": {}
+    }
+  ],
+  "entities": [
+    {
+      "id": "entity:class:demo-controller",
+      "kind": "CLASS",
+      "origin": "OBSERVED",
+      "name": "DemoController",
+      "displayName": "com.example.DemoController",
+      "scopeId": "scope:repo",
+      "sourceRefs": [
+        {
+          "path": "src/main/java/com/example/DemoController.java",
+          "startLine": 3,
+          "endLine": 18,
+          "snippet": "public class DemoController",
+          "metadata": {}
+        }
+      ],
+      "metadata": {
+        "language": "java",
+        "qualifiedName": "com.example.DemoController"
+      }
+    }
+  ],
+  "relationships": [],
+  "diagnostics": [],
+  "completeness": {
+    "status": "COMPLETE",
+    "indexedFileCount": 1,
+    "totalFileCount": 1,
+    "degradedFileCount": 0,
+    "omittedPaths": [],
+    "notes": []
+  },
+  "metadata": {}
+}

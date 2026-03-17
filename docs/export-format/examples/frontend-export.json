@@ -1,0 +1,252 @@
+{
+  "schemaVersion": "1.0.0",
+  "indexerVersion": "0.1.0-SNAPSHOT",
+  "runMetadata": {
+    "startedAt": "2026-03-10T12:00:00Z",
+    "completedAt": "2026-03-10T12:00:02Z",
+    "outcome": "SUCCESS",
+    "detectedTechnologies": ["typescript", "react"],
+    "metadata": {
+      "exampleKind": "frontend"
+    }
+  },
+  "source": {
+    "repositoryId": "fixture-frontend",
+    "acquisitionType": "local-path",
+    "path": "/fixtures/frontend",
+    "remoteUrl": null,
+    "branch": "main",
+    "revision": "abc123",
+    "acquiredAt": "2026-03-10T12:00:00Z",
+    "metadata": {}
+  },
+  "scopes": [
+    {
+      "id": "scope:repo",
+      "kind": "REPOSITORY",
+      "name": "fixture-frontend",
+      "displayName": "fixture-frontend",
+      "parentScopeId": null,
+      "sourceRefs": [],
+      "metadata": {}
+    }
+  ],
+  "entities": [
+    {
+      "id": "entity:module:app-routes",
+      "kind": "MODULE",
+      "origin": "OBSERVED",
+      "name": "src/app/routes.tsx",
+      "displayName": "routes.tsx",
+      "scopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "language": "typescript"
+      }
+    },
+    {
+      "id": "entity:component:orders-page",
+      "kind": "CLASS",
+      "origin": "OBSERVED",
+      "name": "OrdersPage",
+      "displayName": "OrdersPage",
+      "scopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "react",
+        "moduleProfile": "component",
+        "qualifiedName": "src/app/OrdersPage.tsx::OrdersPage"
+      }
+    },
+    {
+      "id": "entity:route:orders",
+      "kind": "ROUTE",
+      "origin": "OBSERVED",
+      "name": "/orders",
+      "displayName": "/orders",
+      "scopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "react",
+        "routePath": "/orders"
+      }
+    },
+    {
+      "id": "entity:hook:use-orders",
+      "kind": "FUNCTION",
+      "origin": "OBSERVED",
+      "name": "useOrders",
+      "displayName": "useOrders",
+      "scopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "react",
+        "moduleProfile": "hook"
+      }
+    },
+    {
+      "id": "entity:context:orders-provider",
+      "kind": "CLASS",
+      "origin": "OBSERVED",
+      "name": "OrdersProvider",
+      "displayName": "OrdersProvider",
+      "scopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "react",
+        "moduleProfile": "provider"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "rel:route:targets:orders-page",
+      "kind": "DEPENDS_ON",
+      "fromEntityId": "entity:route:orders",
+      "toEntityId": "entity:component:orders-page",
+      "label": "targets OrdersPage",
+      "sourceRefs": [],
+      "metadata": {
+        "frameworks": ["react"],
+        "frameworkRelationships": ["targets"]
+      }
+    },
+    {
+      "id": "rel:component:uses:hook",
+      "kind": "DEPENDS_ON",
+      "fromEntityId": "entity:component:orders-page",
+      "toEntityId": "entity:hook:use-orders",
+      "label": "uses hook",
+      "sourceRefs": [],
+      "metadata": {
+        "frameworks": ["react"],
+        "frameworkRelationships": ["usesHook"]
+      }
+    }
+  ],
+  "diagnostics": [],
+  "completeness": {
+    "status": "COMPLETE",
+    "indexedFileCount": 7,
+    "totalFileCount": 7,
+    "degradedFileCount": 0,
+    "omittedPaths": [],
+    "notes": []
+  },
+  "metadata": {
+    "dependencyViews": {
+      "compositionTypeDependencies": [
+        {
+          "sourceTypeName": "OrdersProvider",
+          "targetTypeName": "OrdersPage",
+          "relationshipKind": "DEPENDS_ON",
+          "frameworks": ["react"],
+          "frameworkRelationships": ["renders"],
+          "architectureViewKinds": ["composition"]
+        }
+      ],
+      "routeTypeDependencies": [
+        {
+          "sourceTypeName": "/orders",
+          "targetTypeName": "OrdersPage",
+          "relationshipKind": "DEPENDS_ON",
+          "frameworks": ["react"],
+          "frameworkRelationships": ["targets"],
+          "architectureViewKinds": ["route"]
+        }
+      ],
+      "providerTypeDependencies": [
+        {
+          "sourceTypeName": "OrdersProvider",
+          "targetTypeName": "OrdersPage",
+          "relationshipKind": "DEPENDS_ON",
+          "frameworks": ["react"],
+          "frameworkRelationships": ["providesContext"],
+          "architectureViewKinds": ["provider-di"]
+        }
+      ],
+      "hookTypeDependencies": [
+        {
+          "sourceTypeName": "OrdersPage",
+          "targetTypeName": "useOrders",
+          "relationshipKind": "DEPENDS_ON",
+          "frameworks": ["react"],
+          "frameworkRelationships": ["usesHook"],
+          "architectureViewKinds": ["hook"]
+        }
+      ],
+      "recommendedEntryPoints": [
+        "packageDependencies",
+        "typeDependencies",
+        "moduleDependencies",
+        "frameworkTypeDependencies",
+        "frameworkModuleDependencies",
+        "evidenceDependencies"
+      ],
+      "primaryArchitectureViews": [
+        "packageDependencies",
+        "typeDependencies",
+        "moduleDependencies",
+        "frameworkTypeDependencies",
+        "frameworkModuleDependencies"
+      ],
+      "frontendBrowserViews": {
+        "views": [
+          {
+            "id": "routeGraph",
+            "title": "Frontend route graph",
+            "description": "Angular and React routing relationships for browser-native navigation and path analysis.",
+            "framework": "frontend",
+            "architectureViewKind": "route",
+            "typeDependencyView": "routeTypeDependencies",
+            "moduleDependencyView": "routeModuleDependencies",
+            "frameworkRelationships": ["targets", "childOf", "lazyLoads", "guards", "resolves"],
+            "available": true,
+            "typeDependencyCount": 1,
+            "moduleDependencyCount": 0,
+            "preferredDependencyView": "routeTypeDependencies",
+            "browserViewKind": "graph",
+            "recommendedForArchitectureViews": true
+          },
+          {
+            "id": "reactContextGraph",
+            "title": "React context graph",
+            "description": "React provider/consumer context relationships for browser-native context exploration.",
+            "framework": "react",
+            "architectureViewKind": "provider-di",
+            "typeDependencyView": "providerTypeDependencies",
+            "moduleDependencyView": "providerModuleDependencies",
+            "frameworkRelationships": ["providesContext", "consumesContext"],
+            "available": true,
+            "typeDependencyCount": 1,
+            "moduleDependencyCount": 0,
+            "preferredDependencyView": "providerTypeDependencies",
+            "browserViewKind": "graph",
+            "recommendedForArchitectureViews": true
+          }
+        ],
+        "availableViews": ["routeGraph", "reactContextGraph"],
+        "defaultViewId": "routeGraph",
+        "description": "Browser-facing frontend graph descriptors derived from existing dependency rollups."
+      },
+      "browserViewCatalog": {
+        "families": [
+          {
+            "id": "frontend",
+            "title": "Frontend browser views",
+            "available": true,
+            "availableViewIds": ["routeGraph", "reactContextGraph"],
+            "defaultViewId": "routeGraph",
+            "viewCount": 2,
+            "description": "Browser-facing frontend graph descriptors derived from existing dependency rollups."
+          }
+        ],
+        "availableFamilies": ["frontend"],
+        "defaultFamily": "frontend",
+        "description": "High-level browser view families exported with the architecture index document."
+      },
+      "hasFrontendBrowserView": true,
+      "evidenceStatus": "available"
+    }
+  }
+}
