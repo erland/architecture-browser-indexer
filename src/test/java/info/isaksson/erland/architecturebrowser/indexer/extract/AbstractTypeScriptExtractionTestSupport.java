@@ -23,8 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-abstract class AbstractTypeScriptExtractionTestSupport {
-    protected static void assertReactHookRelationship(
+public abstract class AbstractTypeScriptExtractionTestSupport {
+    public static void assertReactHookRelationship(
         StructuralExtractionResult result,
         String fromId,
         String toId,
@@ -48,7 +48,7 @@ abstract class AbstractTypeScriptExtractionTestSupport {
         assertEquals(resolved, relationship.metadata().get("resolvedFromReactHookExtraction"));
     }
 
-    protected static StructuralExtractionResult extract(String relativePath, String source, SyntaxNode root) {
+    public static StructuralExtractionResult extract(String relativePath, String source, SyntaxNode root) {
         SourceParseResult parseResult = new SourceParseResult(
             new SourceParseRequest(Path.of(relativePath), relativePath, ParseLanguage.TYPESCRIPT, source),
             ParseStatus.SUCCESS,
@@ -60,13 +60,13 @@ abstract class AbstractTypeScriptExtractionTestSupport {
             .extract(new ParseBatchResult(List.of(parseResult), Map.of(ParseLanguage.TYPESCRIPT, 1), Map.of(ParseStatus.SUCCESS, 1)));
     }
 
-    protected static SyntaxNode program(String source, SyntaxNode... children) {
+    public static SyntaxNode program(String source, SyntaxNode... children) {
         int endLine = Math.max(0, source.split("\\R", -1).length - 1);
         int endColumn = source.isEmpty() ? 0 : source.length() - source.lastIndexOf('\n') - 1;
         return new SyntaxNode("program", true, 0, source.length(), 0, 0, endLine, endColumn, false, false, source, List.of(children));
     }
 
-    protected static SyntaxNode classDeclaration(int startIndex, int endIndex, int startLine, String name, List<SyntaxNode> extraChildren) {
+    public static SyntaxNode classDeclaration(int startIndex, int endIndex, int startLine, String name, List<SyntaxNode> extraChildren) {
         int startColumn = 0;
         int endColumn = Math.max(0, endIndex - startIndex);
         java.util.ArrayList<SyntaxNode> children = new java.util.ArrayList<>();
@@ -78,7 +78,7 @@ abstract class AbstractTypeScriptExtractionTestSupport {
 
 
 
-    protected static void assertAngularTemplateRelationship(
+    public static void assertAngularTemplateRelationship(
         StructuralExtractionResult result,
         String fromId,
         String toId,
@@ -106,7 +106,7 @@ abstract class AbstractTypeScriptExtractionTestSupport {
     }
 
 
-    protected static void assertAngularFrameworkRelationship(StructuralExtractionResult result, String fromId, String toId, String label, String frameworkRelationship) {
+    public static void assertAngularFrameworkRelationship(StructuralExtractionResult result, String fromId, String toId, String label, String frameworkRelationship) {
         var relationship = result.relationships().stream()
             .filter(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
                 && fromId.equals(rel.fromEntityId())
@@ -120,7 +120,7 @@ abstract class AbstractTypeScriptExtractionTestSupport {
         assertEquals("angular:" + frameworkRelationship, relationship.metadata().get("dependencySource"));
     }
 
-    protected static void assertFrontendRouteRelationship(
+    public static void assertFrontendRouteRelationship(
         StructuralExtractionResult result,
         String fromId,
         String toId,
@@ -143,7 +143,7 @@ abstract class AbstractTypeScriptExtractionTestSupport {
         assertEquals(resolved, relationship.metadata().get("resolvedFromRouteExtraction"));
     }
 
-    protected static void assertReactFrameworkRelationship(StructuralExtractionResult result, String fromId, String toId, String label, boolean resolved) {
+    public static void assertReactFrameworkRelationship(StructuralExtractionResult result, String fromId, String toId, String label, boolean resolved) {
         var relationship = result.relationships().stream()
             .filter(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
                 && fromId.equals(rel.fromEntityId())
@@ -159,7 +159,7 @@ abstract class AbstractTypeScriptExtractionTestSupport {
     }
 
 
-    protected static void assertAngularDiRelationship(
+    public static void assertAngularDiRelationship(
         StructuralExtractionResult result,
         String fromId,
         String toId,
@@ -182,7 +182,7 @@ abstract class AbstractTypeScriptExtractionTestSupport {
     }
 
 
-    protected static void assertReactContextRelationship(
+    public static void assertReactContextRelationship(
         StructuralExtractionResult result,
         String fromId,
         String toId,
@@ -205,7 +205,7 @@ abstract class AbstractTypeScriptExtractionTestSupport {
     }
 
 
-    protected static ExtractedEntityFact entity(StructuralExtractionResult result, EntityKind kind, String name) {
+    public static ExtractedEntityFact entity(StructuralExtractionResult result, EntityKind kind, String name) {
         return result.entities().stream()
             .filter(entity -> entity.kind() == kind && name.equals(entity.name()))
             .sorted((left, right) -> Integer.compare(entityScore(right), entityScore(left)))
@@ -213,7 +213,7 @@ abstract class AbstractTypeScriptExtractionTestSupport {
             .orElseThrow();
     }
 
-    protected static int entityScore(ExtractedEntityFact entity) {
+    public static int entityScore(ExtractedEntityFact entity) {
         int score = 0;
         if (Boolean.TRUE.equals(entity.metadata().get("reactContext"))) {
             score += 10;

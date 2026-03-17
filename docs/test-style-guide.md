@@ -151,3 +151,15 @@ Use shared helpers in `src/test/java/.../testing/ArchitectureContractAssertions`
 ## Step 4 example decomposition
 
 The original `TypeScriptStructuralExtractorSafetyNetTest` has been decomposed into a smaller safety net plus focused concern-specific tests for declaration extraction, type relationships, framework semantics, and routing. This is the preferred direction for future large umbrella tests.
+
+
+## Structural extraction service guidance
+
+Prefer keeping `StructuralExtractionService*` tests focused on orchestration concerns such as:
+
+- stage invocation
+- aggregation behavior
+- parser-status handling
+- mode selection / fallback policy
+
+Move Java- or TypeScript-specific extraction expectations into dedicated contract/regression tests closer to the extractor behavior they describe.

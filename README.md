@@ -365,3 +365,16 @@ Completed through test-plan Step 4:
   - Angular TypeScript framework semantics
   - React TypeScript framework semantics
   - frontend routing contracts
+
+
+## Test suite decomposition progress
+
+Completed so far:
+
+- Step 4: decomposed `TypeScriptStructuralExtractorSafetyNetTest` into focused concern-based tests
+- Step 5: decomposed `StructuralExtractionServiceTest` into:
+  - `StructuralExtractionServiceTest` (service/orchestration seam)
+  - `JavaStructuralExtractionContractRegressionTest`
+  - `TypeScriptStructuralExtractionContractRegressionTest`
+
+This keeps service-level tests focused on orchestration and moves language-specific expectations into dedicated regression classes.

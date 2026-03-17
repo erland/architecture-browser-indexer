@@ -157,3 +157,15 @@ Shared contract assertion helpers are now the preferred mechanism for architectu
 - `AngularTypeScriptFrameworkSemanticsRegressionTest`
 - `ReactTypeScriptFrameworkSemanticsRegressionTest`
 - `FrontendRoutingExtractionContractRegressionTest`
+
+
+## Step 5 status — StructuralExtractionService test decomposition
+
+Implemented decomposition split:
+
+- `StructuralExtractionServiceTest` now focuses on orchestration/service behavior
+- `JavaStructuralExtractionContractRegressionTest` now owns Java-specific extraction contracts
+- `TypeScriptStructuralExtractionContractRegressionTest` now owns TypeScript-specific extraction contracts
+- `AbstractStructuralExtractionServiceTestSupport` centralizes the shared `extract(ParseBatchResult)` helper
+
+This step reduces service-level failure blast radius by keeping extractor-specific assertions out of the service orchestration test class.
