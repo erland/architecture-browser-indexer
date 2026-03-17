@@ -54,7 +54,7 @@ final class JavaMethodExtractionFlow {
                 request.accumulator(),
                 dependencySourceEntityId,
                 parameterTypes,
-                JavaExtractionSemanticsSupport.isConstructor(methodEntity),
+                JavaGenericSyntaxSupport.isConstructor(methodEntity),
                 request.relativePath(),
                 request.packageName(),
                 JavaSourceReferenceSupport.lineOf(ref, request.node()),

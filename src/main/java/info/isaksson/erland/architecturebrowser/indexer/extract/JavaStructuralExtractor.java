@@ -19,10 +19,10 @@ final class JavaStructuralExtractor implements StructuralExtractor {
     }
 
     static boolean isJavaTypeDeclaration(SyntaxNode node) {
-        return JavaExtractionSemanticsSupport.isJavaTypeDeclaration(node);
+        return JavaGenericSyntaxSupport.isJavaTypeDeclaration(node);
     }
 
     static String simpleName(String qualifiedName) {
-        return JavaExtractionSemanticsSupport.simpleName(qualifiedName);
+        return JavaGenericSyntaxSupport.simpleName(qualifiedName);
     }
 }

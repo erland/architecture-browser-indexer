@@ -11,13 +11,13 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class JavaExtractionSemanticsSupportSeamTest {
+class JavaDomainSemanticsSupportsSeamTest {
 
     @Test
-    void preservesStableJavaSemanticsContractsAcrossCdiWritePathAndPropertyHelpers() {
+    void preservesStableJavaSemanticsContractsAcrossSplitDomainSupports() {
         assertEquals("persist", JavaWritePathDetectionSupport.normalizeWriteOperation("save"));
-        assertEquals("merge", JavaWritePathDetectionSupport.normalizeWriteOperation("merge"));
         assertEquals("customerId", JavaJpaDomainSemanticsSupport.deriveJavaPropertyName("getCustomerId", "()"));
+        assertEquals("/orders", JavaJaxRsDomainSemanticsSupport.normalizeJaxRsEndpointPath("/orders", "/"));
 
         var published = JavaCdiDomainSemanticsSupport.detectCdiPublishedEvents(
             "orderEvents.fireAsync(new OrderCreatedEvent(orderId));",

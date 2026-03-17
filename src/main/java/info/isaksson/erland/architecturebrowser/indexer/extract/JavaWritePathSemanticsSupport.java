@@ -50,21 +50,21 @@ void addWritePathFacts(
             return;
         }
 
-        List<JavaExtractionSemanticsSupport.DetectedWritePath> detections = new ArrayList<>();
-        detections.addAll(JavaExtractionSemanticsSupport.detectJpaWriteOperations(methodEntity, snippet));
-        detections.addAll(JavaExtractionSemanticsSupport.detectRepositoryWriteOperations(methodEntity, snippet));
+        List<JavaWritePathDetectionSupport.DetectedWritePath> detections = new ArrayList<>();
+        detections.addAll(JavaWritePathDetectionSupport.detectJpaWriteOperations(methodEntity, snippet));
+        detections.addAll(JavaWritePathDetectionSupport.detectRepositoryWriteOperations(methodEntity, snippet));
         if (detections.isEmpty()) {
             return;
         }
 
-        Map<String, String> variableTypes = JavaExtractionSemanticsSupport.collectMethodVariableTypes(methodEntity, snippet);
+        Map<String, String> variableTypes = JavaWritePathDetectionSupport.collectMethodVariableTypes(methodEntity, snippet);
         LinkedHashMap<String, Object> methodMetadata = new LinkedHashMap<>(methodEntity.metadata());
         java.util.LinkedHashSet<String> writeOperations = new java.util.LinkedHashSet<>(JavaDeclaredTypeSupport.metadataStringList(methodMetadata.get("writeOperations")));
         java.util.LinkedHashSet<String> writeTargets = new java.util.LinkedHashSet<>(JavaDeclaredTypeSupport.metadataStringList(methodMetadata.get("writeEntityTypes")));
         boolean changed = false;
 
-        for (JavaExtractionSemanticsSupport.DetectedWritePath detection : detections) {
-            String entityType = JavaExtractionSemanticsSupport.resolveWriteTargetEntityType(detection.argumentExpression(), variableTypes).orElse(null);
+        for (JavaWritePathDetectionSupport.DetectedWritePath detection : detections) {
+            String entityType = JavaWritePathDetectionSupport.resolveWriteTargetEntityType(detection.argumentExpression(), variableTypes).orElse(null);
             if (entityType == null || entityType.isBlank()) {
                 continue;
             }
@@ -74,7 +74,7 @@ void addWritePathFacts(
                 EntityKind.CLASS,
                 relativePath,
                 packageName,
-                JavaExtractionSemanticsSupport.lineOf(ref, methodNode),
+                JavaGenericSyntaxSupport.lineOf(ref, methodNode),
                 importsBySimpleName,
                 declaredTypes
             );
