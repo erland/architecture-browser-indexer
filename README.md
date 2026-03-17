@@ -397,3 +397,15 @@ Representation-shaped assertions in the remaining larger regression tests were r
 - Java write-path relationship contracts
 
 The goal is to keep broad regressions focused on durable architecture behavior rather than exact metadata-map shape or optional derived flags.
+
+
+## Step 9 status
+
+Shared fixture builders are now available for the most repeated synthetic setups:
+
+- `ParseFixtureBuilder`
+- `SyntaxNodeFixtureBuilder`
+- `TypeScriptExtractionFixtureBuilder`
+- `TypeScriptArchitectureDocumentFixtureBuilder`
+
+These are intended to centralize synthetic parse-result, syntax-node, and TypeScript architecture document setup so future test decomposition work reuses consistent builders instead of hand-assembling the same structures repeatedly.
