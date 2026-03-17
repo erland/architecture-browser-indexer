@@ -213,3 +213,17 @@ File-size and responsibility guardrails are now part of the test-cleanup workstr
 - shared fixture builders and contract helpers should be reused before adding new ad hoc setup/scanning logic
 
 Current watchlist after Steps 4-9 should be reviewed periodically to prevent regressions in test structure as new extraction and IR work lands.
+
+
+## Step 11 status
+
+The first dedicated decomposition wave for the large-test cleanup workstream is now closed. See:
+
+- `docs/test-suite-decomposition-acceptance.md`
+- `docs/test-suite-decomposition-continuation.md`
+
+This means:
+
+- the originally targeted umbrella tests were decomposed
+- shared contract assertions and fixture builders are now part of the standard approach
+- future cleanup should focus on the updated watchlist rather than reopening the original TypeScript/frontend umbrella targets

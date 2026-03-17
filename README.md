@@ -422,3 +422,18 @@ Operational rules for future test changes:
 - keep one main concern family per test class
 - prefer shared fixture builders and contract assertion helpers over repeated inline setup and raw metadata scans
 - keep broad fixture/pipeline coverage in a small number of regression tests
+
+
+## Step 11 status
+
+Final acceptance and continuation docs for the large-test cleanup wave are now available in:
+
+- `docs/test-suite-decomposition-acceptance.md`
+- `docs/test-suite-decomposition-continuation.md`
+
+Current practical conclusion:
+
+- the targeted large umbrella tests for this wave were decomposed
+- contract helpers and shared fixture builders are in place
+- file-size and responsibility guardrails are documented
+- the next likely cleanup targets have shifted toward larger Java structural regressions and broader frontend/framework baseline tests
