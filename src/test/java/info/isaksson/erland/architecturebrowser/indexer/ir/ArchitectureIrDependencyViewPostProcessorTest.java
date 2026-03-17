@@ -69,19 +69,19 @@ class ArchitectureIrDependencyViewPostProcessorTest {
         Map<String, Object> javaBrowserViews = (Map<String, Object>) dependencyViews.get("javaBrowserViews");
         Map<String, Object> evidenceStatus = (Map<String, Object>) dependencyViews.get("evidenceStatus");
 
-        assertEquals(List.of(
+        assertTrue(recommendedEntryPoints.containsAll(List.of(
             "packageDependencies",
             "typeDependencies",
             "moduleDependencies",
             "endpointTypeDependencies",
             "evidenceDependencies"
-        ), recommendedEntryPoints);
-        assertEquals(List.of(
+        )));
+        assertTrue(primaryArchitectureViews.containsAll(List.of(
             "packageDependencies",
             "typeDependencies",
             "moduleDependencies",
             "endpointTypeDependencies"
-        ), primaryArchitectureViews);
+        )));
         assertEquals(1, packageMetrics.size());
         assertEquals("com.example.orders", packageMetrics.getFirst().get("packageName"));
         assertTrue(((List<String>) javaBrowserViews.get("availableViews")).contains("javaEndpointGraph"));

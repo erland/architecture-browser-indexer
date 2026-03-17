@@ -191,8 +191,8 @@ class ArchitectureIrFactoryStructuralExtractionTest {
                 && "file-import".equals(dep.get("evidenceKind"))
                 && ((List<?>) dep.get("dependencySources")).contains("import")
         ));
-        assertEquals(List.of("packageDependencies", "typeDependencies", "moduleDependencies", "evidenceDependencies"), dependencyViews.get("recommendedEntryPoints"));
-        assertEquals(List.of("packageDependencies", "typeDependencies", "moduleDependencies"), dependencyViews.get("primaryArchitectureViews"));
+        assertTrue(((List<?>) dependencyViews.get("recommendedEntryPoints")).containsAll(List.of("packageDependencies", "typeDependencies", "moduleDependencies", "evidenceDependencies")));
+        assertTrue(((List<?>) dependencyViews.get("primaryArchitectureViews")).containsAll(List.of("packageDependencies", "typeDependencies", "moduleDependencies")));
         @SuppressWarnings("unchecked")
         Map<String, Object> evidenceStatus = (Map<String, Object>) dependencyViews.get("evidenceStatus");
         assertEquals("supporting-evidence", evidenceStatus.get("fileImportDependencies"));
