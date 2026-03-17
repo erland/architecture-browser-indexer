@@ -17,16 +17,20 @@ class ArchitectureIrDependencyViewCatalogSupportTest {
         ArchitectureEntity sourceType = new ArchitectureEntity(
             "entity:type:source",
             EntityKind.CLASS,
-            "com.example.api.OrderService",
             EntityOrigin.OBSERVED,
+            "com.example.api.OrderService",
+            "com.example.api.OrderService",
+            "scope:repo",
             List.of(),
             Map.of("qualifiedName", "com.example.api.OrderService", "packageName", "com.example.api", "sourceRoot", "src/main/java")
         );
         ArchitectureEntity targetType = new ArchitectureEntity(
             "entity:type:target",
             EntityKind.CLASS,
-            "com.example.domain.Order",
             EntityOrigin.OBSERVED,
+            "com.example.domain.Order",
+            "com.example.domain.Order",
+            "scope:repo",
             List.of(),
             Map.of("qualifiedName", "com.example.domain.Order", "packageName", "com.example.domain", "sourceRoot", "src/main/java")
         );

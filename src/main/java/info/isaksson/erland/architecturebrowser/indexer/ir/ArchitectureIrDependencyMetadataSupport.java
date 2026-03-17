@@ -109,6 +109,12 @@ final class ArchitectureIrDependencyMetadataSupport {
         shaped.put("dependencyTargetBoundary", targetBoundary);
         shaped.put("dependencyTargetClassification", targetClassification);
         shaped.put("evidenceKind", "file-import");
+        if (!shaped.containsKey("dependencySources")) {
+            Object dependencySource = relationship.metadata() == null ? null : relationship.metadata().get("dependencySource");
+            if (dependencySource != null) {
+                shaped.put("dependencySources", List.of(String.valueOf(dependencySource)));
+            }
+        }
         shaped.put("evidenceSourceEntityId", relationship.fromEntityId());
         shaped.put("evidenceTargetEntityId", relationship.toEntityId());
         if (source != null && source.name() != null) {

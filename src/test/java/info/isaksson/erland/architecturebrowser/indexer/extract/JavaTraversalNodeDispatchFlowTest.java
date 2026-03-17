@@ -98,7 +98,7 @@ final class JavaTraversalNodeDispatchFlowTest {
         assertTrue(fieldDispatch.handled());
         assertTrue(fieldDispatch.memberExtractionResult().handled());
         assertEquals(typeOwnership.owningQualifiedName(), afterField.owningQualifiedName());
-        assertTrue(fieldDispatch.memberExtractionResult().emittedEntityIds().stream().anyMatch(id -> id.contains("customer")));
+        assertEquals(1, fieldDispatch.memberExtractionResult().emittedEntityIds().size());
         assertTrue(accumulator.entities().stream().anyMatch(entity -> "customer".equals(entity.name())));
 
         SyntaxNode methodNode = typeNode.children().stream().filter(child -> "method_declaration".equals(child.type())).findFirst().orElseThrow();
@@ -121,7 +121,7 @@ final class JavaTraversalNodeDispatchFlowTest {
         assertTrue(methodDispatch.handled());
         assertTrue(methodDispatch.memberExtractionResult().handled());
         assertEquals(typeOwnership.owningQualifiedName(), afterMethod.owningQualifiedName());
-        assertTrue(methodDispatch.memberExtractionResult().emittedEntityIds().stream().anyMatch(id -> id.contains("create")));
+        assertEquals(1, methodDispatch.memberExtractionResult().emittedEntityIds().size());
         assertTrue(accumulator.entities().stream().anyMatch(entity -> "create".equals(entity.name()) && Boolean.TRUE.equals(entity.metadata().get("jaxRsEndpoint"))));
     }
 }

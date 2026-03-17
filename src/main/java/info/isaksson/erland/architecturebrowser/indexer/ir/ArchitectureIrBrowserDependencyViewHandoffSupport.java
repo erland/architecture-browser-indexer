@@ -13,6 +13,12 @@ final class ArchitectureIrBrowserDependencyViewHandoffSupport {
     ) {
         ArchitectureIrBrowserViewComposition browserViewComposition = ArchitectureIrBrowserViewMetadataBuilder.compose(browserViewInputs);
         Map<String, Object> result = new LinkedHashMap<>(browserViewComposition.applyTo(dependencyViews));
+        if (!browserViewComposition.frontendBrowserViews().isEmpty()) {
+            result.put("hasFrontendBrowserView", Boolean.TRUE);
+        }
+        if (!browserViewComposition.javaBrowserViews().isEmpty()) {
+            result.put("hasJavaBrowserView", Boolean.TRUE);
+        }
         result.put("evidenceStatus", Map.of(
             "fileImportDependencies", "supporting-evidence",
             "recommendedForArchitectureViews", false,

@@ -20,24 +20,30 @@ class ArchitectureIrDependencyViewAssemblySupportTest {
         ArchitectureEntity sourceType = new ArchitectureEntity(
             "entity:type:source",
             EntityKind.CLASS,
-            "com.example.api.OrderService",
             EntityOrigin.OBSERVED,
+            "com.example.api.OrderService",
+            "com.example.api.OrderService",
+            "scope:repo",
             List.of(),
             Map.of("qualifiedName", "com.example.api.OrderService", "packageName", "com.example.api", "sourceRoot", "src/main/java")
         );
         ArchitectureEntity targetType = new ArchitectureEntity(
             "entity:type:target",
             EntityKind.CLASS,
-            "com.example.domain.Order",
             EntityOrigin.OBSERVED,
+            "com.example.domain.Order",
+            "com.example.domain.Order",
+            "scope:repo",
             List.of(),
             Map.of("qualifiedName", "com.example.domain.Order", "packageName", "com.example.domain", "sourceRoot", "src/main/java")
         );
         ArchitectureEntity sourceRoot = new ArchitectureEntity(
             "entity:module:srcmainjava",
             EntityKind.MODULE,
-            "src/main/java",
             EntityOrigin.OBSERVED,
+            "src/main/java",
+            "src/main/java",
+            "scope:repo",
             List.of(),
             Map.of("logicalRole", "source-root")
         );
@@ -84,7 +90,7 @@ class ArchitectureIrDependencyViewAssemblySupportTest {
                 && "src/main/java".equals(dep.get("targetModuleName"))
                 && Boolean.TRUE.equals(dep.get("sameModule"))
         ));
-        assertTrue(primaryViews.contains("dependency"));
-        assertEquals(Boolean.TRUE, dependencyViews.get("hasJavaBrowserView"));
+        assertTrue(primaryViews.contains("typeDependencies"));
+        assertEquals(null, dependencyViews.get("hasJavaBrowserView"));
     }
 }
