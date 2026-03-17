@@ -28,15 +28,17 @@ final class ArchitectureIrAssemblyStateBuilder {
         List<LogicalScope> scopes = assembleScopes(inputs, repositoryScope);
         Map<String, ArchitectureEntity> entitiesById = assembleEntitiesById(inputs, repositoryScope, inventoryEntity);
         Map<String, ArchitectureEntity> observedTypesByQualifiedName = ArchitectureIrAssemblyCompatibilitySupport.observedTypesByQualifiedName(entitiesById);
-        List<ArchitectureRelationship> relationships = assembleRelationships(inputs, entitiesById, observedTypesByQualifiedName);
-        Map<String, Object> dependencyViews = ArchitectureIrAssemblyCompositionSupport.buildDependencyViews(
-            new ArchitectureIrDependencyViewAssemblyInputs(
+        List<ArchitectureRelationship> relationships = assembleRelationships(inputs);
+        ArchitectureIrAssemblyCompositionResult composition = ArchitectureIrAssemblyCompositionSupport.compose(
+            new ArchitectureIrAssemblyCompositionInputs(
                 relationships,
                 entitiesById,
                 observedTypesByQualifiedName
             )
         );
-        Map<String, ArchitectureEntity> enrichedEntitiesById = ArchitectureIrPackageEntityEnrichmentSupport.enrichPackageEntities(entitiesById, dependencyViews);
+        relationships = composition.relationships();
+        Map<String, Object> dependencyViews = composition.dependencyViews();
+        Map<String, ArchitectureEntity> enrichedEntitiesById = composition.enrichedEntitiesById();
         return new ArchitectureIrAssemblyState(
             repositoryScope,
             inventoryEntity,
@@ -145,9 +147,7 @@ final class ArchitectureIrAssemblyStateBuilder {
     }
 
     private static List<ArchitectureRelationship> assembleRelationships(
-        ArchitectureIrAssemblyInputs inputs,
-        Map<String, ArchitectureEntity> entitiesById,
-        Map<String, ArchitectureEntity> observedTypesByQualifiedName
+        ArchitectureIrAssemblyInputs inputs
     ) {
         Map<String, ArchitectureRelationship> relationshipsById = new LinkedHashMap<>();
         if (inputs.extractionResult() != null) {
@@ -183,11 +183,6 @@ final class ArchitectureIrAssemblyStateBuilder {
                 relationshipsById.put(relationship.id(), relationship);
             }
         }
-        List<ArchitectureRelationship> relationships = ArchitectureIrDependencyRelationshipEnricher.enrichDependencyRelationshipMetadata(
-            List.copyOf(relationshipsById.values()),
-            entitiesById,
-            observedTypesByQualifiedName
-        );
-        return ArchitectureIrAssemblyCompositionSupport.ensurePackageDependencyRelationships(relationships, entitiesById, observedTypesByQualifiedName);
+        return List.copyOf(relationshipsById.values());
     }
 }

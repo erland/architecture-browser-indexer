@@ -10,6 +10,35 @@ final class ArchitectureIrAssemblyCompositionSupport {
     private ArchitectureIrAssemblyCompositionSupport() {
     }
 
+    static ArchitectureIrAssemblyCompositionResult compose(ArchitectureIrAssemblyCompositionInputs inputs) {
+        List<ArchitectureRelationship> relationships = ArchitectureIrDependencyRelationshipEnricher.enrichDependencyRelationshipMetadata(
+            inputs.relationships(),
+            inputs.entitiesById(),
+            inputs.observedTypesByQualifiedName()
+        );
+        relationships = ArchitectureIrSyntheticPackageDependencyRollupBuilder.ensurePackageDependencyRelationships(
+            relationships,
+            inputs.entitiesById(),
+            inputs.observedTypesByQualifiedName()
+        );
+        Map<String, Object> dependencyViews = ArchitectureIrDependencyViewAssemblySupport.buildDependencyViews(
+            new ArchitectureIrDependencyViewAssemblyInputs(
+                relationships,
+                inputs.entitiesById(),
+                inputs.observedTypesByQualifiedName()
+            )
+        );
+        Map<String, ArchitectureEntity> enrichedEntitiesById = ArchitectureIrPackageEntityEnrichmentSupport.enrichPackageEntities(
+            inputs.entitiesById(),
+            dependencyViews
+        );
+        return new ArchitectureIrAssemblyCompositionResult(
+            relationships,
+            dependencyViews,
+            enrichedEntitiesById
+        );
+    }
+
     static List<ArchitectureRelationship> ensurePackageDependencyRelationships(
         List<ArchitectureRelationship> relationships,
         Map<String, ArchitectureEntity> entitiesById,
