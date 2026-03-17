@@ -169,3 +169,16 @@ Step 6 update: `TypeScriptArchitectureFixtureRegressionTest` has been decomposed
 
 
 Step 7 update: `FrontendArchitectureEndToEndFixtureRegressionTest` has been decomposed into focused acceptance slices including `FrontendRoutingAcceptanceRegressionTest`, `FrontendFrameworkCompositionAcceptanceRegressionTest`, and `FrontendStateProviderAcceptanceRegressionTest`.
+
+
+## Step 8 status
+
+Representation-shaped assertions in the remaining larger regression tests were reduced further by introducing contract helpers for:
+- type dependency presence
+- external dependency evidence presence
+- browser view availability by id
+- browser view descriptor contracts
+- UI module profile contracts
+- Java write-path relationship contracts
+
+The goal is to keep broad regressions focused on durable architecture behavior rather than exact metadata-map shape or optional derived flags.

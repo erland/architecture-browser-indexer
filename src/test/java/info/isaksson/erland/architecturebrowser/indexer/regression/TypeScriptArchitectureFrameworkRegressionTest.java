@@ -8,6 +8,10 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasBrowserViewDescriptor;
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasBrowserViewIds;
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasFrameworkDependencyView;
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasUiModuleProfile;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -29,10 +33,8 @@ class TypeScriptArchitectureFrameworkRegressionTest extends AbstractTypeScriptAr
         ));
 
         ArchitectureIndexDocument angularDocument = buildDocument(TypeScriptArchitectureFixtureFixtures.angularFixture());
-        assertTrue(angularDocument.entities().stream().anyMatch(entity ->
-            entity.kind() == EntityKind.UI_MODULE && "OrderListComponent".equals(entity.name()) && "angular-component".equals(entity.metadata().get("uiProfile"))));
-        assertTrue(angularDocument.entities().stream().anyMatch(entity ->
-            entity.kind() == EntityKind.UI_MODULE && "OrdersModule".equals(entity.name()) && "angular-module".equals(entity.metadata().get("uiProfile"))));
+        assertHasUiModuleProfile(angularDocument.entities(), "OrderListComponent", "angular-component");
+        assertHasUiModuleProfile(angularDocument.entities(), "OrdersModule", "angular-module");
         assertTrue(angularDocument.entities().stream().anyMatch(entity ->
             entity.kind() == EntityKind.SERVICE && "OrderService".equals(entity.name())));
     }
@@ -51,13 +53,13 @@ class TypeScriptArchitectureFrameworkRegressionTest extends AbstractTypeScriptAr
 
         assertTrue(!frameworkTypeDependencies.isEmpty());
         assertTrue(!frameworkModuleDependencies.isEmpty());
-        assertTrue(compositionTypeDependencies.stream().anyMatch(dep -> ((List<?>) dep.get("frameworkRelationships")).contains("renders")));
-        assertTrue(routeTypeDependencies.stream().anyMatch(dep -> ((List<?>) dep.get("frameworkRelationships")).contains("targets")));
+        assertHasFrameworkDependencyView(compositionTypeDependencies, "renders");
+        assertHasFrameworkDependencyView(routeTypeDependencies, "targets");
         assertTrue(providerTypeDependencies.stream().anyMatch(dep -> {
             List<?> relationships = (List<?>) dep.get("frameworkRelationships");
             return relationships.contains("providesContext") || relationships.contains("consumesContext") || relationships.contains("injects") || relationships.contains("providedBy");
         }));
-        assertTrue(hookTypeDependencies.stream().anyMatch(dep -> ((List<?>) dep.get("frameworkRelationships")).contains("usesHook")));
+        assertHasFrameworkDependencyView(hookTypeDependencies, "usesHook");
         assertTrue(frameworkModuleDependencies.stream().anyMatch(dep -> {
             List<?> viewKinds = (List<?>) dep.get("architectureViewKinds");
             List<?> frameworks = (List<?>) dep.get("frameworks");
@@ -68,15 +70,13 @@ class TypeScriptArchitectureFrameworkRegressionTest extends AbstractTypeScriptAr
         assertEquals(List.of("frameworkTypeDependencies", "frameworkModuleDependencies"), frontendArchitectureViews.get("frameworkAware"));
         @SuppressWarnings("unchecked") Map<String, Object> frontendBrowserViews = (Map<String, Object>) dependencyViews.get("frontendBrowserViews");
         assertEquals("angularModuleGraph", frontendBrowserViews.get("defaultViewId"));
-        assertTrue(((List<?>) frontendBrowserViews.get("availableViews")).containsAll(List.of(
-            "angularModuleGraph", "angularProviderGraph", "routeGraph", "reactComponentCompositionGraph", "reactContextGraph", "reactHookGraph"
-        )));
         @SuppressWarnings("unchecked") List<Map<String, Object>> browserViewDescriptors = (List<Map<String, Object>>) frontendBrowserViews.get("views");
-        assertBrowserView(browserViewDescriptors, "angularModuleGraph", "angular", "compositionTypeDependencies", "compositionModuleDependencies", "declares");
-        assertBrowserView(browserViewDescriptors, "angularProviderGraph", "angular", "providerTypeDependencies", "providerModuleDependencies", "injects");
-        assertBrowserView(browserViewDescriptors, "routeGraph", "frontend", "routeTypeDependencies", "routeModuleDependencies", "targets");
-        assertBrowserView(browserViewDescriptors, "reactComponentCompositionGraph", "react", "compositionTypeDependencies", "compositionModuleDependencies", "renders");
-        assertBrowserView(browserViewDescriptors, "reactContextGraph", "react", "providerTypeDependencies", "providerModuleDependencies", "providesContext");
-        assertBrowserView(browserViewDescriptors, "reactHookGraph", "react", "hookTypeDependencies", "hookModuleDependencies", "usesHook");
+        assertHasBrowserViewIds(browserViewDescriptors, "angularModuleGraph", "angularProviderGraph", "routeGraph", "reactComponentCompositionGraph", "reactContextGraph", "reactHookGraph");
+        assertHasBrowserViewDescriptor(browserViewDescriptors, "angularModuleGraph", "angular", "compositionTypeDependencies", "compositionModuleDependencies", "declares");
+        assertHasBrowserViewDescriptor(browserViewDescriptors, "angularProviderGraph", "angular", "providerTypeDependencies", "providerModuleDependencies", "injects");
+        assertHasBrowserViewDescriptor(browserViewDescriptors, "routeGraph", "frontend", "routeTypeDependencies", "routeModuleDependencies", "targets");
+        assertHasBrowserViewDescriptor(browserViewDescriptors, "reactComponentCompositionGraph", "react", "compositionTypeDependencies", "compositionModuleDependencies", "renders");
+        assertHasBrowserViewDescriptor(browserViewDescriptors, "reactContextGraph", "react", "providerTypeDependencies", "providerModuleDependencies", "providesContext");
+        assertHasBrowserViewDescriptor(browserViewDescriptors, "reactHookGraph", "react", "hookTypeDependencies", "hookModuleDependencies", "usesHook");
     }
 }

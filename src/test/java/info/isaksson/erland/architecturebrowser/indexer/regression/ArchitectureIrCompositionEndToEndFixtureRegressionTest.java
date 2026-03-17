@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertContainsViews;
-import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasFrameworkDependencyView;
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasBrowserViewIds;
 import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasPackageDependency;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -40,12 +40,11 @@ class ArchitectureIrCompositionEndToEndFixtureRegressionTest {
             () -> "Expected package metrics for service package. packageMetrics=" + packageMetrics);
 
         assertEquals("javaEndpointGraph", javaBrowserViews.get("defaultViewId"));
-        assertTrue(((List<?>) javaBrowserViews.get("availableViews")).containsAll(List.of(
+        assertHasBrowserViewIds(browserViewDescriptors(javaBrowserViews),
             "javaEndpointGraph",
             "javaEntityModelGraph",
             "javaEventFlowGraph",
-            "javaWritePathGraph"
-        )), () -> "Expected Java browser views to remain available. javaBrowserViews=" + javaBrowserViews);
+            "javaWritePathGraph");
         assertEquals("java", browserViewCatalog.get("defaultFamily"));
         assertTrue(((List<?>) browserViewCatalog.get("availableFamilies")).contains("java"));
         assertEquals(Boolean.FALSE, evidenceStatus.get("recommendedForArchitectureViews"));
@@ -63,5 +62,18 @@ class ArchitectureIrCompositionEndToEndFixtureRegressionTest {
                     && "com.example.orders.service".equals(rel.metadata().get("dependencySourcePackageName"))
                     && "com.example.orders.domain".equals(rel.metadata().get("dependencyTargetPackageName"))),
             () -> "Expected synthesized package dependency relationship. Relationships=" + document.relationships());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> browserViewDescriptors(Map<String, Object> browserViews) {
+        Object views = browserViews.get("views");
+        if (views instanceof List<?> list) {
+            return (List<Map<String, Object>>) list;
+        }
+        Object ids = browserViews.get("availableViews");
+        if (ids instanceof List<?> list) {
+            return ((List<?>) ids).stream().map(id -> Map.<String, Object>of("id", String.valueOf(id))).toList();
+        }
+        return List.of();
     }
 }

@@ -80,6 +80,69 @@ public final class ArchitectureContractAssertions {
     }
 
 
+
+
+    public static void assertHasTypeDependency(List<Map<String, Object>> dependencies, String sourceTypeName, String targetTypeName, String dependencySource) {
+        assertTrue(dependencies.stream().anyMatch(dep ->
+                sourceTypeName.equals(dep.get("sourceTypeName"))
+                    && targetTypeName.equals(dep.get("targetTypeName"))
+                    && (dependencySource == null || listContains(dep.get("dependencySources"), dependencySource))),
+            () -> "Expected type dependency " + sourceTypeName + " -> " + targetTypeName + (dependencySource == null ? "" : " via " + dependencySource) + ". Dependencies=" + dependencies);
+    }
+
+    public static void assertHasExternalDependencyTarget(List<Map<String, Object>> dependencies, String targetName, String dependencySource) {
+        assertTrue(dependencies.stream().anyMatch(dep ->
+                targetName.equals(dep.get("targetName"))
+                    && Boolean.TRUE.equals(dep.get("externalTarget"))
+                    && (dependencySource == null || listContains(dep.get("dependencySources"), dependencySource))),
+            () -> "Expected external dependency target='" + targetName + "'" + (dependencySource == null ? "" : " via " + dependencySource) + ". Dependencies=" + dependencies);
+    }
+
+    public static void assertHasBrowserViewIds(List<Map<String, Object>> views, String... expectedIds) {
+        List<String> actual = views.stream().map(view -> String.valueOf(view.get("id"))).toList();
+        for (String expected : expectedIds) {
+            assertTrue(actual.contains(expected),
+                () -> "Expected browser view id='" + expected + "'. Actual ids=" + actual);
+        }
+    }
+
+    public static void assertHasBrowserViewDescriptor(List<Map<String, Object>> views,
+                                                      String id,
+                                                      String framework,
+                                                      String typeDependencyView,
+                                                      String moduleDependencyView,
+                                                      String frameworkRelationship) {
+        assertTrue(views.stream().anyMatch(view ->
+                id.equals(view.get("id"))
+                    && framework.equals(view.get("framework"))
+                    && typeDependencyView.equals(view.get("typeDependencyView"))
+                    && moduleDependencyView.equals(view.get("moduleDependencyView"))
+                    && Boolean.TRUE.equals(view.get("available"))
+                    && listContains(view.get("frameworkRelationships"), frameworkRelationship)),
+            () -> "Expected browser view descriptor id='" + id + "', framework='" + framework + "', typeDependencyView='" + typeDependencyView + "', moduleDependencyView='" + moduleDependencyView + "', frameworkRelationship='" + frameworkRelationship + "'. Views=" + views);
+    }
+
+    public static void assertHasUiModuleProfile(List<?> entities, String name, String profile) {
+        assertTrue(entities.stream().anyMatch(raw -> {
+                if (!(raw instanceof info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureEntity entity)) {
+                    return false;
+                }
+                return entity.kind().name().equals("UI_MODULE")
+                    && name.equals(entity.name())
+                    && profile.equals(entity.metadata().get("uiProfile"));
+            }),
+            () -> "Expected UI_MODULE '" + name + "' with uiProfile='" + profile + "'. Entities=" + entities);
+    }
+
+    public static void assertHasWritePathRelationship(List<ExtractedRelationshipFact> relationships, String writeOperation, String entityType) {
+        assertTrue(relationships.stream().anyMatch(rel ->
+                rel.kind() == RelationshipKind.DEPENDS_ON
+                    && "writePath".equals(rel.metadata().get("relationshipType"))
+                    && writeOperation.equals(rel.metadata().get("writeOperation"))
+                    && entityType.equals(rel.metadata().get("entityType"))),
+            () -> "Expected write-path relationship writeOperation='" + writeOperation + "', entityType='" + entityType + "'. Relationships=" + relationships);
+    }
+
     public static void assertHasRelationshipKind(List<ExtractedRelationshipFact> relationships, RelationshipKind kind, String relationshipType) {
         assertTrue(relationships.stream().anyMatch(rel ->
                 rel.kind() == kind && Objects.equals(relationshipType, rel.metadata().get("relationshipType"))),
@@ -97,6 +160,10 @@ public final class ArchitectureContractAssertions {
                     && dependencyView.equals(relationship.metadata().get("dependencyView"))
                     && dependencySource.equals(relationship.metadata().get("dependencySource"))),
             () -> "Expected dependency relationship with dependencyView=" + dependencyView + ", dependencySource=" + dependencySource + ". Relationships=" + relationships);
+    }
+
+    private static boolean listContains(Object value, String expected) {
+        return value instanceof List<?> list && list.stream().map(String::valueOf).anyMatch(expected::equals);
     }
 
     private static List<String> asStringList(Object value) {

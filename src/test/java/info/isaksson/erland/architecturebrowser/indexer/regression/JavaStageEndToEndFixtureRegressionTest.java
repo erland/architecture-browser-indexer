@@ -10,6 +10,7 @@ import java.util.List;
 import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasEndpoint;
 import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasRelationshipByLabel;
 import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasRelationshipKind;
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasWritePathRelationship;
 import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertObservesEvent;
 import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertPublishesEvent;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -36,12 +37,7 @@ class JavaStageEndToEndFixtureRegressionTest {
 
         assertEquals(Boolean.TRUE, serviceCreateOrder.metadata().get("cdiEventPublisher"));
         assertEquals("com.example.orders.events.OrderCreatedEvent", serviceCreateOrder.metadata().get("cdiPublishedEventType"));
-        assertTrue(extraction.relationships().stream().anyMatch(rel ->
-                rel.kind() == RelationshipKind.DEPENDS_ON
-                    && "writePath".equals(rel.metadata().get("relationshipType"))
-                    && "persist".equals(rel.metadata().get("writeOperation"))
-                    && "com.example.orders.domain.OrderEntity".equals(rel.metadata().get("entityType"))),
-            () -> "Expected write-path relationship for OrderEntity persist operation. Relationships=" + extraction.relationships());
+        assertHasWritePathRelationship(extraction.relationships(), "persist", "com.example.orders.domain.OrderEntity");
 
         assertEquals(Boolean.TRUE, auditObserver.metadata().get("cdiObserver"));
         assertEquals(Boolean.FALSE, auditObserver.metadata().get("observerAsync"));

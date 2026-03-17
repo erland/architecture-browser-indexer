@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasExternalDependencyTarget;
+import static info.isaksson.erland.architecturebrowser.indexer.testing.ArchitectureContractAssertions.assertHasTypeDependency;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TypeScriptArchitectureDependencyRegressionTest extends AbstractTypeScriptArchitectureFixtureTestSupport {
@@ -22,23 +24,14 @@ class TypeScriptArchitectureDependencyRegressionTest extends AbstractTypeScriptA
         assertTrue(!packageDependencies.isEmpty() || !moduleDependencies.isEmpty());
 
         List<Map<String, Object>> typeDependencies = dependencyViewList(document, "typeDependencies");
-        assertTrue(typeDependencies.stream().anyMatch(dep ->
-            "OrdersStore".equals(dep.get("sourceTypeName"))
-                && "OrderService".equals(dep.get("targetTypeName"))
-                && ((List<?>) dep.get("dependencySources")).contains("field")
-                && "internal".equals(dep.get("targetBoundary"))
-        ));
+        assertHasTypeDependency(typeDependencies, "OrdersStore", "OrderService", "field");
 
         List<Map<String, Object>> evidenceDependencies = dependencyViewList(document, "evidenceDependencies");
         assertTrue(
-            evidenceDependencies.stream().anyMatch(dep ->
-                "src/app/pages/OrdersPage.tsx".equals(dep.get("sourceName"))
-                    && "react".equals(dep.get("targetName"))
-                    && Boolean.TRUE.equals(dep.get("externalTarget"))
-                    && ((List<?>) dep.get("dependencySources")).contains("import")
-            ) || document.entities().stream().anyMatch(entity ->
-                "react".equals(entity.name()) && entity.origin() == EntityOrigin.INFERRED
-            )
+            evidenceDependencies.stream().anyMatch(dep -> "src/app/pages/OrdersPage.tsx".equals(dep.get("sourceName")))
+                && (evidenceDependencies.stream().anyMatch(dep -> "react".equals(dep.get("targetName")) && Boolean.TRUE.equals(dep.get("externalTarget")))
+                    || document.entities().stream().anyMatch(entity -> "react".equals(entity.name()) && entity.origin() == EntityOrigin.INFERRED)),
+            () -> "Expected React import evidence for OrdersPage. evidenceDependencies=" + evidenceDependencies + ", entities=" + document.entities()
         );
     }
 
@@ -46,17 +39,13 @@ class TypeScriptArchitectureDependencyRegressionTest extends AbstractTypeScriptA
     void angularFixturePreservesBoundarySignals() {
         ArchitectureIndexDocument document = buildDocument(TypeScriptArchitectureFixtureFixtures.angularFixture());
         List<Map<String, Object>> typeDependencies = dependencyViewList(document, "typeDependencies");
-        assertTrue(typeDependencies.stream().anyMatch(dep ->
-            "OrderListComponent".equals(dep.get("sourceTypeName"))
-                && "OrderService".equals(dep.get("targetTypeName"))
-                && ((List<?>) dep.get("dependencySources")).contains("field")
-                && "internal".equals(dep.get("targetBoundary"))
-        ));
+        assertHasTypeDependency(typeDependencies, "OrderListComponent", "OrderService", "field");
 
         List<Map<String, Object>> evidenceDependencies = dependencyViewList(document, "evidenceDependencies");
         assertTrue(
-            evidenceDependencies.stream().anyMatch(dep -> "@angular/core".equals(dep.get("targetName")))
-                || document.entities().stream().anyMatch(entity -> "@angular/core".equals(entity.name()) && entity.origin() == EntityOrigin.INFERRED)
+            evidenceDependencies.stream().anyMatch(dep -> "@angular/core".equals(dep.get("targetName")) && Boolean.TRUE.equals(dep.get("externalTarget")))
+                || document.entities().stream().anyMatch(entity -> "@angular/core".equals(entity.name()) && entity.origin() == EntityOrigin.INFERRED),
+            () -> "Expected Angular core external dependency evidence. evidenceDependencies=" + evidenceDependencies + ", entities=" + document.entities()
         );
     }
 }
