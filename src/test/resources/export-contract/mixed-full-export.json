@@ -1,0 +1,287 @@
+{
+  "schemaVersion": "1.0.0",
+  "indexerVersion": "0.1.0-SNAPSHOT",
+  "runMetadata": {
+    "startedAt": "2026-03-10T12:00:00Z",
+    "completedAt": "2026-03-10T12:00:04Z",
+    "outcome": "SUCCESS",
+    "detectedTechnologies": ["java", "typescript", "react"],
+    "metadata": {
+      "exampleKind": "mixed-full"
+    }
+  },
+  "source": {
+    "repositoryId": "fixture-mixed-full",
+    "acquisitionType": "local-path",
+    "path": "/fixtures/mixed-full",
+    "remoteUrl": null,
+    "branch": "main",
+    "revision": "abc123",
+    "acquiredAt": "2026-03-10T12:00:00Z",
+    "metadata": {}
+  },
+  "scopes": [
+    {
+      "id": "scope:repo",
+      "kind": "REPOSITORY",
+      "name": "fixture-mixed-full",
+      "displayName": "fixture-mixed-full",
+      "parentScopeId": null,
+      "sourceRefs": [],
+      "metadata": {}
+    }
+  ],
+  "entities": [
+    {
+      "id": "entity:component:orders-page",
+      "kind": "CLASS",
+      "origin": "OBSERVED",
+      "name": "OrdersPage",
+      "displayName": "OrdersPage",
+      "scopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "react",
+        "moduleProfile": "component"
+      }
+    },
+    {
+      "id": "entity:endpoint:create-order",
+      "kind": "ENDPOINT",
+      "origin": "OBSERVED",
+      "name": "POST /orders",
+      "displayName": "POST /orders",
+      "scopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "jax-rs",
+        "httpMethod": "POST",
+        "path": "/orders"
+      }
+    },
+    {
+      "id": "entity:class:order-entity",
+      "kind": "CLASS",
+      "origin": "OBSERVED",
+      "name": "OrderEntity",
+      "displayName": "com.example.domain.OrderEntity",
+      "scopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "jpa",
+        "jpaKind": "entity"
+      }
+    },
+    {
+      "id": "entity:event:order-created",
+      "kind": "CLASS",
+      "origin": "OBSERVED",
+      "name": "OrderCreatedEvent",
+      "displayName": "OrderCreatedEvent",
+      "scopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "cdi"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "rel:ui:targets:endpoint",
+      "kind": "DEPENDS_ON",
+      "fromEntityId": "entity:component:orders-page",
+      "toEntityId": "entity:endpoint:create-order",
+      "label": "calls create order endpoint",
+      "sourceRefs": [],
+      "metadata": {
+        "dependencySource": "http-client"
+      }
+    }
+  ],
+  "diagnostics": [],
+  "completeness": {
+    "status": "COMPLETE",
+    "indexedFileCount": 20,
+    "totalFileCount": 20,
+    "degradedFileCount": 0,
+    "omittedPaths": [],
+    "notes": []
+  },
+  "metadata": {
+    "dependencyViews": {
+      "typeDependencies": [
+        {
+          "sourceTypeName": "OrdersPage",
+          "targetTypeName": "POST /orders",
+          "relationshipKind": "DEPENDS_ON",
+          "dependencyCategories": ["api"],
+          "dependencySources": ["http-client"],
+          "frameworks": ["react"],
+          "frameworkRelationships": [],
+          "architectureViewKinds": []
+        }
+      ],
+      "endpointTypeDependencies": [
+        {
+          "sourceTypeName": "OrdersPage",
+          "targetTypeName": "POST /orders",
+          "relationshipKind": "DEPENDS_ON",
+          "frameworks": ["jax-rs"],
+          "frameworkRelationships": ["endpoint"],
+          "architectureViewKinds": ["endpoint"]
+        }
+      ],
+      "entityModelTypeDependencies": [
+        {
+          "sourceTypeName": "POST /orders",
+          "targetTypeName": "OrderEntity",
+          "relationshipKind": "DEPENDS_ON",
+          "frameworks": ["jpa"],
+          "frameworkRelationships": ["hasAssociation"],
+          "architectureViewKinds": ["entity-model"]
+        }
+      ],
+      "observerTypeDependencies": [
+        {
+          "sourceTypeName": "POST /orders",
+          "targetTypeName": "OrderCreatedEvent",
+          "relationshipKind": "DEPENDS_ON",
+          "frameworks": ["cdi"],
+          "frameworkRelationships": ["publishesEvent"],
+          "architectureViewKinds": ["observer-event"]
+        }
+      ],
+      "routeTypeDependencies": [
+        {
+          "sourceTypeName": "/orders",
+          "targetTypeName": "OrdersPage",
+          "relationshipKind": "DEPENDS_ON",
+          "frameworks": ["react"],
+          "frameworkRelationships": ["targets"],
+          "architectureViewKinds": ["route"]
+        }
+      ],
+      "recommendedEntryPoints": [
+        "packageDependencies",
+        "typeDependencies",
+        "moduleDependencies",
+        "endpointTypeDependencies",
+        "entityModelTypeDependencies",
+        "observerTypeDependencies",
+        "evidenceDependencies"
+      ],
+      "primaryArchitectureViews": [
+        "packageDependencies",
+        "typeDependencies",
+        "moduleDependencies",
+        "endpointTypeDependencies",
+        "entityModelTypeDependencies",
+        "observerTypeDependencies"
+      ],
+      "frontendBrowserViews": {
+        "views": [
+          {
+            "id": "routeGraph",
+            "title": "Frontend route graph",
+            "description": "Angular and React routing relationships for browser-native navigation and path analysis.",
+            "framework": "frontend",
+            "architectureViewKind": "route",
+            "typeDependencyView": "routeTypeDependencies",
+            "moduleDependencyView": "routeModuleDependencies",
+            "frameworkRelationships": ["targets", "childOf", "lazyLoads", "guards", "resolves"],
+            "available": true,
+            "typeDependencyCount": 1,
+            "moduleDependencyCount": 0,
+            "preferredDependencyView": "routeTypeDependencies",
+            "browserViewKind": "graph",
+            "recommendedForArchitectureViews": true
+          }
+        ],
+        "availableViews": ["routeGraph"],
+        "defaultViewId": "routeGraph",
+        "description": "Browser-facing frontend graph descriptors derived from existing dependency rollups."
+      },
+      "javaBrowserViews": {
+        "views": [
+          {
+            "id": "javaEndpointGraph",
+            "title": "Java endpoint graph",
+            "description": "JAX-RS resource and endpoint relationships prepared for browser-native backend API exploration.",
+            "framework": "jax-rs",
+            "architectureViewKind": "endpoint",
+            "typeDependencyView": "endpointTypeDependencies",
+            "moduleDependencyView": "endpointModuleDependencies",
+            "frameworkRelationships": ["exposesEndpoint", "endpoint"],
+            "available": true,
+            "typeDependencyCount": 1,
+            "moduleDependencyCount": 0,
+            "preferredDependencyView": "endpointTypeDependencies",
+            "browserViewKind": "graph",
+            "recommendedForArchitectureViews": true,
+            "typeRelationshipKinds": ["DEPENDS_ON"],
+            "moduleRelationshipKinds": [],
+            "availableFrameworks": ["jax-rs"],
+            "availableArchitectureViewKinds": ["endpoint"]
+          },
+          {
+            "id": "javaEventFlowGraph",
+            "title": "Java CDI event flow graph",
+            "description": "CDI publisher, event, and observer relationships prepared for browser-native asynchronous flow exploration.",
+            "framework": "cdi",
+            "architectureViewKind": "observer-event",
+            "typeDependencyView": "observerTypeDependencies",
+            "moduleDependencyView": "observerModuleDependencies",
+            "frameworkRelationships": ["publishesEvent", "observesEvent", "eventObservedBy"],
+            "available": true,
+            "typeDependencyCount": 1,
+            "moduleDependencyCount": 0,
+            "preferredDependencyView": "observerTypeDependencies",
+            "browserViewKind": "graph",
+            "recommendedForArchitectureViews": true,
+            "typeRelationshipKinds": ["DEPENDS_ON"],
+            "moduleRelationshipKinds": [],
+            "availableFrameworks": ["cdi"],
+            "availableArchitectureViewKinds": ["observer-event"]
+          }
+        ],
+        "availableViews": ["javaEndpointGraph", "javaEventFlowGraph"],
+        "defaultViewId": "javaEndpointGraph",
+        "description": "Browser-facing Java backend graph descriptors derived from framework-aware dependency rollups.",
+        "recommendedEntryPoints": ["javaEndpointGraph", "javaEntityModelGraph", "javaEventFlowGraph", "javaWritePathGraph"]
+      },
+      "browserViewCatalog": {
+        "families": [
+          {
+            "id": "frontend",
+            "title": "Frontend browser views",
+            "available": true,
+            "availableViewIds": ["routeGraph"],
+            "defaultViewId": "routeGraph",
+            "viewCount": 1,
+            "description": "Browser-facing frontend graph descriptors derived from existing dependency rollups."
+          },
+          {
+            "id": "java",
+            "title": "Java backend browser views",
+            "available": true,
+            "availableViewIds": ["javaEndpointGraph", "javaEventFlowGraph"],
+            "defaultViewId": "javaEndpointGraph",
+            "viewCount": 2,
+            "description": "Browser-facing Java backend graph descriptors derived from framework-aware dependency rollups."
+          }
+        ],
+        "availableFamilies": ["frontend", "java"],
+        "defaultFamily": "frontend",
+        "description": "High-level browser view families exported with the architecture index document."
+      },
+      "hasFrontendBrowserView": true,
+      "hasJavaBrowserView": true,
+      "evidenceStatus": "available"
+    },
+    "summary": {
+      "entityCount": 4,
+      "relationshipCount": 1,
+      "technologyCount": 3
+    }
+  }
+}
