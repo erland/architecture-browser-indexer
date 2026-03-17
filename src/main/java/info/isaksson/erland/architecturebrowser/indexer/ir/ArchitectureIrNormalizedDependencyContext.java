@@ -1,0 +1,40 @@
+package info.isaksson.erland.architecturebrowser.indexer.ir;
+
+import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureEntity;
+import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureRelationship;
+
+record ArchitectureIrNormalizedDependencyContext(
+    ArchitectureRelationship relationship,
+    ArchitectureEntity rawSource,
+    ArchitectureEntity rawTarget,
+    ArchitectureEntity source,
+    ArchitectureEntity target,
+    boolean importEvidenceRelationship,
+    boolean typeDependencyRelationship,
+    String sourceTypeId,
+    String targetTypeId,
+    String sourceTypeName,
+    String targetTypeName,
+    boolean internalTarget,
+    boolean externalTarget,
+    String sourceBoundary,
+    String targetBoundary,
+    String targetTypeClassification,
+    String sourcePackageName,
+    String targetPackageName,
+    String sourcePackageBoundary,
+    String targetPackageBoundary,
+    String targetPackageClassification,
+    String sourceModuleName,
+    String targetModuleName,
+    String sourceModuleBoundary,
+    String targetModuleBoundary,
+    String targetModuleClassification,
+    boolean sameModule,
+    String evidenceSourceEntityId,
+    String evidenceTargetEntityId,
+    String evidenceSourceName,
+    String evidenceTargetName,
+    String evidenceTargetClassification
+) {
+}
