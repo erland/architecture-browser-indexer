@@ -103,7 +103,7 @@ final class JavaCompilationUnitExtractionFlow {
                 importsBySimpleName,
                 declaredTypes,
                 extractionContext
-            )
+            ).ownership()
         );
         return accumulator;
     }

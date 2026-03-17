@@ -23,7 +23,7 @@ final class JavaTraversalNodeDispatchFlow {
         this.methodExtractionFlow = methodExtractionFlow;
     }
 
-    JavaSyntaxTreeTraversal.JavaTraversalOwnership handleNode(
+    JavaNodeDispatchResult handleNode(
         SourceParseResult parseResult,
         ExtractionAccumulator accumulator,
         String relativePath,
@@ -39,7 +39,7 @@ final class JavaTraversalNodeDispatchFlow {
         JavaExtractionContext extractionContext
     ) {
         if (node == null) {
-            return ownership;
+            return JavaNodeDispatchResult.notHandled(ownership);
         }
 
         JavaOwnerContext ownerContext = JavaOwnerContext.fromTraversalOwnership(ownership);
@@ -60,11 +60,11 @@ final class JavaTraversalNodeDispatchFlow {
             )
         );
         if (typeTraversalResult.handled()) {
-            return typeTraversalResult.ownerContext().toTraversalOwnership();
+            return JavaNodeDispatchResult.handledType(typeTraversalResult);
         }
 
         if (isJavaFieldDeclaration(node)) {
-            fieldExtractionFlow.handleFieldNode(
+            JavaMemberExtractionResult fieldResult = fieldExtractionFlow.handleFieldNode(
                 new JavaMemberNodeRequest(
                     parseResult,
                     accumulator,
@@ -80,11 +80,11 @@ final class JavaTraversalNodeDispatchFlow {
                     extractionContext
                 )
             );
-            return ownerContext.toTraversalOwnership();
+            return JavaNodeDispatchResult.handledMember(ownerContext.toTraversalOwnership(), fieldResult);
         }
 
         if (isJavaMethodLikeDeclaration(node)) {
-            methodExtractionFlow.handleMethodNode(
+            JavaMemberExtractionResult methodResult = methodExtractionFlow.handleMethodNode(
                 new JavaMemberNodeRequest(
                     parseResult,
                     accumulator,
@@ -100,8 +100,9 @@ final class JavaTraversalNodeDispatchFlow {
                     extractionContext
                 )
             );
+            return JavaNodeDispatchResult.handledMember(ownerContext.toTraversalOwnership(), methodResult);
         }
-        return ownerContext.toTraversalOwnership();
+        return JavaNodeDispatchResult.notHandled(ownerContext.toTraversalOwnership());
     }
 
     private static boolean isJavaFieldDeclaration(SyntaxNode node) {

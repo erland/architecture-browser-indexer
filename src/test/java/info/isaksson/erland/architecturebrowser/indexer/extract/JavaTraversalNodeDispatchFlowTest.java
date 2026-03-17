@@ -56,7 +56,7 @@ final class JavaTraversalNodeDispatchFlowTest {
         JavaExtractionContext context = new JavaExtractionContext(relativePath, "com.example.orders", source, Map.of(), Map.of());
 
         JavaSyntaxTreeTraversal.JavaTraversalOwnership rootOwnership = new JavaSyntaxTreeTraversal.JavaTraversalOwnership(null, null, null);
-        JavaSyntaxTreeTraversal.JavaTraversalOwnership typeOwnership = flow.handleNode(
+        JavaNodeDispatchResult typeDispatch = flow.handleNode(
             parseResult,
             accumulator,
             relativePath,
@@ -72,11 +72,14 @@ final class JavaTraversalNodeDispatchFlowTest {
             context
         );
 
+        JavaSyntaxTreeTraversal.JavaTraversalOwnership typeOwnership = typeDispatch.ownership();
+        assertTrue(typeDispatch.handled());
+        assertTrue(typeDispatch.typeTraversalResult().handled());
         assertEquals("com.example.orders.OrderResource", typeOwnership.owningQualifiedName());
         assertNotNull(typeOwnership.owningTypeEntityId());
 
         SyntaxNode fieldNode = typeNode.children().stream().filter(child -> "field_declaration".equals(child.type())).findFirst().orElseThrow();
-        JavaSyntaxTreeTraversal.JavaTraversalOwnership afterField = flow.handleNode(
+        JavaNodeDispatchResult fieldDispatch = flow.handleNode(
             parseResult,
             accumulator,
             relativePath,
@@ -91,11 +94,15 @@ final class JavaTraversalNodeDispatchFlowTest {
             Map.of(),
             context
         );
+        JavaSyntaxTreeTraversal.JavaTraversalOwnership afterField = fieldDispatch.ownership();
+        assertTrue(fieldDispatch.handled());
+        assertTrue(fieldDispatch.memberExtractionResult().handled());
         assertEquals(typeOwnership.owningQualifiedName(), afterField.owningQualifiedName());
+        assertTrue(fieldDispatch.memberExtractionResult().emittedEntityIds().stream().anyMatch(id -> id.contains("customer")));
         assertTrue(accumulator.entities().stream().anyMatch(entity -> "customer".equals(entity.name())));
 
         SyntaxNode methodNode = typeNode.children().stream().filter(child -> "method_declaration".equals(child.type())).findFirst().orElseThrow();
-        JavaSyntaxTreeTraversal.JavaTraversalOwnership afterMethod = flow.handleNode(
+        JavaNodeDispatchResult methodDispatch = flow.handleNode(
             parseResult,
             accumulator,
             relativePath,
@@ -110,7 +117,11 @@ final class JavaTraversalNodeDispatchFlowTest {
             Map.of(),
             context
         );
+        JavaSyntaxTreeTraversal.JavaTraversalOwnership afterMethod = methodDispatch.ownership();
+        assertTrue(methodDispatch.handled());
+        assertTrue(methodDispatch.memberExtractionResult().handled());
         assertEquals(typeOwnership.owningQualifiedName(), afterMethod.owningQualifiedName());
+        assertTrue(methodDispatch.memberExtractionResult().emittedEntityIds().stream().anyMatch(id -> id.contains("create")));
         assertTrue(accumulator.entities().stream().anyMatch(entity -> "create".equals(entity.name()) && Boolean.TRUE.equals(entity.metadata().get("jaxRsEndpoint"))));
     }
 }
