@@ -8,7 +8,7 @@ The initial decomposition wave completed the planned work around the largest tar
 
 If a future cleanup wave is needed, the most likely next candidates are:
 
-1. `JavaStructuralExtractionContractRegressionTest`
+1. `JavaStructuralExtractionContractRegressionTest (broad baseline only)`
 2. `FrontendFrameworkBaselineRegressionTest`
 3. `ArchitectureDependencyFixtureRegressionTest`
 4. `AngularTypeScriptFrameworkSemanticsRegressionTest`
@@ -72,3 +72,9 @@ Start another dedicated decomposition pass when one of these becomes true:
 - a test file grows beyond about 400–500 lines and mixes multiple concern families
 - failures repeatedly require editing several large tests for one production change
 - new assertions start reintroducing raw metadata-map equality or ordering dependencies
+
+
+Java extraction contract regression concerns were decomposed into:
+- JavaDeclarationOwnershipContractRegressionTest
+- JavaHierarchyContractRegressionTest
+- JavaFieldAndMethodDependencyContractRegressionTest

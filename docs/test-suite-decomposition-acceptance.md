@@ -72,7 +72,7 @@ The suite is in a better state, but several sizable tests remain and should stay
 
 Largest current test files by line count at the time this acceptance doc was generated:
 
-- `JavaStructuralExtractionContractRegressionTest` — about 991 LOC
+- `JavaStructuralExtractionContractRegressionTest (broad baseline only)` — about 991 LOC
 - `FrontendFrameworkBaselineRegressionTest` — about 548 LOC
 - `ArchitectureDependencyFixtureRegressionTest` — about 524 LOC
 - `AngularTypeScriptFrameworkSemanticsRegressionTest` — about 485 LOC
@@ -115,3 +115,9 @@ This test cleanup wave should be considered **accepted** when the local Maven su
 - contract helpers instead of raw metadata scanning where practical
 - shared fixture builders for synthetic setups
 - decomposition guardrails for large tests
+
+
+Java extraction contract regression concerns were decomposed into:
+- JavaDeclarationOwnershipContractRegressionTest
+- JavaHierarchyContractRegressionTest
+- JavaFieldAndMethodDependencyContractRegressionTest

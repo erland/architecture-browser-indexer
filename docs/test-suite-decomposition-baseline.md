@@ -164,7 +164,7 @@ Shared contract assertion helpers are now the preferred mechanism for architectu
 Implemented decomposition split:
 
 - `StructuralExtractionServiceTest` now focuses on orchestration/service behavior
-- `JavaStructuralExtractionContractRegressionTest` now owns Java-specific extraction contracts
+- `JavaStructuralExtractionContractRegressionTest (broad baseline only)` now owns Java-specific extraction contracts
 - `TypeScriptStructuralExtractionContractRegressionTest` now owns TypeScript-specific extraction contracts
 - `AbstractStructuralExtractionServiceTestSupport` centralizes the shared `extract(ParseBatchResult)` helper
 
@@ -227,3 +227,9 @@ This means:
 - the originally targeted umbrella tests were decomposed
 - shared contract assertions and fixture builders are now part of the standard approach
 - future cleanup should focus on the updated watchlist rather than reopening the original TypeScript/frontend umbrella targets
+
+
+Java extraction contract regression concerns were decomposed into:
+- JavaDeclarationOwnershipContractRegressionTest
+- JavaHierarchyContractRegressionTest
+- JavaFieldAndMethodDependencyContractRegressionTest

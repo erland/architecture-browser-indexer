@@ -374,7 +374,7 @@ Completed so far:
 - Step 4: decomposed `TypeScriptStructuralExtractorSafetyNetTest` into focused concern-based tests
 - Step 5: decomposed `StructuralExtractionServiceTest` into:
   - `StructuralExtractionServiceTest` (service/orchestration seam)
-  - `JavaStructuralExtractionContractRegressionTest`
+  - `JavaStructuralExtractionContractRegressionTest (broad baseline only)`
   - `TypeScriptStructuralExtractionContractRegressionTest`
 
 This keeps service-level tests focused on orchestration and moves language-specific expectations into dedicated regression classes.
@@ -437,3 +437,9 @@ Current practical conclusion:
 - contract helpers and shared fixture builders are in place
 - file-size and responsibility guardrails are documented
 - the next likely cleanup targets have shifted toward larger Java structural regressions and broader frontend/framework baseline tests
+
+
+Java extraction contract regression concerns were decomposed into:
+- JavaDeclarationOwnershipContractRegressionTest
+- JavaHierarchyContractRegressionTest
+- JavaFieldAndMethodDependencyContractRegressionTest
