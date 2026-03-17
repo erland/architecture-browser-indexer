@@ -61,7 +61,7 @@ class ArchitectureIrDependencyViewAssemblySupportTest {
             new ArchitectureIrDependencyViewAssemblyInputs(
                 List.of(typeDependency),
                 entitiesById,
-                ArchitectureIrAssemblyCompositionSupport.observedTypesByQualifiedName(entitiesById)
+                ArchitectureIrAssemblyCompatibilitySupport.observedTypesByQualifiedName(entitiesById)
             )
         );
 

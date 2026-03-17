@@ -30,8 +30,8 @@ final class ArchitectureIrDependencyViewAssemblySupport {
         for (ArchitectureRelationship relationship : relationships) {
             ArchitectureEntity rawSource = entitiesById.get(relationship.fromEntityId());
             ArchitectureEntity rawTarget = entitiesById.get(relationship.toEntityId());
-            ArchitectureEntity source = ArchitectureIrAssemblyCompositionSupport.canonicalDependencyEntity(rawSource, observedTypesByQualifiedName);
-            ArchitectureEntity target = ArchitectureIrAssemblyCompositionSupport.canonicalDependencyEntity(rawTarget, observedTypesByQualifiedName);
+            ArchitectureEntity source = ArchitectureIrAssemblyCompatibilitySupport.canonicalDependencyEntity(rawSource, observedTypesByQualifiedName);
+            ArchitectureEntity target = ArchitectureIrAssemblyCompatibilitySupport.canonicalDependencyEntity(rawTarget, observedTypesByQualifiedName);
             if (isImportEvidenceRelationship(relationship, rawSource, rawTarget)) {
                 String sourceEntityId = rawSource == null ? relationship.fromEntityId() : rawSource.id();
                 String targetEntityId = rawTarget == null ? relationship.toEntityId() : rawTarget.id();
@@ -47,7 +47,7 @@ final class ArchitectureIrDependencyViewAssemblySupport {
                     typeClassificationForEntity(rawTarget)
                 )).addEvidence(relationship);
             }
-            if (ArchitectureIrAssemblyCompositionSupport.isTypeDependencyRelationship(relationship, source, target)) {
+            if (ArchitectureIrAssemblyCompatibilitySupport.isTypeDependencyRelationship(relationship, source, target)) {
                 String sourceTypeId = source == null ? relationship.fromEntityId() : source.id();
                 String targetTypeId = target == null ? relationship.toEntityId() : target.id();
                 String typeKey = relationship.kind().name() + "|" + sourceTypeId + "|" + targetTypeId;
@@ -64,8 +64,8 @@ final class ArchitectureIrDependencyViewAssemblySupport {
                     typeClassificationForEntity(target)
                 )).addEvidence(relationship);
 
-                String sourcePackageName = ArchitectureIrAssemblyCompositionSupport.packageNameForDependencyEntity(source);
-                String targetPackageName = ArchitectureIrAssemblyCompositionSupport.packageNameForDependencyEntity(target);
+                String sourcePackageName = ArchitectureIrAssemblyCompatibilitySupport.packageNameForDependencyEntity(source);
+                String targetPackageName = ArchitectureIrAssemblyCompatibilitySupport.packageNameForDependencyEntity(target);
                 if (sourcePackageName != null && targetPackageName != null && !sourcePackageName.equals(targetPackageName)) {
                     String packageKey = relationship.kind().name() + "|" + sourcePackageName + "|" + targetPackageName;
                     packageDependenciesByKey.computeIfAbsent(packageKey, ignored -> new NormalizedPackageDependency(
@@ -74,9 +74,9 @@ final class ArchitectureIrDependencyViewAssemblySupport {
                         relationship.kind(),
                         isInternalEntity(target),
                         isExternalEntity(target),
-                        ArchitectureIrAssemblyCompositionSupport.packageBoundaryForName(sourcePackageName, entitiesById),
-                        ArchitectureIrAssemblyCompositionSupport.packageBoundaryForName(targetPackageName, entitiesById),
-                        ArchitectureIrAssemblyCompositionSupport.packageClassificationForName(targetPackageName, entitiesById)
+                        ArchitectureIrAssemblyCompatibilitySupport.packageBoundaryForName(sourcePackageName, entitiesById),
+                        ArchitectureIrAssemblyCompatibilitySupport.packageBoundaryForName(targetPackageName, entitiesById),
+                        ArchitectureIrAssemblyCompatibilitySupport.packageClassificationForName(targetPackageName, entitiesById)
                     )).addEvidence(relationship, source, target);
                 }
                 String sourceModuleName = moduleNameForDependencyEntity(source);
@@ -179,7 +179,7 @@ final class ArchitectureIrDependencyViewAssemblySupport {
                 }
             }
         }
-        return ArchitectureIrAssemblyCompositionSupport.packageNameForDependencyEntity(entity);
+        return ArchitectureIrAssemblyCompatibilitySupport.packageNameForDependencyEntity(entity);
     }
 
     private static String moduleBoundaryForName(String moduleName, Map<String, ArchitectureEntity> entitiesById) {
@@ -209,7 +209,7 @@ final class ArchitectureIrDependencyViewAssemblySupport {
         if (relativePath == null || relativePath.isBlank()) {
             return null;
         }
-        String normalized = relativePath.replace('\', '/');
+        String normalized = relativePath.replace('\\', '/');
         String[] parts = normalized.split("/");
         if (parts.length >= 3 && "src".equals(parts[0]) && ("main".equals(parts[1]) || "test".equals(parts[1]))) {
             return parts[0] + "/" + parts[1] + "/" + parts[2];

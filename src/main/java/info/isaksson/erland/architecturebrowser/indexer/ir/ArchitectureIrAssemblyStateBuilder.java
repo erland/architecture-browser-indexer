@@ -27,7 +27,7 @@ final class ArchitectureIrAssemblyStateBuilder {
             ArchitectureIrDiagnosticsBuilder.build(inputs, repositoryScope, inventoryEntity);
         List<LogicalScope> scopes = assembleScopes(inputs, repositoryScope);
         Map<String, ArchitectureEntity> entitiesById = assembleEntitiesById(inputs, repositoryScope, inventoryEntity);
-        Map<String, ArchitectureEntity> observedTypesByQualifiedName = ArchitectureIrAssemblyCompositionSupport.observedTypesByQualifiedName(entitiesById);
+        Map<String, ArchitectureEntity> observedTypesByQualifiedName = ArchitectureIrAssemblyCompatibilitySupport.observedTypesByQualifiedName(entitiesById);
         List<ArchitectureRelationship> relationships = assembleRelationships(inputs, entitiesById, observedTypesByQualifiedName);
         Map<String, Object> dependencyViews = ArchitectureIrAssemblyCompositionSupport.buildDependencyViews(
             new ArchitectureIrDependencyViewAssemblyInputs(

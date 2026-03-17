@@ -98,7 +98,7 @@ class ArchitectureIrAssemblyCompositionSupportSafetyNetTest {
             Map.of("dependencySource", "import")
         );
 
-        Map<String, ArchitectureEntity> observedTypes = ArchitectureIrAssemblyCompositionSupport.observedTypesByQualifiedName(entitiesById);
+        Map<String, ArchitectureEntity> observedTypes = ArchitectureIrAssemblyCompatibilitySupport.observedTypesByQualifiedName(entitiesById);
         List<ArchitectureRelationship> enriched = ArchitectureIrAssemblyCompositionSupport.enrichDependencyRelationshipMetadata(
             List.of(typeDependency, importEvidence),
             entitiesById,
@@ -198,16 +198,16 @@ class ArchitectureIrAssemblyCompositionSupportSafetyNetTest {
         List<ArchitectureRelationship> relationships = ArchitectureIrAssemblyCompositionSupport.ensurePackageDependencyRelationships(
             List.of(typeDependency),
             entitiesById,
-            ArchitectureIrAssemblyCompositionSupport.observedTypesByQualifiedName(entitiesById)
+            ArchitectureIrAssemblyCompatibilitySupport.observedTypesByQualifiedName(entitiesById)
         );
         Map<String, Object> dependencyViews = ArchitectureIrAssemblyCompositionSupport.buildDependencyViews(
             ArchitectureIrAssemblyCompositionSupport.enrichDependencyRelationshipMetadata(
                 relationships,
                 entitiesById,
-                ArchitectureIrAssemblyCompositionSupport.observedTypesByQualifiedName(entitiesById)
+                ArchitectureIrAssemblyCompatibilitySupport.observedTypesByQualifiedName(entitiesById)
             ),
             entitiesById,
-            ArchitectureIrAssemblyCompositionSupport.observedTypesByQualifiedName(entitiesById)
+            ArchitectureIrAssemblyCompatibilitySupport.observedTypesByQualifiedName(entitiesById)
         );
         Map<String, ArchitectureEntity> enrichedEntities = ArchitectureIrAssemblyCompositionSupport.enrichPackageEntities(entitiesById, dependencyViews);
 
@@ -239,7 +239,7 @@ class ArchitectureIrAssemblyCompositionSupportSafetyNetTest {
         assertEquals(1, boundarySummary.get("typeInternalCount"));
         assertEquals(0, boundarySummary.get("typeExternalCount"));
         assertEquals(1, enrichedPackage.metadata().get("outgoingDependencyCount"));
-        assertEquals("scope:repo", ArchitectureIrAssemblyCompositionSupport.normalizeScopeId(null, "scope:repo"));
-        assertEquals("scope:file:demo", ArchitectureIrAssemblyCompositionSupport.normalizeScopeId("scope:file:demo", "scope:repo"));
+        assertEquals("scope:repo", ArchitectureIrAssemblyCompatibilitySupport.normalizeScopeId(null, "scope:repo"));
+        assertEquals("scope:file:demo", ArchitectureIrAssemblyCompatibilitySupport.normalizeScopeId("scope:file:demo", "scope:repo"));
     }
 }

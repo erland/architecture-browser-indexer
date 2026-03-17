@@ -26,24 +26,24 @@ final class ArchitectureIrSyntheticPackageDependencyRollupBuilder {
 
         Map<String, ArchitectureRelationship> synthetic = new LinkedHashMap<>();
         for (ArchitectureRelationship relationship : relationships) {
-            ArchitectureEntity source = ArchitectureIrAssemblyCompositionSupport.canonicalDependencyEntity(
+            ArchitectureEntity source = ArchitectureIrAssemblyCompatibilitySupport.canonicalDependencyEntity(
                 entitiesById.get(relationship.fromEntityId()),
                 observedTypesByQualifiedName
             );
-            ArchitectureEntity target = ArchitectureIrAssemblyCompositionSupport.canonicalDependencyEntity(
+            ArchitectureEntity target = ArchitectureIrAssemblyCompatibilitySupport.canonicalDependencyEntity(
                 entitiesById.get(relationship.toEntityId()),
                 observedTypesByQualifiedName
             );
-            if (!ArchitectureIrAssemblyCompositionSupport.isTypeDependencyRelationship(relationship, source, target)) {
+            if (!ArchitectureIrAssemblyCompatibilitySupport.isTypeDependencyRelationship(relationship, source, target)) {
                 continue;
             }
-            String sourcePackageName = ArchitectureIrAssemblyCompositionSupport.packageNameForDependencyEntity(source);
-            String targetPackageName = ArchitectureIrAssemblyCompositionSupport.packageNameForDependencyEntity(target);
+            String sourcePackageName = ArchitectureIrAssemblyCompatibilitySupport.packageNameForDependencyEntity(source);
+            String targetPackageName = ArchitectureIrAssemblyCompatibilitySupport.packageNameForDependencyEntity(target);
             if (sourcePackageName == null || targetPackageName == null || sourcePackageName.equals(targetPackageName)) {
                 continue;
             }
-            String sourcePackageEntityId = ArchitectureIrAssemblyCompositionSupport.findPackageEntityIdByName(sourcePackageName, entitiesById);
-            String targetPackageEntityId = ArchitectureIrAssemblyCompositionSupport.findPackageEntityIdByName(targetPackageName, entitiesById);
+            String sourcePackageEntityId = ArchitectureIrAssemblyCompatibilitySupport.findPackageEntityIdByName(sourcePackageName, entitiesById);
+            String targetPackageEntityId = ArchitectureIrAssemblyCompatibilitySupport.findPackageEntityIdByName(targetPackageName, entitiesById);
             if (sourcePackageEntityId == null || targetPackageEntityId == null || sourcePackageEntityId.equals(targetPackageEntityId)) {
                 continue;
             }
@@ -58,10 +58,10 @@ final class ArchitectureIrSyntheticPackageDependencyRollupBuilder {
             metadata.put("dependencyTargetPackageId", targetPackageEntityId);
             metadata.put("dependencySourcePackageName", sourcePackageName);
             metadata.put("dependencyTargetPackageName", targetPackageName);
-            metadata.put("dependencySourcePackageBoundary", ArchitectureIrAssemblyCompositionSupport.packageBoundaryForName(sourcePackageName, entitiesById));
-            metadata.put("dependencyTargetPackageBoundary", ArchitectureIrAssemblyCompositionSupport.packageBoundaryForName(targetPackageName, entitiesById));
-            metadata.put("dependencyTargetBoundary", ArchitectureIrAssemblyCompositionSupport.packageBoundaryForName(targetPackageName, entitiesById));
-            metadata.put("dependencyTargetPackageClassification", ArchitectureIrAssemblyCompositionSupport.packageClassificationForName(targetPackageName, entitiesById));
+            metadata.put("dependencySourcePackageBoundary", ArchitectureIrAssemblyCompatibilitySupport.packageBoundaryForName(sourcePackageName, entitiesById));
+            metadata.put("dependencyTargetPackageBoundary", ArchitectureIrAssemblyCompatibilitySupport.packageBoundaryForName(targetPackageName, entitiesById));
+            metadata.put("dependencyTargetBoundary", ArchitectureIrAssemblyCompatibilitySupport.packageBoundaryForName(targetPackageName, entitiesById));
+            metadata.put("dependencyTargetPackageClassification", ArchitectureIrAssemblyCompatibilitySupport.packageClassificationForName(targetPackageName, entitiesById));
             if (relationship.metadata() != null) {
                 Object dependencySource = relationship.metadata().get("dependencySource");
                 Object dependencyCategory = relationship.metadata().get("dependencyCategory");

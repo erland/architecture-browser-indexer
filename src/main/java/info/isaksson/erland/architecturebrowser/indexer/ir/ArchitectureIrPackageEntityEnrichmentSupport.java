@@ -30,7 +30,7 @@ final class ArchitectureIrPackageEntityEnrichmentSupport {
         }
         Map<String, ArchitectureEntity> enriched = new LinkedHashMap<>();
         for (ArchitectureEntity entity : entitiesById.values()) {
-            if (!ArchitectureIrAssemblyCompositionSupport.isPackageEntity(entity)) {
+            if (!ArchitectureIrAssemblyCompatibilitySupport.isPackageEntity(entity)) {
                 enriched.put(entity.id(), entity);
                 continue;
             }
