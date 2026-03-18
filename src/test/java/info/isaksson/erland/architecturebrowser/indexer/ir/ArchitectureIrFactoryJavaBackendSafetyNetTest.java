@@ -51,6 +51,10 @@ class ArchitectureIrFactoryJavaBackendSafetyNetTest {
         assertTrue(document.relationships().stream().anyMatch(rel -> rel.architecturalSemantics() != null && rel.architecturalSemantics().contains("serves-request")));
         assertTrue(document.relationships().stream().anyMatch(rel -> rel.architecturalSemantics() != null && rel.architecturalSemantics().contains("invokes-use-case")));
         assertTrue(document.relationships().stream().anyMatch(rel -> rel.architecturalSemantics() != null && rel.architecturalSemantics().contains("accesses-persistence")));
+        assertEquals("available", viewpointAvailability(document, "api-surface"));
+        assertEquals("available", viewpointAvailability(document, "request-handling"));
+        assertEquals("available", viewpointAvailability(document, "persistence-model"));
+        assertTrue(viewpointConfidence(document, "request-handling") >= 0.75);
         assertTrue(document.metadata().containsKey("dependencyViews"));
         assertTrue(document.metadata().containsKey("topologySummary"));
         assertTrue(document.metadata().containsKey("extractionSummary"));
@@ -73,6 +77,22 @@ class ArchitectureIrFactoryJavaBackendSafetyNetTest {
             "javaEventFlowGraph",
             "javaWritePathGraph"
         )));
+    }
+
+    private static String viewpointAvailability(ArchitectureIndexDocument document, String viewpointId) {
+        return document.viewpoints().stream()
+            .filter(viewpoint -> viewpointId.equals(viewpoint.id()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Missing viewpoint=" + viewpointId))
+            .availability();
+    }
+
+    private static double viewpointConfidence(ArchitectureIndexDocument document, String viewpointId) {
+        return document.viewpoints().stream()
+            .filter(viewpoint -> viewpointId.equals(viewpoint.id()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Missing viewpoint=" + viewpointId))
+            .confidence();
     }
 
     private static ArchitectureIndexDocument buildDocumentFromFixture() {

@@ -103,7 +103,11 @@ public final class ArchitectureIrFactory {
             assembly.scopes(),
             assembly.entities(),
             assembly.relationships(),
-            null,
+            ArchitectureIrViewpointDerivationService.derive(
+                assembly.entities(),
+                assembly.relationships(),
+                assembly.dependencyViews()
+            ),
             assembly.diagnostics(),
             completeness,
             documentMetadata
