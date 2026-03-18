@@ -138,4 +138,88 @@ class FrontendRoutingExtractionContractRegressionTest extends AbstractTypeScript
         assertFrontendRouteRelationship(result, reportsRoute.id(), reportsPageEntity.id(), "ReportsPage", "react", "targets", true);
     }
 
+    @Test
+    void extractsRedirectsAndStaticNavigationEvidenceForLaterUiNavigationNormalization() {
+        String source = """
+            import { Link, createBrowserRouter } from 'react-router-dom';
+            import { Router } from '@angular/router';
+
+            export const router = createBrowserRouter([
+              {
+                path: '/',
+                element: <AppShell />,
+                children: [
+                  { path: 'orders', element: <OrdersPage /> },
+                  { path: 'legacy', redirectTo: '/orders' }
+                ]
+              }
+            ]);
+
+            export function OrdersPage() {
+              return <div><Link to="/reports">Reports</Link></div>;
+            }
+
+            export function LegacyEntry() {
+              navigate('/orders');
+              router.navigate(['/reports']);
+              return <section />;
+            }
+
+            export function AppShell() { return <main />; }
+            export function ReportsPage() { return <article />; }
+            """;
+
+        SyntaxNode ordersPage = new SyntaxNode("function_declaration", true, 0, 0, 14, 0, 16, 1, false, false,
+            "export function OrdersPage() { return <div><Link to=\"/reports\">Reports</Link></div>; }", List.of(
+                new SyntaxNode("identifier", true, 0, 0, 14, 16, 14, 26, false, false, "OrdersPage", List.of())
+            ));
+        SyntaxNode legacyEntry = new SyntaxNode("function_declaration", true, 0, 0, 18, 0, 21, 1, false, false,
+            "export function LegacyEntry() { navigate('/orders'); router.navigate(['/reports']); return <section />; }", List.of(
+                new SyntaxNode("identifier", true, 0, 0, 18, 16, 18, 27, false, false, "LegacyEntry", List.of())
+            ));
+        SyntaxNode appShell = new SyntaxNode("function_declaration", true, 0, 0, 23, 0, 23, 47, false, false,
+            "export function AppShell() { return <main />; }", List.of(
+                new SyntaxNode("identifier", true, 0, 0, 23, 16, 23, 24, false, false, "AppShell", List.of())
+            ));
+        SyntaxNode reportsPage = new SyntaxNode("function_declaration", true, 0, 0, 24, 0, 24, 51, false, false,
+            "export function ReportsPage() { return <article />; }", List.of(
+                new SyntaxNode("identifier", true, 0, 0, 24, 16, 24, 27, false, false, "ReportsPage", List.of())
+            ));
+
+        StructuralExtractionResult result = extract("src/app/router.tsx", source,
+            program(source, ordersPage, legacyEntry, appShell, reportsPage));
+
+        var legacyRoute = entity(result, EntityKind.UI_MODULE, "react-route:/legacy");
+        var ordersPageEntity = entity(result, EntityKind.FUNCTION, "OrdersPage");
+        var legacyEntryEntity = entity(result, EntityKind.FUNCTION, "LegacyEntry");
+        var ordersRouteTarget = entity(result, EntityKind.UI_MODULE, "react-route:/orders");
+        var reportsRouteTarget = entity(result, EntityKind.UI_MODULE, "react-route:/reports");
+
+        assertEquals("route-object", legacyRoute.metadata().get("routeDeclarationKind"));
+        assertEquals("/orders", legacyRoute.metadata().get("redirectTargetLiteral"));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && legacyRoute.id().equals(rel.fromEntityId())
+            && ordersRouteTarget.id().equals(rel.toEntityId())
+            && "redirects".equals(rel.metadata().get("frameworkRelationship"))
+            && "/orders".equals(rel.metadata().get("redirectTargetLiteral"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && ordersPageEntity.id().equals(rel.fromEntityId())
+            && reportsRouteTarget.id().equals(rel.toEntityId())
+            && "linksToRoute".equals(rel.metadata().get("frameworkRelationship"))
+            && "link".equals(rel.metadata().get("routeSourceKind"))
+            && "/reports".equals(rel.metadata().get("navigationTargetLiteral"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && legacyEntryEntity.id().equals(rel.fromEntityId())
+            && ordersRouteTarget.id().equals(rel.toEntityId())
+            && "navigatesToRoute".equals(rel.metadata().get("frameworkRelationship"))
+            && "navigate-call".equals(rel.metadata().get("routeSourceKind"))
+            && "/orders".equals(rel.metadata().get("navigationTargetLiteral"))));
+        assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
+            && legacyEntryEntity.id().equals(rel.fromEntityId())
+            && reportsRouteTarget.id().equals(rel.toEntityId())
+            && "navigatesToRoute".equals(rel.metadata().get("frameworkRelationship"))
+            && "navigate-call".equals(rel.metadata().get("routeSourceKind"))
+            && "/reports".equals(rel.metadata().get("navigationTargetLiteral"))));
+    }
+
 }

@@ -19,6 +19,7 @@ final class FrontendRouteDiscoverySupport {
     private static final Pattern ANGULAR_LOAD_CHILDREN_STRING_PATTERN = Pattern.compile("\\bloadChildren\\s*:\\s*['\"][^#\"']*#([A-Z][A-Za-z0-9_]*)['\"]");
     private static final Pattern ANGULAR_GUARD_PATTERN = Pattern.compile("\\bcan(?:Activate|ActivateChild|Deactivate|Match|Load)\\s*:\\s*\\[([^]]+)]");
     private static final Pattern ANGULAR_RESOLVE_PATTERN = Pattern.compile("\\bresolve\\s*:\\s*\\{([^}]+)}");
+    private static final Pattern REDIRECT_TO_PATTERN = Pattern.compile("\\bredirectTo\\s*:\\s*['\"]([^'\"]*)['\"]");
     private static final Pattern REACT_ELEMENT_PATTERN = Pattern.compile("\\belement\\s*:\\s*<\\s*([A-Z][A-Za-z0-9_]*)\\b");
     private static final Pattern REACT_COMPONENT_PATTERN = Pattern.compile("\\b(?:Component|component)\\s*:\\s*([A-Z][A-Za-z0-9_]*)");
     private static final Pattern JSX_ROUTE_PATTERN = Pattern.compile("<Route\\b([^>]*)>", Pattern.DOTALL);
@@ -79,7 +80,9 @@ final class FrontendRouteDiscoverySupport {
                 List.copyOf(targets),
                 List.copyOf(lazyLoads),
                 List.copyOf(guards),
-                List.copyOf(resolvers)
+                List.copyOf(resolvers),
+                "route-object",
+                firstGroup(REDIRECT_TO_PATTERN, snippet)
             ));
         }
         return result;
@@ -116,7 +119,9 @@ final class FrontendRouteDiscoverySupport {
                 List.copyOf(targets),
                 List.of(),
                 List.of(),
-                List.of()
+                List.of(),
+                "jsx-route",
+                ""
             ));
         }
     }

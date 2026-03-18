@@ -190,3 +190,5 @@ The current code does **not** treat `name` as a universally fully qualified cano
 - schema alignment cleanup:
   - enum-backed schema fields now mirror exported code vocabularies for entity kind, entity origin, relationship kind, diagnostic severity/phase, and viewpoint availability
   - shared documentation examples are mirrored from the tested export fixtures and kept in canonical sorted order
+
+- `ui-navigation-evidence-inventory.md` — Step 3 inventory of grounded frontend route/navigation evidence feeding later `ui-navigation` normalization.

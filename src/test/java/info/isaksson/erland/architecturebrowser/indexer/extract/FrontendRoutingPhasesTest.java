@@ -43,7 +43,7 @@ class FrontendRoutingPhasesTest {
         assertEquals(List.of("/orders", "/orders/details"), normalized.stream().map(FrontendRouteCandidate::fullPath).toList());
 
         ExtractionAccumulator accumulator = new ExtractionAccumulator();
-        new FrontendRouteEmissionSupport().emit(accumulator, "src/app/app.routes.ts", normalized, namedEntities, normalization);
+        new FrontendRouteEmissionSupport().emit(accumulator, "src/app/app.routes.ts", normalized, List.of(), namedEntities, normalization);
         assertTrue(accumulator.entities().stream().anyMatch(entity -> "/orders/details".equals(entity.metadata().get("routeFullPath"))));
         assertTrue(accumulator.relationships().stream().anyMatch(rel -> "childOf".equals(rel.metadata().get("frameworkRelationship"))));
         assertTrue(accumulator.relationships().stream().anyMatch(rel -> "targets".equals(rel.metadata().get("frameworkRelationship"))));

@@ -14,7 +14,9 @@ record FrontendRouteCandidate(
     List<String> targets,
     List<String> lazyLoads,
     List<String> guards,
-    List<String> resolvers
+    List<String> resolvers,
+    String declarationKind,
+    String redirectTarget
 ) {
     FrontendRouteCandidate {
         framework = framework == null || framework.isBlank() ? "react" : framework;
@@ -25,9 +27,12 @@ record FrontendRouteCandidate(
         lazyLoads = lazyLoads == null ? List.of() : List.copyOf(lazyLoads);
         guards = guards == null ? List.of() : List.copyOf(guards);
         resolvers = resolvers == null ? List.of() : List.copyOf(resolvers);
+        declarationKind = declarationKind == null || declarationKind.isBlank() ? "route-object" : declarationKind;
+        redirectTarget = redirectTarget == null ? "" : redirectTarget;
     }
 
     FrontendRouteCandidate withFullPath(String updatedFullPath) {
-        return new FrontendRouteCandidate(framework, path, updatedFullPath, start, end, startLine, snippet, targets, lazyLoads, guards, resolvers);
+        return new FrontendRouteCandidate(framework, path, updatedFullPath, start, end, startLine, snippet, targets, lazyLoads, guards, resolvers,
+            declarationKind, redirectTarget);
     }
 }

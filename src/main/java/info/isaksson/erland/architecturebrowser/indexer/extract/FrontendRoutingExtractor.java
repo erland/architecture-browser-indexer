@@ -7,6 +7,7 @@ import java.util.Map;
 
 final class FrontendRoutingExtractor {
     private static final FrontendRouteDiscoverySupport discoverySupport = new FrontendRouteDiscoverySupport();
+    private static final FrontendNavigationDiscoverySupport navigationDiscoverySupport = new FrontendNavigationDiscoverySupport();
     private static final FrontendRoutePathNormalizationSupport pathNormalizationSupport = new FrontendRoutePathNormalizationSupport();
     private static final FrontendRouteEmissionSupport emissionSupport = new FrontendRouteEmissionSupport();
 
@@ -23,10 +24,11 @@ final class FrontendRoutingExtractor {
             return;
         }
         List<FrontendRouteCandidate> discoveredCandidates = discoverySupport.discover(relativePath, sourceText, namedEntities);
-        if (discoveredCandidates.isEmpty()) {
+        List<FrontendNavigationCandidate> navigationCandidates = navigationDiscoverySupport.discover(relativePath, sourceText, namedEntities);
+        if (discoveredCandidates.isEmpty() && navigationCandidates.isEmpty()) {
             return;
         }
         List<FrontendRouteCandidate> normalizedCandidates = pathNormalizationSupport.normalize(discoveredCandidates);
-        emissionSupport.emit(accumulator, relativePath, normalizedCandidates, namedEntities, pathNormalizationSupport);
+        emissionSupport.emit(accumulator, relativePath, normalizedCandidates, navigationCandidates, namedEntities, pathNormalizationSupport);
     }
 }
