@@ -174,5 +174,6 @@ The current code does **not** treat `name` as a universally fully qualified cano
 
 - `internal-normalization-seam.md` — internal seam for mapping framework evidence into canonical architecture semantics
 - `java-browser-view-bridge.md` — Step 9 bridge from Java browser/dependency views into canonical viewpoint descriptors
-
+- `architecture-semantics-and-evolution.md` — Step 11 design doc for graph core vs normalized semantics vs framework evidence vs viewpoints
+- `extending-normalized-semantics-safely.md` — Step 11 contributor checklist for extending canonical vocabulary and mappings safely
 - `examples-and-contract-hardening.md` — Step 10 scenario examples and hardening guidance

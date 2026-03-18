@@ -16,3 +16,25 @@ These examples are intentionally small, human-readable samples that illustrate t
 - `java-external-integration-export.json` — exposed API that delegates to an external integration adapter. Demonstrates `integration-map` together with `calls-external-system`.
 
 These examples are curated contract aids. They should stay aligned with current indexer logic and conservative derivation rules rather than describing aspirational future output.
+
+
+## How these examples relate to the normalized architecture layer
+
+The Step 10 scenario examples are intended to make the normalized contract easy to understand at a glance.
+
+Read them alongside:
+
+- `../architecture-semantics-and-evolution.md`
+- `../extending-normalized-semantics-safely.md`
+
+Recommended reading order for new contributors:
+
+1. `java-rest-persistence-export.json`
+2. `java-persistence-only-export.json`
+3. `java-external-integration-export.json`
+
+This sequence shows:
+
+- the happy-path Java-first architectural slice
+- a deliberate non-overclaim persistence-only case
+- a grounded external integration case
