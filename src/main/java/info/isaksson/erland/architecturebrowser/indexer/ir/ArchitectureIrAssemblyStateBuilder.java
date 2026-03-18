@@ -4,6 +4,7 @@ import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedE
 import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedRelationshipFact;
 import info.isaksson.erland.architecturebrowser.indexer.interpret.model.InterpretedEntityFact;
 import info.isaksson.erland.architecturebrowser.indexer.interpret.model.InterpretedRelationshipFact;
+import info.isaksson.erland.architecturebrowser.indexer.normalize.ArchitectureEntityNormalizationService;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureEntity;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureRelationship;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityKind;
@@ -21,18 +22,23 @@ final class ArchitectureIrAssemblyStateBuilder {
     }
 
     static ArchitectureIrAssemblyState build(ArchitectureIrAssemblyInputs inputs) {
+        return build(inputs, ArchitectureEntityNormalizationService.defaultService());
+    }
+
+    static ArchitectureIrAssemblyState build(ArchitectureIrAssemblyInputs inputs, ArchitectureEntityNormalizationService normalizationService) {
         LogicalScope repositoryScope = createRepositoryScope(inputs.source());
         ArchitectureEntity inventoryEntity = createInventoryEntity(inputs, repositoryScope);
         List<info.isaksson.erland.architecturebrowser.indexer.ir.model.Diagnostic> diagnostics =
             ArchitectureIrDiagnosticsBuilder.build(inputs, repositoryScope, inventoryEntity);
         List<LogicalScope> scopes = assembleScopes(inputs, repositoryScope);
         Map<String, ArchitectureEntity> entitiesById = assembleEntitiesById(inputs, repositoryScope, inventoryEntity);
-        Map<String, ArchitectureEntity> observedTypesByQualifiedName = ArchitectureIrAssemblyCompatibilitySupport.observedTypesByQualifiedName(entitiesById);
+        Map<String, ArchitectureEntity> normalizedEntitiesById = normalizationService.normalizeEntitiesById(entitiesById);
+        Map<String, ArchitectureEntity> observedTypesByQualifiedName = ArchitectureIrAssemblyCompatibilitySupport.observedTypesByQualifiedName(normalizedEntitiesById);
         List<ArchitectureRelationship> relationships = assembleRelationships(inputs);
         ArchitectureIrAssemblyCompositionResult composition = ArchitectureIrAssemblyCompositionSupport.compose(
             new ArchitectureIrAssemblyCompositionInputs(
                 relationships,
-                entitiesById,
+                normalizedEntitiesById,
                 observedTypesByQualifiedName
             )
         );
