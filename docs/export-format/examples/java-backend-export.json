@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.2.0",
+  "schemaVersion": "1.3.0",
   "indexerVersion": "0.1.0-SNAPSHOT",
   "runMetadata": {
     "startedAt": "2026-03-10T12:00:00Z",
@@ -518,5 +518,71 @@
         ]
       }
     }
-  }
+  },
+  "viewpoints": [
+    {
+      "id": "api-surface",
+      "title": "API surface",
+      "description": "Highlights externally exposed API entrypoints and the first service hop behind them.",
+      "availability": "available",
+      "confidence": 0.94,
+      "seedRoleIds": [
+        "api-entrypoint"
+      ],
+      "expandViaSemantics": [
+        "serves-request",
+        "invokes-use-case"
+      ],
+      "preferredDependencyViews": [
+        "java:type-dependencies"
+      ],
+      "evidenceSources": [
+        "java-interpretation",
+        "java-normalization"
+      ]
+    },
+    {
+      "id": "persistence-model",
+      "title": "Persistence model",
+      "description": "Highlights persistent entities together with persistence access paths.",
+      "availability": "available",
+      "confidence": 0.91,
+      "seedRoleIds": [
+        "persistent-entity",
+        "persistence-access"
+      ],
+      "expandViaSemantics": [
+        "accesses-persistence"
+      ],
+      "preferredDependencyViews": [
+        "java:type-dependencies"
+      ],
+      "evidenceSources": [
+        "jpa",
+        "java-normalization"
+      ]
+    },
+    {
+      "id": "request-handling",
+      "title": "Request handling",
+      "description": "Highlights request-serving paths from entrypoints through application services.",
+      "availability": "available",
+      "confidence": 0.92,
+      "seedRoleIds": [
+        "api-entrypoint",
+        "application-service"
+      ],
+      "expandViaSemantics": [
+        "serves-request",
+        "invokes-use-case"
+      ],
+      "preferredDependencyViews": [
+        "java:type-dependencies"
+      ],
+      "evidenceSources": [
+        "java-interpretation",
+        "java-normalization"
+      ]
+    }
+  ]
 }

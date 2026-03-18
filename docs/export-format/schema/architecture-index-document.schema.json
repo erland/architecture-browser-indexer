@@ -50,6 +50,13 @@
         "$ref": "./relationship.schema.json"
       }
     },
+    "viewpoints": {
+      "type": "array",
+      "description": "Optional document-level canonical viewpoint catalog.",
+      "items": {
+        "$ref": "./viewpoint.schema.json"
+      }
+    },
     "diagnostics": {
       "type": "array",
       "items": {

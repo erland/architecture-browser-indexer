@@ -103,6 +103,7 @@ public final class ArchitectureIrFactory {
             assembly.scopes(),
             assembly.entities(),
             assembly.relationships(),
+            null,
             assembly.diagnostics(),
             completeness,
             documentMetadata

@@ -64,6 +64,7 @@ class ExportFormatSchemaExamplesContractTest {
         Set<String> requiredScopeFields = requiredFields("scope.schema.json");
         Set<String> requiredDiagnosticFields = requiredFields("diagnostic.schema.json");
         Set<String> requiredCompletenessFields = requiredFields("completeness.schema.json");
+        Set<String> requiredViewpointFields = requiredFields("viewpoint.schema.json");
 
         List<Path> examples;
         try (var paths = Files.list(EXAMPLE_DIR)) {
@@ -77,6 +78,9 @@ class ExportFormatSchemaExamplesContractTest {
             assertArrayItemsContainRequiredFields(node.path("scopes"), requiredScopeFields, example.getFileName() + " scope");
             assertArrayItemsContainRequiredFields(node.path("entities"), requiredEntityFields, example.getFileName() + " entity");
             assertArrayItemsContainRequiredFields(node.path("relationships"), requiredRelationshipFields, example.getFileName() + " relationship");
+            if (node.has("viewpoints")) {
+                assertArrayItemsContainRequiredFields(node.path("viewpoints"), requiredViewpointFields, example.getFileName() + " viewpoint");
+            }
             assertArrayItemsContainRequiredFields(node.path("diagnostics"), requiredDiagnosticFields, example.getFileName() + " diagnostic");
             assertContainsFields(node.path("completeness"), requiredCompletenessFields, example.getFileName() + " completeness");
 

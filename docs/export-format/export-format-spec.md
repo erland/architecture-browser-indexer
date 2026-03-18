@@ -175,7 +175,7 @@ Consumer guidance:
 
 Example:
 ```json
-"schemaVersion": "1.2.0"
+"schemaVersion": "1.3.0"
 ```
 
 ## `indexerVersion`

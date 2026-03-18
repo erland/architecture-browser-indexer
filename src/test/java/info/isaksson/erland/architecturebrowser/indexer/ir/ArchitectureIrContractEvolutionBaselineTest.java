@@ -19,7 +19,7 @@ class ArchitectureIrContractEvolutionBaselineTest {
 
     @Test
     void currentSchemaVersionRemainsPinnedUntilStableContractFieldsActuallyChange() {
-        assertEquals("1.2.0", ArchitectureIrVersions.CURRENT_SCHEMA_VERSION);
+        assertEquals("1.3.0", ArchitectureIrVersions.CURRENT_SCHEMA_VERSION);
     }
 
     @Test

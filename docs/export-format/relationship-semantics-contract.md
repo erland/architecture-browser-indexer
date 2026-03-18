@@ -19,7 +19,7 @@ This field is intended to hold normalized architectural relationship semantics t
 
 ## Compatibility note
 
-Because relationship objects are schema-strict, introducing this stable field required a schema version advance from `1.1.0` to `1.2.0`.
+Because relationship objects are schema-strict, introducing this stable field required a schema version advance from `1.1.0` to `1.3.0`.
 
 ## Scope of this step
 

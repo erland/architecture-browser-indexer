@@ -15,7 +15,7 @@ Both fields are serialized as arrays of strings. The indexer canonicalizes them 
 
 ## Compatibility
 
-Because entity objects are schema-strict, introducing these stable fields required a schema version advance from `1.0.0` to `1.2.0`.
+Because entity objects are schema-strict, introducing these stable fields required a schema version advance from `1.0.0` to `1.3.0`.
 
 ## Initial representative examples
 
