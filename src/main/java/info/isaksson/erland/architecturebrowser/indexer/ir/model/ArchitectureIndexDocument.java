@@ -5,6 +5,13 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Stable top-level export contract.
+ *
+ * Step 1 baseline note: future canonical viewpoint descriptors belong at the document level
+ * next to the current stable graph core and must be introduced additively with coordinated
+ * schema/version updates once the shape is finalized.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ArchitectureIndexDocument(
     String schemaVersion,

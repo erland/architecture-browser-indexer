@@ -190,6 +190,22 @@ Consumers should avoid depending on:
 
 ## Recommended Versioning Rules for Maintainers
 
+### Planned normalization note
+
+The current JSON Schema keeps the top-level document shape and the entity/relationship shapes
+strict with `additionalProperties: false`. That means the planned canonical normalization fields
+for architectural roles, traits, relationship semantics, and viewpoint descriptors are **not**
+currently additive in the schema sense, even though they are intended to be additive in the
+consumer-migration sense.
+
+For the upcoming normalization work, maintainers should therefore treat the change as:
+
+- additive from the domain-model perspective
+- coordinated across DTOs, schema files, validators, examples, and fixtures
+- subject to an explicit `schemaVersion` review when the new stable fields are introduced
+
+Step 1 intentionally documents this baseline without changing the schema version yet.
+
 ### When to update `schemaVersion`
 
 A new schema version should be considered when:

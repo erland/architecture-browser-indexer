@@ -12,6 +12,11 @@ import java.util.Objects;
 import java.util.Set;
 
 public final class ArchitectureIrValidator {
+    /**
+     * Step 1 baseline: validation currently enforces only the existing stable export shape.
+     * Future normalization fields should remain optional at introduction time and extend these
+     * checks only when present so unchanged examples and fixtures keep validating.
+     */
     private ArchitectureIrValidator() {
     }
 
