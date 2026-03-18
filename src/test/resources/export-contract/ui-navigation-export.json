@@ -1,0 +1,293 @@
+{
+  "schemaVersion": "1.3.0",
+  "indexerVersion": "0.1.0-SNAPSHOT",
+  "runMetadata": {
+    "startedAt": "2026-03-18T07:00:00Z",
+    "completedAt": "2026-03-18T07:00:03Z",
+    "outcome": "SUCCESS",
+    "detectedTechnologies": [
+      "react",
+      "typescript"
+    ],
+    "metadata": {
+      "exampleKind": "ui-navigation"
+    }
+  },
+  "source": {
+    "repositoryId": "fixture-ui-navigation",
+    "acquisitionType": "local-path",
+    "path": "/fixtures/ui-navigation",
+    "remoteUrl": null,
+    "branch": "main",
+    "revision": "ui-nav-001",
+    "acquiredAt": "2026-03-18T07:00:00Z",
+    "metadata": {}
+  },
+  "scopes": [
+    {
+      "id": "scope:repo",
+      "kind": "REPOSITORY",
+      "name": "fixture-ui-navigation",
+      "displayName": "fixture-ui-navigation",
+      "parentScopeId": null,
+      "sourceRefs": [],
+      "metadata": {}
+    }
+  ],
+  "entities": [
+    {
+      "id": "entity:ui:home",
+      "kind": "UI_MODULE",
+      "origin": "INFERRED",
+      "name": "src/app/HomePage.tsx",
+      "displayName": "HomePage",
+      "scopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "react",
+        "routePath": "/home"
+      },
+      "architecturalRoles": [
+        "ui-page"
+      ],
+      "architecturalTraits": [
+        "route-declared",
+        "user-facing"
+      ]
+    },
+    {
+      "id": "entity:ui:reports",
+      "kind": "UI_MODULE",
+      "origin": "INFERRED",
+      "name": "src/app/ReportsPage.tsx",
+      "displayName": "ReportsPage",
+      "scopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "react",
+        "routePath": "/reports"
+      },
+      "architecturalRoles": [
+        "ui-page"
+      ],
+      "architecturalTraits": [
+        "route-declared",
+        "user-facing"
+      ]
+    },
+    {
+      "id": "entity:ui:shell",
+      "kind": "UI_MODULE",
+      "origin": "INFERRED",
+      "name": "src/app/AppShell.tsx",
+      "displayName": "AppShell",
+      "scopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "react",
+        "routePath": "/"
+      },
+      "architecturalRoles": [
+        "ui-layout"
+      ],
+      "architecturalTraits": [
+        "route-declared",
+        "user-facing"
+      ]
+    },
+    {
+      "id": "entity:ui:sidebar",
+      "kind": "UI_MODULE",
+      "origin": "INFERRED",
+      "name": "src/app/SidebarNav.tsx",
+      "displayName": "SidebarNav",
+      "scopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "react",
+        "navigationTargetLiteral": "/reports"
+      },
+      "architecturalRoles": [
+        "ui-navigation-node"
+      ],
+      "architecturalTraits": [
+        "user-facing"
+      ]
+    },
+    {
+      "id": "entity:ui:auth-guard",
+      "kind": "FUNCTION",
+      "origin": "OBSERVED",
+      "name": "authGuard",
+      "displayName": "authGuard",
+      "scopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "react"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "rel:ui:shell:home",
+      "kind": "CONTAINS",
+      "fromEntityId": "entity:ui:shell",
+      "toEntityId": "entity:ui:home",
+      "label": "contains route",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "react",
+        "parentRoutePath": "/"
+      },
+      "architecturalSemantics": [
+        "contains-route"
+      ]
+    },
+    {
+      "id": "rel:ui:shell:reports",
+      "kind": "CONTAINS",
+      "fromEntityId": "entity:ui:shell",
+      "toEntityId": "entity:ui:reports",
+      "label": "contains route",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "react",
+        "parentRoutePath": "/"
+      },
+      "architecturalSemantics": [
+        "contains-route"
+      ]
+    },
+    {
+      "id": "rel:ui:sidebar:reports",
+      "kind": "USES",
+      "fromEntityId": "entity:ui:sidebar",
+      "toEntityId": "entity:ui:reports",
+      "label": "navigates",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "react",
+        "navigationTargetLiteral": "/reports"
+      },
+      "architecturalSemantics": [
+        "navigates-to"
+      ]
+    },
+    {
+      "id": "rel:ui:home:reports",
+      "kind": "USES",
+      "fromEntityId": "entity:ui:home",
+      "toEntityId": "entity:ui:reports",
+      "label": "redirects",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "react",
+        "redirectTargetLiteral": "/reports"
+      },
+      "architecturalSemantics": [
+        "redirects-to"
+      ]
+    },
+    {
+      "id": "rel:ui:auth-guard:reports",
+      "kind": "DEPENDS_ON",
+      "fromEntityId": "entity:ui:auth-guard",
+      "toEntityId": "entity:ui:reports",
+      "label": "guards route",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "react",
+        "guardReferenceName": "authGuard"
+      },
+      "architecturalSemantics": [
+        "guards-route"
+      ]
+    }
+  ],
+  "diagnostics": [],
+  "completeness": {
+    "status": "COMPLETE",
+    "indexedFileCount": 4,
+    "totalFileCount": 4,
+    "degradedFileCount": 0,
+    "omittedPaths": [],
+    "notes": []
+  },
+  "metadata": {
+    "dependencyViews": {
+      "routeTypeDependencies": [
+        {
+          "sourceTypeName": "AppShell",
+          "targetTypeName": "HomePage",
+          "relationshipKind": "CONTAINS",
+          "frameworks": [
+            "react"
+          ],
+          "frameworkRelationships": [
+            "childOf"
+          ],
+          "architectureViewKinds": [
+            "route"
+          ]
+        },
+        {
+          "sourceTypeName": "SidebarNav",
+          "targetTypeName": "ReportsPage",
+          "relationshipKind": "USES",
+          "frameworks": [
+            "react"
+          ],
+          "frameworkRelationships": [
+            "linksToRoute"
+          ],
+          "architectureViewKinds": [
+            "route"
+          ]
+        }
+      ],
+      "recommendedEntryPoints": [
+        "typeDependencies",
+        "moduleDependencies",
+        "evidenceDependencies"
+      ],
+      "primaryArchitectureViews": [
+        "typeDependencies",
+        "moduleDependencies"
+      ]
+    }
+  },
+  "viewpoints": [
+    {
+      "id": "ui-navigation",
+      "title": "UI navigation",
+      "description": "Highlights canonical user-facing pages, layouts, navigation structures, and grounded navigation semantics when present in the export.",
+      "availability": "available",
+      "confidence": 0.94,
+      "seedEntityIds": [
+        "entity:ui:home",
+        "entity:ui:reports",
+        "entity:ui:shell",
+        "entity:ui:sidebar"
+      ],
+      "seedRoleIds": [
+        "ui-layout",
+        "ui-navigation-node",
+        "ui-page"
+      ],
+      "expandViaSemantics": [
+        "contains-route",
+        "guards-route",
+        "navigates-to",
+        "redirects-to"
+      ],
+      "preferredDependencyViews": [
+        "routeTypeDependencies"
+      ],
+      "evidenceSources": [
+        "frontend-routing",
+        "normalized-roles",
+        "normalized-semantics"
+      ]
+    }
+  ]
+}

@@ -92,12 +92,41 @@ class ViewpointScenarioExamplesContractTest {
         assertRelationshipSemantic(relationshipsById, "rel:crm-client:calls:crm", "calls-external-system");
     }
 
+
+    @Test
+    void uiNavigationScenarioShowsCanonicalUiRolesSemanticsAndViewpoint() throws IOException {
+        ArchitectureIndexDocument document = readExample("ui-navigation-export.json");
+        assertValid(document, "ui-navigation-export.json");
+
+        Map<String, ArchitectureViewpoint> viewpointsById = viewpointsById(document);
+        ArchitectureViewpoint viewpoint = viewpoint(viewpointsById, "ui-navigation");
+        assertEquals("available", viewpoint.availability());
+        assertEquals(List.of("ui-layout", "ui-navigation-node", "ui-page"), viewpoint.seedRoleIds());
+        assertEquals(List.of("contains-route", "guards-route", "navigates-to", "redirects-to"), viewpoint.expandViaSemantics());
+        assertEquals(List.of("frontend-routing", "normalized-roles", "normalized-semantics"), viewpoint.evidenceSources());
+
+        Map<String, ArchitectureEntity> entitiesById = entitiesById(document);
+        assertEntityRole(entitiesById, "entity:ui:shell", "ui-layout");
+        assertEntityRole(entitiesById, "entity:ui:home", "ui-page");
+        assertEntityRole(entitiesById, "entity:ui:reports", "ui-page");
+        assertEntityRole(entitiesById, "entity:ui:sidebar", "ui-navigation-node");
+        assertEntityTrait(entitiesById, "entity:ui:home", "route-declared");
+        assertEntityTrait(entitiesById, "entity:ui:reports", "user-facing");
+
+        Map<String, ArchitectureRelationship> relationshipsById = relationshipsById(document);
+        assertRelationshipSemantic(relationshipsById, "rel:ui:shell:home", "contains-route");
+        assertRelationshipSemantic(relationshipsById, "rel:ui:sidebar:reports", "navigates-to");
+        assertRelationshipSemantic(relationshipsById, "rel:ui:home:reports", "redirects-to");
+        assertRelationshipSemantic(relationshipsById, "rel:ui:auth-guard:reports", "guards-route");
+    }
+
     @Test
     void scenarioExamplesAreMirroredIntoDocumentationDirectory() throws IOException {
         List<String> scenarioFiles = List.of(
             "java-rest-persistence-export.json",
             "java-persistence-only-export.json",
-            "java-external-integration-export.json"
+            "java-external-integration-export.json",
+            "ui-navigation-export.json"
         );
 
         for (String fileName : scenarioFiles) {

@@ -36,6 +36,25 @@ This is the primary grounded example for:
 - `integration-map`
 - `calls-external-system`
 
+
+### `ui-navigation-export.json`
+A conservative frontend routing/navigation slice with:
+- one route shell / layout
+- two user-facing pages
+- one explicit sidebar/menu navigation structure
+- one redirect edge
+- one guard edge
+
+This is the primary grounded example for:
+- `ui-navigation`
+- `ui-page`
+- `ui-layout`
+- `ui-navigation-node`
+- `contains-route`
+- `navigates-to`
+- `redirects-to`
+- `guards-route`
+
 ## Hardening intent
 
 The goal is not to add more aspirational sample output. The goal is to keep curated examples aligned with what the current contract and current normalization logic can plausibly emit.
@@ -52,5 +71,6 @@ The scenario tests should make failures easy to interpret by checking:
 - presence of canonical roles / traits where expected
 - presence of canonical relationship semantics where expected
 - absence of viewpoints that the evidence does not justify
+- canonical UI-navigation viewpoint shape for conservative frontend routing/navigation evidence
 
 This is intentionally stronger than schema validation alone.

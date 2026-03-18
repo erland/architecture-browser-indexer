@@ -14,6 +14,7 @@ These examples are intentionally small, human-readable samples that illustrate t
 - `java-rest-persistence-export.json` — simple REST + service + repository + JPA entity scenario. Demonstrates `api-entrypoint`, `application-service`, `persistent-entity`, `persistence-access`, plus `serves-request`, `invokes-use-case`, and `accesses-persistence`.
 - `java-persistence-only-export.json` — persistence-focused batch/job scenario with no exposed API. Demonstrates that `persistence-model` can be available while `api-surface` and `request-handling` remain unavailable.
 - `java-external-integration-export.json` — exposed API that delegates to an external integration adapter. Demonstrates `integration-map` together with `calls-external-system`.
+- `ui-navigation-export.json` — conservative frontend UI-navigation slice with pages, layout, sidebar navigation, redirect, and guard evidence. Demonstrates `ui-page`, `ui-layout`, `ui-navigation-node`, plus `contains-route`, `navigates-to`, `redirects-to`, and `guards-route`.
 
 These examples are curated contract aids. They should stay aligned with current indexer logic and conservative derivation rules rather than describing aspirational future output.
 
@@ -32,12 +33,14 @@ Recommended reading order for new contributors:
 1. `java-rest-persistence-export.json`
 2. `java-persistence-only-export.json`
 3. `java-external-integration-export.json`
+4. `ui-navigation-export.json`
 
 This sequence shows:
 
 - the happy-path Java-first architectural slice
 - a deliberate non-overclaim persistence-only case
 - a grounded external integration case
+- a conservative canonical UI-navigation case
 
 
 ## Synchronization note

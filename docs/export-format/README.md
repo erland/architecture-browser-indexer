@@ -200,3 +200,4 @@ The current code does **not** treat `name` as a universally fully qualified cano
 
 Step 5 adds conservative TypeScript/frontend entity normalization for `ui-page`, `ui-layout`, and `ui-navigation-node`, plus the traits `user-facing` and `route-declared` when the grounding evidence is strong enough.
 Step 7 adds conservative `ui-navigation` viewpoint derivation so the export now advertises the canonical UI-navigation slice when normalized UI roles and navigation semantics are present.
+Step 8 adds a curated `ui-navigation-export.json` example plus focused scenario assertions so canonical UI-navigation roles, semantics, and viewpoint shape are protected by contract tests.
