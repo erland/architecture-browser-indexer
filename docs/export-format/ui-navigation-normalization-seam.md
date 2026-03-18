@@ -53,3 +53,11 @@ The first entity normalization pass maps structured frontend evidence conservati
 - directly declared routes may also receive `route-declared`
 
 These mappings remain additive. Existing roles like `api-entrypoint` are preserved when UI-navigation roles are added.
+
+
+## Step 6 mapping now uses this seam to derive:
+
+- `childOf` route hierarchy edges → `contains-route`
+- explicit route redirects → `redirects-to`
+- static links and imperative literal navigation → `navigates-to`
+- explicit guard edges → `guards-route`
