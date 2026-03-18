@@ -11,11 +11,13 @@ import java.util.Map;
  * Central seam for converting interpreted or framework-specific evidence into canonical
  * architecture-facing entity roles and traits.
  *
- * Step 4 intentionally introduces the seam before Java-first mappings are added. The default
- * service is conservative and preserves current behavior until explicit rules are registered.
+ * Step 4 introduced the seam before Java-first mappings were added. Step 5 now enables a
+ * conservative Java-first rule by default while preserving opt-in composition for additional rules.
  */
 public final class ArchitectureEntityNormalizationService {
-    private static final ArchitectureEntityNormalizationService DEFAULT = new ArchitectureEntityNormalizationService(List.of());
+    private static final ArchitectureEntityNormalizationService DEFAULT = new ArchitectureEntityNormalizationService(List.of(
+        new JavaArchitectureEntityNormalizationRule()
+    ));
 
     private final List<ArchitectureEntityNormalizationRule> rules;
 

@@ -84,7 +84,7 @@
         "api-entrypoint"
       ],
       "architecturalTraits": [
-        "http-resource"
+        "externally-exposed"
       ]
     },
     {
@@ -116,9 +116,6 @@
       },
       "architecturalRoles": [
         "application-service"
-      ],
-      "architecturalTraits": [
-        "stateless"
       ]
     },
     {
@@ -136,11 +133,10 @@
         "jpaKind": "entity"
       },
       "architecturalRoles": [
-        "domain-entity",
         "persistent-entity"
       ],
       "architecturalTraits": [
-        "jpa-managed"
+        "persistent"
       ]
     },
     {

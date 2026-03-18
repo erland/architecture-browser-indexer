@@ -79,7 +79,13 @@
         "language": "java",
         "framework": "jax-rs",
         "qualifiedName": "com.example.api.OrderResource"
-      }
+      },
+      "architecturalRoles": [
+        "api-entrypoint"
+      ],
+      "architecturalTraits": [
+        "externally-exposed"
+      ]
     },
     {
       "id": "entity:endpoint:create-order",
@@ -107,7 +113,10 @@
         "language": "java",
         "framework": "cdi",
         "qualifiedName": "com.example.service.OrderService"
-      }
+      },
+      "architecturalRoles": [
+        "application-service"
+      ]
     },
     {
       "id": "entity:class:order-entity",
@@ -122,7 +131,13 @@
         "framework": "jpa",
         "qualifiedName": "com.example.domain.OrderEntity",
         "jpaKind": "entity"
-      }
+      },
+      "architecturalRoles": [
+        "persistent-entity"
+      ],
+      "architecturalTraits": [
+        "persistent"
+      ]
     },
     {
       "id": "entity:event:order-created",
