@@ -1,0 +1,553 @@
+{
+  "schemaVersion": "1.3.0",
+  "indexerVersion": "0.1.0-SNAPSHOT",
+  "runMetadata": {
+    "startedAt": "2026-03-10T12:00:00Z",
+    "completedAt": "2026-03-10T12:00:03Z",
+    "outcome": "SUCCESS",
+    "detectedTechnologies": [
+      "java"
+    ],
+    "metadata": {
+      "exampleKind": "java-external-integration"
+    }
+  },
+  "source": {
+    "repositoryId": "fixture-java-external-integration",
+    "acquisitionType": "local-path",
+    "path": "/fixtures/java-external-integration",
+    "remoteUrl": null,
+    "branch": "main",
+    "revision": "abc123",
+    "acquiredAt": "2026-03-10T12:00:00Z",
+    "metadata": {}
+  },
+  "scopes": [
+    {
+      "id": "scope:repo",
+      "kind": "REPOSITORY",
+      "name": "fixture-java-external-integration",
+      "displayName": "fixture-java-external-integration",
+      "parentScopeId": null,
+      "sourceRefs": [],
+      "metadata": {}
+    },
+    {
+      "id": "scope:package:com.example.api",
+      "kind": "PACKAGE",
+      "name": "com.example.api",
+      "displayName": "api",
+      "parentScopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "language": "java"
+      }
+    },
+    {
+      "id": "scope:package:com.example.service",
+      "kind": "PACKAGE",
+      "name": "com.example.service",
+      "displayName": "service",
+      "parentScopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "language": "java"
+      }
+    },
+    {
+      "id": "scope:package:com.example.integration",
+      "kind": "PACKAGE",
+      "name": "com.example.integration",
+      "displayName": "integration",
+      "parentScopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "language": "java"
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "entity:class:customer-resource",
+      "kind": "CLASS",
+      "origin": "OBSERVED",
+      "name": "CustomerResource",
+      "displayName": "CustomerResource",
+      "scopeId": "scope:package:com.example.api",
+      "sourceRefs": [],
+      "metadata": {
+        "language": "java",
+        "framework": "jax-rs",
+        "qualifiedName": "com.example.api.CustomerResource"
+      },
+      "architecturalRoles": [
+        "api-entrypoint"
+      ],
+      "architecturalTraits": [
+        "externally-exposed"
+      ]
+    },
+    {
+      "id": "entity:endpoint:lookup-customer",
+      "kind": "ENDPOINT",
+      "origin": "OBSERVED",
+      "name": "GET /customers/{id}",
+      "displayName": "GET /customers/{id}",
+      "scopeId": "scope:package:com.example.api",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "jax-rs",
+        "httpMethod": "GET",
+        "path": "/customers/{id}"
+      }
+    },
+    {
+      "id": "entity:class:customer-service",
+      "kind": "CLASS",
+      "origin": "OBSERVED",
+      "name": "CustomerService",
+      "displayName": "CustomerService",
+      "scopeId": "scope:package:com.example.service",
+      "sourceRefs": [],
+      "metadata": {
+        "language": "java",
+        "framework": "cdi",
+        "qualifiedName": "com.example.service.CustomerService"
+      },
+      "architecturalRoles": [
+        "application-service"
+      ]
+    },
+    {
+      "id": "entity:class:crm-client",
+      "kind": "CLASS",
+      "origin": "OBSERVED",
+      "name": "CrmClient",
+      "displayName": "CrmClient",
+      "scopeId": "scope:package:com.example.integration",
+      "sourceRefs": [],
+      "metadata": {
+        "language": "java",
+        "backendProfile": "integration-adapter",
+        "qualifiedName": "com.example.integration.CrmClient"
+      },
+      "architecturalRoles": [
+        "integration-adapter"
+      ]
+    },
+    {
+      "id": "entity:system:crm",
+      "kind": "SYSTEM",
+      "origin": "INFERRED",
+      "name": "CRM",
+      "displayName": "CRM",
+      "scopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "systemType": "external"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "rel:resource:exposes:endpoint",
+      "kind": "EXPOSES",
+      "fromEntityId": "entity:class:customer-resource",
+      "toEntityId": "entity:endpoint:lookup-customer",
+      "label": "exposes endpoint",
+      "sourceRefs": [],
+      "metadata": {
+        "frameworkRelationships": [
+          "exposesEndpoint"
+        ]
+      },
+      "architecturalSemantics": [
+        "serves-request"
+      ]
+    },
+    {
+      "id": "rel:resource:uses:service",
+      "kind": "USES",
+      "fromEntityId": "entity:class:customer-resource",
+      "toEntityId": "entity:class:customer-service",
+      "label": "customerService",
+      "sourceRefs": [],
+      "metadata": {
+        "sourceLanguage": "java",
+        "dependencySource": "field"
+      },
+      "architecturalSemantics": [
+        "invokes-use-case"
+      ]
+    },
+    {
+      "id": "rel:service:uses:crm-client",
+      "kind": "USES",
+      "fromEntityId": "entity:class:customer-service",
+      "toEntityId": "entity:class:crm-client",
+      "label": "crmClient",
+      "sourceRefs": [],
+      "metadata": {
+        "sourceLanguage": "java",
+        "dependencySource": "field"
+      },
+      "architecturalSemantics": [
+        "calls-external-system"
+      ]
+    },
+    {
+      "id": "rel:crm-client:calls:crm",
+      "kind": "CALLS",
+      "fromEntityId": "entity:class:crm-client",
+      "toEntityId": "entity:system:crm",
+      "label": "lookup customer",
+      "sourceRefs": [],
+      "metadata": {
+        "protocol": "https"
+      },
+      "architecturalSemantics": [
+        "calls-external-system"
+      ]
+    }
+  ],
+  "diagnostics": [],
+  "completeness": {
+    "status": "COMPLETE",
+    "indexedFileCount": 12,
+    "totalFileCount": 12,
+    "degradedFileCount": 0,
+    "omittedPaths": [],
+    "notes": []
+  },
+  "metadata": {
+    "dependencyViews": {
+      "typeDependencies": [
+        {
+          "sourceTypeName": "com.example.api.OrderResource",
+          "targetTypeName": "com.example.service.OrderService",
+          "relationshipKind": "DEPENDS_ON",
+          "dependencyCategories": [
+            "composition"
+          ],
+          "dependencySources": [
+            "field"
+          ],
+          "frameworks": [],
+          "frameworkRelationships": [],
+          "architectureViewKinds": []
+        }
+      ],
+      "packageDependencies": [
+        {
+          "sourcePackageName": "com.example.api",
+          "targetPackageName": "com.example.service",
+          "relationshipKind": "DEPENDS_ON",
+          "dependencyCategories": [
+            "composition"
+          ],
+          "dependencySources": [
+            "field"
+          ],
+          "frameworks": [],
+          "frameworkRelationships": [],
+          "architectureViewKinds": []
+        },
+        {
+          "sourcePackageName": "com.example.service",
+          "targetPackageName": "com.example.domain",
+          "relationshipKind": "DEPENDS_ON",
+          "dependencyCategories": [
+            "api"
+          ],
+          "dependencySources": [
+            "parameterType"
+          ],
+          "frameworks": [
+            "jpa"
+          ],
+          "frameworkRelationships": [
+            "writePath"
+          ],
+          "architectureViewKinds": [
+            "framework",
+            "write-path"
+          ]
+        }
+      ],
+      "endpointTypeDependencies": [
+        {
+          "sourceTypeName": "com.example.api.OrderResource",
+          "targetTypeName": "com.example.api.OrderResource#createOrder",
+          "relationshipKind": "EXPOSES",
+          "frameworks": [
+            "jax-rs"
+          ],
+          "frameworkRelationships": [
+            "exposesEndpoint"
+          ],
+          "architectureViewKinds": [
+            "endpoint"
+          ]
+        }
+      ],
+      "entityModelTypeDependencies": [
+        {
+          "sourceTypeName": "com.example.service.OrderService",
+          "targetTypeName": "com.example.domain.OrderEntity",
+          "relationshipKind": "DEPENDS_ON",
+          "frameworks": [
+            "jpa"
+          ],
+          "frameworkRelationships": [
+            "hasAssociation"
+          ],
+          "architectureViewKinds": [
+            "entity-model"
+          ]
+        }
+      ],
+      "observerTypeDependencies": [
+        {
+          "sourceTypeName": "com.example.service.OrderService",
+          "targetTypeName": "com.example.events.OrderCreatedEvent",
+          "relationshipKind": "DEPENDS_ON",
+          "frameworks": [
+            "cdi"
+          ],
+          "frameworkRelationships": [
+            "publishesEvent"
+          ],
+          "architectureViewKinds": [
+            "observer-event"
+          ]
+        }
+      ],
+      "writePathTypeDependencies": [
+        {
+          "sourceTypeName": "com.example.service.OrderService",
+          "targetTypeName": "com.example.domain.OrderEntity",
+          "relationshipKind": "DEPENDS_ON",
+          "frameworks": [
+            "jpa"
+          ],
+          "frameworkRelationships": [
+            "writePath"
+          ],
+          "architectureViewKinds": [
+            "write-path"
+          ]
+        }
+      ],
+      "recommendedEntryPoints": [
+        "packageDependencies",
+        "typeDependencies",
+        "moduleDependencies",
+        "endpointTypeDependencies",
+        "entityModelTypeDependencies",
+        "observerTypeDependencies",
+        "writePathTypeDependencies",
+        "evidenceDependencies"
+      ],
+      "primaryArchitectureViews": [
+        "packageDependencies",
+        "typeDependencies",
+        "moduleDependencies",
+        "endpointTypeDependencies",
+        "entityModelTypeDependencies",
+        "observerTypeDependencies",
+        "writePathTypeDependencies"
+      ],
+      "javaBrowserViews": {
+        "views": [
+          {
+            "id": "javaEndpointGraph",
+            "title": "Java endpoint graph",
+            "description": "JAX-RS resource and endpoint relationships prepared for browser-native backend API exploration.",
+            "framework": "jax-rs",
+            "architectureViewKind": "endpoint",
+            "typeDependencyView": "endpointTypeDependencies",
+            "moduleDependencyView": "endpointModuleDependencies",
+            "frameworkRelationships": [
+              "exposesEndpoint",
+              "endpoint"
+            ],
+            "available": true,
+            "typeDependencyCount": 1,
+            "moduleDependencyCount": 0,
+            "preferredDependencyView": "endpointTypeDependencies",
+            "browserViewKind": "graph",
+            "recommendedForArchitectureViews": true,
+            "typeRelationshipKinds": [
+              "EXPOSES"
+            ],
+            "moduleRelationshipKinds": [],
+            "availableFrameworks": [
+              "jax-rs"
+            ],
+            "availableArchitectureViewKinds": [
+              "endpoint"
+            ]
+          }
+        ],
+        "availableViews": [
+          "javaEndpointGraph"
+        ],
+        "defaultViewId": "javaEndpointGraph",
+        "description": "Browser-facing Java backend graph descriptors derived from framework-aware dependency rollups.",
+        "recommendedEntryPoints": [
+          "javaEndpointGraph",
+          "javaEntityModelGraph",
+          "javaEventFlowGraph",
+          "javaWritePathGraph"
+        ]
+      },
+      "browserViewCatalog": {
+        "families": [
+          {
+            "id": "java",
+            "title": "Java backend browser views",
+            "available": true,
+            "availableViewIds": [
+              "javaEndpointGraph"
+            ],
+            "defaultViewId": "javaEndpointGraph",
+            "viewCount": 1,
+            "description": "Browser-facing Java backend graph descriptors derived from framework-aware dependency rollups."
+          }
+        ],
+        "availableFamilies": [
+          "java"
+        ],
+        "defaultFamily": "java",
+        "description": "High-level browser view families exported with the architecture index document."
+      },
+      "hasJavaBrowserView": true,
+      "evidenceStatus": "available",
+      "moduleDependencies": [],
+      "evidenceDependencies": [],
+      "frameworkTypeDependencies": [],
+      "frameworkModuleDependencies": [],
+      "compositionTypeDependencies": [],
+      "compositionModuleDependencies": [],
+      "routeTypeDependencies": [],
+      "routeModuleDependencies": [],
+      "providerTypeDependencies": [],
+      "providerModuleDependencies": [],
+      "hookTypeDependencies": [],
+      "hookModuleDependencies": [],
+      "endpointModuleDependencies": [],
+      "entityModelModuleDependencies": [],
+      "observerModuleDependencies": [],
+      "writePathModuleDependencies": [],
+      "packageMetrics": [],
+      "boundarySummary": {},
+      "frontendArchitectureViews": {
+        "frameworkAware": [
+          "frameworkTypeDependencies",
+          "frameworkModuleDependencies"
+        ],
+        "composition": [
+          "compositionTypeDependencies",
+          "compositionModuleDependencies"
+        ],
+        "routing": [
+          "routeTypeDependencies",
+          "routeModuleDependencies"
+        ],
+        "providerAndDi": [
+          "providerTypeDependencies",
+          "providerModuleDependencies"
+        ],
+        "hooks": [
+          "hookTypeDependencies",
+          "hookModuleDependencies"
+        ]
+      },
+      "javaFrameworkArchitectureViews": {
+        "endpoints": [
+          "endpointTypeDependencies",
+          "endpointModuleDependencies"
+        ],
+        "entityModel": [
+          "entityModelTypeDependencies",
+          "entityModelModuleDependencies"
+        ],
+        "observerEvents": [
+          "observerTypeDependencies",
+          "observerModuleDependencies"
+        ],
+        "writePaths": [
+          "writePathTypeDependencies",
+          "writePathModuleDependencies"
+        ]
+      }
+    }
+  },
+  "viewpoints": [
+    {
+      "id": "api-surface",
+      "title": "API surface",
+      "description": "Highlights externally exposed API entrypoints and the first service hop behind them.",
+      "availability": "available",
+      "confidence": 0.93,
+      "seedRoleIds": [
+        "api-entrypoint"
+      ],
+      "expandViaSemantics": [
+        "serves-request",
+        "invokes-use-case"
+      ],
+      "preferredDependencyViews": [
+        "java:type-dependencies"
+      ],
+      "evidenceSources": [
+        "java-interpretation",
+        "java-normalization"
+      ]
+    },
+    {
+      "id": "request-handling",
+      "title": "Request handling",
+      "description": "Highlights request-serving paths from entrypoints through application services.",
+      "availability": "available",
+      "confidence": 0.9,
+      "seedRoleIds": [
+        "api-entrypoint",
+        "application-service"
+      ],
+      "expandViaSemantics": [
+        "serves-request",
+        "invokes-use-case"
+      ],
+      "preferredDependencyViews": [
+        "java:type-dependencies"
+      ],
+      "evidenceSources": [
+        "java-interpretation",
+        "java-normalization"
+      ]
+    },
+    {
+      "id": "integration-map",
+      "title": "Integration map",
+      "description": "Highlights external integration adapters and their links to external systems.",
+      "availability": "available",
+      "confidence": 0.91,
+      "seedEntityIds": [
+        "entity:class:crm-client"
+      ],
+      "seedRoleIds": [
+        "integration-adapter"
+      ],
+      "expandViaSemantics": [
+        "calls-external-system"
+      ],
+      "preferredDependencyViews": [
+        "java:type-dependencies"
+      ],
+      "evidenceSources": [
+        "java-normalization"
+      ]
+    }
+  ]
+}
