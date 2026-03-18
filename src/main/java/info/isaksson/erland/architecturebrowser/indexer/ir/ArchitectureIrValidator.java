@@ -66,6 +66,7 @@ public final class ArchitectureIrValidator {
             if (!entityIds.contains(relationship.toEntityId())) {
                 messages.add("relationship references missing toEntityId: " + relationship.id());
             }
+            validateNormalizedRelationshipStrings(relationship.id(), "architecturalSemantics", relationship.architecturalSemantics(), messages);
         }
         return new ValidationResult(messages.isEmpty(), List.copyOf(messages));
     }
@@ -93,6 +94,23 @@ public final class ArchitectureIrValidator {
             String normalized = value.trim();
             if (!observed.add(normalized)) {
                 messages.add(fieldName + " must not contain duplicates for " + entityId + ": " + normalized);
+            }
+        }
+    }
+
+    private static void validateNormalizedRelationshipStrings(String relationshipId, String fieldName, List<String> values, List<String> messages) {
+        if (values == null) {
+            return;
+        }
+        Set<String> observed = new HashSet<>();
+        for (String value : values) {
+            if (isBlank(value)) {
+                messages.add(fieldName + " must not contain blank values for " + relationshipId);
+                continue;
+            }
+            String normalized = value.trim();
+            if (!observed.add(normalized)) {
+                messages.add(fieldName + " must not contain duplicates for " + relationshipId + ": " + normalized);
             }
         }
     }

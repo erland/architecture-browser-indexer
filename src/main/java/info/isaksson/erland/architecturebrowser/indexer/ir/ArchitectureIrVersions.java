@@ -5,11 +5,12 @@ public final class ArchitectureIrVersions {
      * Baseline stable export contract version.
      *
      * The current JSON Schema treats the document/entity/relationship shapes as strict
-     * ({@code additionalProperties: false}). Step 2 introduces first-class entity-level
-     * architectural roles and traits as coordinated stable-contract additions, so the
-     * schema version now advances to reflect the new shape.
+     * ({@code additionalProperties: false}). Step 2 introduced first-class entity-level
+     * architectural roles and traits. Step 3 extends the stable relationship contract with
+     * first-class architectural semantics, so the schema version now advances again to
+     * reflect the new shape.
      */
-    public static final String CURRENT_SCHEMA_VERSION = "1.1.0";
+    public static final String CURRENT_SCHEMA_VERSION = "1.2.0";
 
     private ArchitectureIrVersions() {
     }

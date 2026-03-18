@@ -41,6 +41,13 @@
     },
     "metadata": {
       "$ref": "./common.schema.json#/$defs/stringMap"
+    },
+    "architecturalSemantics": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
     }
   }
 }

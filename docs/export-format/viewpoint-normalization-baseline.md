@@ -30,7 +30,7 @@ architecture semantics to the export format later without losing control of comp
 
 ## Baseline findings
 
-1. The stable contract is currently versioned as `1.1.0`.
+1. The stable contract is currently versioned as `1.2.0`.
 2. The top-level document schema is strict (`additionalProperties: false`).
 3. The entity schema is strict (`additionalProperties: false`).
 4. The relationship schema is strict (`additionalProperties: false`).

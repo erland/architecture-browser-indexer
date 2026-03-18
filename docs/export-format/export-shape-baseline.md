@@ -61,7 +61,7 @@ Purpose:
 - identifies the export schema family/version expected by consumers
 
 Observed in examples:
-- `1.1.0`
+- `1.2.0`
 
 ### `indexerVersion`
 String.

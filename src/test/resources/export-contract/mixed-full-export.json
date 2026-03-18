@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.2.0",
   "indexerVersion": "0.1.0-SNAPSHOT",
   "runMetadata": {
     "startedAt": "2026-03-10T12:00:00Z",
@@ -99,7 +99,10 @@
       "sourceRefs": [],
       "metadata": {
         "dependencySource": "http-client"
-      }
+      },
+      "architecturalSemantics": [
+        "invokes-use-case"
+      ]
     }
   ],
   "diagnostics": [],
