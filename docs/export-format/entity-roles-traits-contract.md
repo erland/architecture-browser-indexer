@@ -26,3 +26,13 @@ The curated Java backend example now demonstrates:
 - `domain-entity`
 - `persistent-entity`
 - traits like `http-resource`, `stateless`, and `jpa-managed`
+
+
+## UI navigation additions
+
+The canonical trait set now also reserves:
+
+- `user-facing` for entities that represent user-visible pages, layouts, or explicit navigation structures
+- `route-declared` for entities grounded by direct route declaration evidence rather than only inference
+
+These traits are additive and can coexist with earlier roles or traits.

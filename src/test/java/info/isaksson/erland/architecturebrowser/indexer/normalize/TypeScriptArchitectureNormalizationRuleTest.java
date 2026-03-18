@@ -107,12 +107,77 @@ class TypeScriptArchitectureNormalizationRuleTest {
             provider.id(), provider
         );
 
-        assertEquals(List.of("api-entrypoint"), entityService.normalizeEntity(uiModule, entities).architecturalRoles());
-        assertEquals(List.of("externally-exposed"), entityService.normalizeEntity(uiModule, entities).architecturalTraits());
+        assertEquals(List.of("api-entrypoint", "ui-page"), entityService.normalizeEntity(uiModule, entities).architecturalRoles());
+        assertEquals(List.of("externally-exposed", "user-facing"), entityService.normalizeEntity(uiModule, entities).architecturalTraits());
         assertEquals(List.of("application-service"), entityService.normalizeEntity(appService, entities).architecturalRoles());
         assertEquals(List.of("integration-adapter"), entityService.normalizeEntity(adapter, entities).architecturalRoles());
         assertEquals(List.of("configuration-provider"), entityService.normalizeEntity(provider, entities).architecturalRoles());
         assertEquals(List.of("configuration-driven"), entityService.normalizeEntity(provider, entities).architecturalTraits());
+    }
+
+
+    @Test
+    void mapsFrontendRouteEntitiesToUiPageAndLayoutRoles() {
+        ArchitectureEntity ordersRoute = new ArchitectureEntity(
+            "entity:react-route:/orders",
+            EntityKind.UI_MODULE,
+            EntityOrigin.INFERRED,
+            "react-route:/orders",
+            "Orders route",
+            "scope:repo",
+            List.of(),
+            Map.of(
+                "framework", "react",
+                "routeSourceKind", "declared-route",
+                "routeDeclarationKind", "route-object",
+                "routeFullPath", "/orders",
+                "routePath", "orders",
+                "routeSnippet", "{ path: 'orders', element: <OrdersPage /> }"
+            )
+        );
+        ArchitectureEntity shellRoute = new ArchitectureEntity(
+            "entity:react-route:/app",
+            EntityKind.UI_MODULE,
+            EntityOrigin.INFERRED,
+            "AppLayout",
+            "App layout route",
+            "scope:repo",
+            List.of(),
+            Map.of(
+                "framework", "react",
+                "routeSourceKind", "declared-route",
+                "routeDeclarationKind", "route-object",
+                "routeFullPath", "/app",
+                "routePath", "",
+                "routeSnippet", "{ path: '', element: <AppLayout />, children: [{ path: 'orders' }] }"
+            )
+        );
+
+        ArchitectureEntity normalizedPage = entityService.normalizeEntity(ordersRoute, Map.of(ordersRoute.id(), ordersRoute));
+        ArchitectureEntity normalizedLayout = entityService.normalizeEntity(shellRoute, Map.of(shellRoute.id(), shellRoute));
+
+        assertEquals(List.of("ui-page"), normalizedPage.architecturalRoles());
+        assertEquals(List.of("route-declared", "user-facing"), normalizedPage.architecturalTraits());
+        assertEquals(List.of("ui-layout"), normalizedLayout.architecturalRoles());
+        assertEquals(List.of("route-declared", "user-facing"), normalizedLayout.architecturalTraits());
+    }
+
+    @Test
+    void mapsGroundedNavigationStructureToUiNavigationNode() {
+        ArchitectureEntity navComponent = entity(
+            "entity:ts:orders-sidebar",
+            EntityKind.UI_MODULE,
+            Map.of(
+                "language", "typescript",
+                "path", "src/navigation/OrdersSidebar.tsx",
+                "sourceSnippet", "export function OrdersSidebar() { return <nav><NavLink to='/orders'>Orders</NavLink></nav>; }"
+            )
+        );
+
+        ArchitectureEntity normalized = entityService.normalizeEntity(navComponent, Map.of(navComponent.id(), navComponent));
+
+        assertEquals(List.of("ui-navigation-node"), normalized.architecturalRoles());
+        assertEquals(List.of("user-facing"), normalized.architecturalTraits());
     }
 
     @Test

@@ -28,21 +28,39 @@ final class TypeScriptArchitectureEntityNormalizationRule implements Architectur
         List<String> traits = new ArrayList<>();
 
         if (isApiEntrypoint(entity, context.entitiesById())) {
-            roles.add(ArchitecturalRole.API_ENTRYPOINT.id());
-            traits.add(ArchitecturalTrait.EXTERNALLY_EXPOSED.id());
+            addIfMissing(roles, ArchitecturalRole.API_ENTRYPOINT.id());
+            addIfMissing(traits, ArchitecturalTrait.EXTERNALLY_EXPOSED.id());
+        }
+        if (isUiPage(entity, context)) {
+            addIfMissing(roles, ArchitecturalRole.UI_PAGE.id());
+            addIfMissing(traits, ArchitecturalTrait.USER_FACING.id());
+            if (context.frontendRouteEvidenceOptional().filter(FrontendRouteEvidence::declaredRoute).isPresent()) {
+                addIfMissing(traits, ArchitecturalTrait.ROUTE_DECLARED.id());
+            }
+        }
+        if (isUiLayout(entity, context)) {
+            addIfMissing(roles, ArchitecturalRole.UI_LAYOUT.id());
+            addIfMissing(traits, ArchitecturalTrait.USER_FACING.id());
+            if (context.frontendRouteEvidenceOptional().filter(FrontendRouteEvidence::declaredRoute).isPresent()) {
+                addIfMissing(traits, ArchitecturalTrait.ROUTE_DECLARED.id());
+            }
+        }
+        if (isUiNavigationNode(entity, context)) {
+            addIfMissing(roles, ArchitecturalRole.UI_NAVIGATION_NODE.id());
+            addIfMissing(traits, ArchitecturalTrait.USER_FACING.id());
         }
         if (isApplicationService(entity, context.entitiesById())) {
-            roles.add(ArchitecturalRole.APPLICATION_SERVICE.id());
+            addIfMissing(roles, ArchitecturalRole.APPLICATION_SERVICE.id());
         }
         if (isIntegrationAdapter(entity, context.entitiesById())) {
-            roles.add(ArchitecturalRole.INTEGRATION_ADAPTER.id());
+            addIfMissing(roles, ArchitecturalRole.INTEGRATION_ADAPTER.id());
         }
         if (isConfigurationProvider(entity, context.entitiesById())) {
-            roles.add(ArchitecturalRole.CONFIGURATION_PROVIDER.id());
-            traits.add(ArchitecturalTrait.CONFIGURATION_DRIVEN.id());
+            addIfMissing(roles, ArchitecturalRole.CONFIGURATION_PROVIDER.id());
+            addIfMissing(traits, ArchitecturalTrait.CONFIGURATION_DRIVEN.id());
         }
         if (isFrameworkManaged(entity)) {
-            traits.add(ArchitecturalTrait.FRAMEWORK_MANAGED.id());
+            addIfMissing(traits, ArchitecturalTrait.FRAMEWORK_MANAGED.id());
         }
 
         if (roles.isEmpty() && traits.isEmpty()) {
@@ -58,7 +76,9 @@ final class TypeScriptArchitectureEntityNormalizationRule implements Architectur
         if (metadataEquals(entity, "language", "typescript")
             || metadataEquals(entity, "sourceLanguage", "typescript")
             || metadataEquals(entity, "language", "tsx")
-            || metadataEquals(entity, "sourceLanguage", "tsx")) {
+            || metadataEquals(entity, "sourceLanguage", "tsx")
+            || metadataEquals(entity, "framework", "react")
+            || metadataEquals(entity, "framework", "angular")) {
             return true;
         }
         String sourceEntityId = stringMetadata(entity, "sourceEntityId");
@@ -83,6 +103,96 @@ final class TypeScriptArchitectureEntityNormalizationRule implements Architectur
         String sourceEntityId = stringMetadata(entity, "sourceEntityId");
         ArchitectureEntity source = sourceEntityId == null ? null : entitiesById.get(sourceEntityId);
         return source != null && isRouteOrPageLike(source);
+    }
+
+
+    private static boolean isUiPage(ArchitectureEntity entity, ArchitectureEntityNormalizationContext context) {
+        FrontendRouteEvidence routeEvidence = context.frontendRouteEvidenceOptional().orElse(null);
+        if (routeEvidence != null) {
+            if (routeEvidence.declaredRoute() && !looksLikeLayout(entity, routeEvidence)) {
+                return true;
+            }
+            if (!blank(routeEvidence.routeFullPath()) && !looksLikeLayout(entity, routeEvidence) && !routeEvidence.redirect()) {
+                return true;
+            }
+        }
+        if (entity.kind() != EntityKind.UI_MODULE && entity.kind() != EntityKind.STARTUP_POINT) {
+            return false;
+        }
+        if (metadataEquals(entity, "uiProfile", "page-or-router") || metadataEquals(entity, "matchType", "page-or-router")) {
+            return !looksLikeLayout(entity, routeEvidence);
+        }
+        String lowerName = lower(entity.name());
+        String path = lower(stringMetadata(entity, "path"));
+        return lowerName.endsWith("page")
+            || lowerName.endsWith("screen")
+            || lowerName.endsWith("view")
+            || path.contains("/pages/")
+            || path.contains("/screens/");
+    }
+
+    private static boolean isUiLayout(ArchitectureEntity entity, ArchitectureEntityNormalizationContext context) {
+        FrontendRouteEvidence routeEvidence = context.frontendRouteEvidenceOptional().orElse(null);
+        if (routeEvidence != null && looksLikeLayout(entity, routeEvidence)) {
+            return true;
+        }
+        if (entity.kind() != EntityKind.UI_MODULE && entity.kind() != EntityKind.STARTUP_POINT) {
+            return false;
+        }
+        String lowerName = lower(entity.name());
+        String path = lower(stringMetadata(entity, "path"));
+        String snippet = lower(stringMetadata(entity, "sourceSnippet"));
+        return lowerName.endsWith("layout")
+            || lowerName.endsWith("shell")
+            || path.contains("/layouts/")
+            || snippet.contains("<router-outlet")
+            || snippet.contains("<outlet")
+            || snippet.contains("children:")
+            || snippet.contains("outlet:");
+    }
+
+    private static boolean isUiNavigationNode(ArchitectureEntity entity, ArchitectureEntityNormalizationContext context) {
+        if (entity.kind() != EntityKind.UI_MODULE && entity.kind() != EntityKind.CLASS && entity.kind() != EntityKind.FUNCTION) {
+            return false;
+        }
+        String lowerName = lower(entity.name());
+        String path = lower(stringMetadata(entity, "path"));
+        String snippet = lower(stringMetadata(entity, "sourceSnippet"));
+        boolean explicitNavStructure = lowerName.endsWith("menu")
+            || lowerName.endsWith("sidebar")
+            || lowerName.endsWith("navbar")
+            || lowerName.endsWith("navigation")
+            || lowerName.endsWith("nav")
+            || lowerName.endsWith("breadcrumbs")
+            || lowerName.endsWith("tabs")
+            || path.contains("/navigation/")
+            || path.contains("/menu/")
+            || path.contains("/menus/")
+            || path.contains("/sidebar/");
+        boolean navigationGrounding = snippet.contains("<nav")
+            || snippet.contains("<navlink")
+            || snippet.contains("<link")
+            || snippet.contains("routerlink")
+            || snippet.contains("navigate(")
+            || snippet.contains("navigatebyurl(");
+        return explicitNavStructure && navigationGrounding && context.frontendRouteEvidenceOptional().isEmpty();
+    }
+
+    private static boolean looksLikeLayout(ArchitectureEntity entity, FrontendRouteEvidence routeEvidence) {
+        String lowerName = lower(entity.name());
+        String path = lower(stringMetadata(entity, "path"));
+        String snippet = lower(firstNonBlank(
+            stringMetadata(entity, "routeSnippet"),
+            stringMetadata(entity, "sourceSnippet")
+        ));
+        return lowerName.endsWith("layout")
+            || lowerName.endsWith("shell")
+            || path.contains("/layouts/")
+            || path.contains("/shell/")
+            || snippet.contains("children:")
+            || snippet.contains("<router-outlet")
+            || snippet.contains("<outlet")
+            || (routeEvidence != null && equalsIgnoreCase(routeEvidence.routePath(), ""));
     }
 
     private static boolean isApplicationService(ArchitectureEntity entity, Map<String, ArchitectureEntity> entitiesById) {
@@ -211,5 +321,31 @@ final class TypeScriptArchitectureEntityNormalizationRule implements Architectur
 
     private static String lower(String value) {
         return value == null ? "" : value.toLowerCase(Locale.ROOT);
+    }
+
+    private static void addIfMissing(List<String> values, String value) {
+        if (value != null && !value.isBlank() && !values.contains(value)) {
+            values.add(value);
+        }
+    }
+
+    private static String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (!blank(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private static boolean blank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private static boolean equalsIgnoreCase(String left, String right) {
+        return left != null && right != null && left.equalsIgnoreCase(right);
     }
 }

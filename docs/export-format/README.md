@@ -194,3 +194,8 @@ The current code does **not** treat `name` as a universally fully qualified cano
 - `ui-navigation-evidence-inventory.md` — Step 3 inventory of grounded frontend route/navigation evidence feeding later `ui-navigation` normalization.
 
 - `ui-navigation-normalization-seam.md` — internal normalization seam for consuming frontend route/navigation evidence cleanly
+
+
+## Step 5 status
+
+Step 5 adds conservative TypeScript/frontend entity normalization for `ui-page`, `ui-layout`, and `ui-navigation-node`, plus the traits `user-facing` and `route-declared` when the grounding evidence is strong enough.

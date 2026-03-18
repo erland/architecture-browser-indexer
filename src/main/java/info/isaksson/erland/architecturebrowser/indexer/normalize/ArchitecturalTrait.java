@@ -12,7 +12,9 @@ public enum ArchitecturalTrait {
     MESSAGE_DRIVEN("message-driven"),
     FRAMEWORK_MANAGED("framework-managed"),
     SECURITY_RELEVANT("security-relevant"),
-    CONFIGURATION_DRIVEN("configuration-driven");
+    CONFIGURATION_DRIVEN("configuration-driven"),
+    USER_FACING("user-facing"),
+    ROUTE_DECLARED("route-declared");
 
     private final String id;
 
