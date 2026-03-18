@@ -94,6 +94,13 @@ The top-level schema references these files using relative `$ref` links.
 
 ## How to use this package as a consumer
 
+### If you are planning normalized frontend navigation support
+Start with:
+- `ui-navigation-baseline.md`
+- `viewpoint-catalog-contract.md`
+- `viewpoint-availability-derivation.md`
+- `examples/frontend-export.json`
+
 ### If you are reading the export for the first time
 Start with:
 - `export-format-spec.md`
@@ -176,6 +183,7 @@ The current code does **not** treat `name` as a universally fully qualified cano
 - `java-browser-view-bridge.md` — Step 9 bridge from Java browser/dependency views into canonical viewpoint descriptors
 - `architecture-semantics-and-evolution.md` — Step 11 design doc for graph core vs normalized semantics vs framework evidence vs viewpoints
 - `extending-normalized-semantics-safely.md` — Step 11 contributor checklist for extending canonical vocabulary and mappings safely
+- `ui-navigation-baseline.md` — Step 1 baseline for the conservative `ui-navigation` viewpoint, its vocabulary, evidence boundaries, and current seam inventory
 - `examples-and-contract-hardening.md` — Step 10 scenario examples and hardening guidance
 
 - schema alignment cleanup:
