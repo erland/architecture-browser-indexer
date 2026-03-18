@@ -150,7 +150,7 @@
     },
     {
       "id": "entity:datastore:ledger-db",
-      "kind": "DATABASE",
+      "kind": "DATASTORE",
       "origin": "INFERRED",
       "name": "ledger-db",
       "displayName": "ledger-db",
@@ -191,7 +191,7 @@
     },
     {
       "id": "rel:entity:stored-in:db",
-      "kind": "STORED_IN",
+      "kind": "WRITES",
       "fromEntityId": "entity:class:ledger-entry",
       "toEntityId": "entity:datastore:ledger-db",
       "label": "stored in ledger-db",

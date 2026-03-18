@@ -165,7 +165,7 @@ class ArchitectureIrViewpointDerivationServiceTest {
         ArchitectureViewpoint persistenceModel = viewpointById(viewpoints, "persistence-model");
         assertEquals("available", persistenceModel.availability());
         assertEquals(List.of("entity:order", "entity:repo"), persistenceModel.seedEntityIds());
-        assertEquals(List.of("persistent-entity", "persistence-access"), persistenceModel.seedRoleIds());
+        assertEquals(List.of("persistence-access", "persistent-entity"), persistenceModel.seedRoleIds());
         assertEquals(List.of("accesses-persistence"), persistenceModel.expandViaSemantics());
         assertEquals(List.of("entityModelModuleDependencies", "entityModelTypeDependencies"), persistenceModel.preferredDependencyViews());
 

@@ -137,7 +137,7 @@
     },
     {
       "id": "entity:system:crm",
-      "kind": "SYSTEM",
+      "kind": "EXTERNAL_SYSTEM",
       "origin": "INFERRED",
       "name": "CRM",
       "displayName": "CRM",
