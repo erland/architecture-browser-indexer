@@ -203,3 +203,6 @@ Step 5 adds conservative TypeScript/frontend entity normalization for `ui-page`,
 Step 7 adds conservative `ui-navigation` viewpoint derivation so the export now advertises the canonical UI-navigation slice when normalized UI roles and navigation semantics are present.
 Step 8 adds a curated `ui-navigation-export.json` example plus focused scenario assertions so canonical UI-navigation roles, semantics, and viewpoint shape are protected by contract tests.
 Step 10 adds architect-facing interpretation guidance in `ui-navigation-viewpoint.md`, including what the view shows, what it does not show, how to read confidence/evidence, and how to distinguish declared routes from inferred navigation.
+
+
+Step 11 keeps optional second-wave UI-navigation work explicit in `ui-navigation-second-wave-backlog.md`, including deep links, dialogs/tabs, route parameters, lazy grouping, cross-app navigation, stronger menu modeling, confidence evolution, and workflow overlays.
