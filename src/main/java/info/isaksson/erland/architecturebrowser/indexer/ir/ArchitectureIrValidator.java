@@ -54,6 +54,8 @@ public final class ArchitectureIrValidator {
             if (isBlank(entity.name())) {
                 messages.add("entity name must be present for " + entity.id());
             }
+            validateNormalizedEntityStrings(entity.id(), "architecturalRoles", entity.architecturalRoles(), messages);
+            validateNormalizedEntityStrings(entity.id(), "architecturalTraits", entity.architecturalTraits(), messages);
         }
         Set<String> entityIds = document.entities().stream().map(ArchitectureEntity::id).collect(java.util.stream.Collectors.toSet());
         for (ArchitectureRelationship relationship : document.relationships()) {
@@ -75,6 +77,23 @@ public final class ArchitectureIrValidator {
         }
         if (!ids.add(id)) {
             messages.add("duplicate id within payload: " + id);
+        }
+    }
+
+    private static void validateNormalizedEntityStrings(String entityId, String fieldName, List<String> values, List<String> messages) {
+        if (values == null) {
+            return;
+        }
+        Set<String> observed = new HashSet<>();
+        for (String value : values) {
+            if (isBlank(value)) {
+                messages.add(fieldName + " must not contain blank values for " + entityId);
+                continue;
+            }
+            String normalized = value.trim();
+            if (!observed.add(normalized)) {
+                messages.add(fieldName + " must not contain duplicates for " + entityId + ": " + normalized);
+            }
         }
     }
 

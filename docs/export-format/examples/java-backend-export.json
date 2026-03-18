@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "indexerVersion": "0.1.0-SNAPSHOT",
   "runMetadata": {
     "startedAt": "2026-03-10T12:00:00Z",
@@ -79,7 +79,13 @@
         "language": "java",
         "framework": "jax-rs",
         "qualifiedName": "com.example.api.OrderResource"
-      }
+      },
+      "architecturalRoles": [
+        "api-entrypoint"
+      ],
+      "architecturalTraits": [
+        "http-resource"
+      ]
     },
     {
       "id": "entity:endpoint:create-order",
@@ -107,7 +113,13 @@
         "language": "java",
         "framework": "cdi",
         "qualifiedName": "com.example.service.OrderService"
-      }
+      },
+      "architecturalRoles": [
+        "application-service"
+      ],
+      "architecturalTraits": [
+        "stateless"
+      ]
     },
     {
       "id": "entity:class:order-entity",
@@ -122,7 +134,14 @@
         "framework": "jpa",
         "qualifiedName": "com.example.domain.OrderEntity",
         "jpaKind": "entity"
-      }
+      },
+      "architecturalRoles": [
+        "domain-entity",
+        "persistent-entity"
+      ],
+      "architecturalTraits": [
+        "jpa-managed"
+      ]
     },
     {
       "id": "entity:event:order-created",

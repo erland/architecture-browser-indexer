@@ -45,6 +45,22 @@
     },
     "metadata": {
       "$ref": "./common.schema.json#/$defs/stringMap"
+    },
+    "architecturalRoles": {
+      "type": "array",
+      "description": "Optional normalized architectural roles for the entity. Values are stable lowercase identifiers intended for viewpoint-friendly consumers.",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "architecturalTraits": {
+      "type": "array",
+      "description": "Optional normalized architectural traits for the entity. Values are stable lowercase identifiers intended for viewpoint-friendly consumers.",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
     }
   }
 }

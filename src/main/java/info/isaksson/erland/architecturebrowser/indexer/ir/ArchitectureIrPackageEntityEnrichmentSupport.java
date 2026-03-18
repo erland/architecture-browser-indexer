@@ -52,7 +52,9 @@ final class ArchitectureIrPackageEntityEnrichmentSupport {
                 entity.displayName(),
                 entity.scopeId(),
                 entity.sourceRefs(),
-                ArchitectureIrDependencyMetadataSupport.immutable(metadata)
+                ArchitectureIrDependencyMetadataSupport.immutable(metadata),
+                entity.architecturalRoles(),
+                entity.architecturalTraits()
             ));
         }
         return Map.copyOf(enriched);
