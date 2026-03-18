@@ -54,7 +54,12 @@ class ArchitectureIrFactoryJavaBackendSafetyNetTest {
         assertEquals("available", viewpointAvailability(document, "api-surface"));
         assertEquals("available", viewpointAvailability(document, "request-handling"));
         assertEquals("available", viewpointAvailability(document, "persistence-model"));
+        assertEquals("available", viewpointAvailability(document, "event-flow"));
         assertTrue(viewpointConfidence(document, "request-handling") >= 0.75);
+        assertTrue(viewpointPreferredDependencyViews(document, "api-surface").contains("endpointTypeDependencies"));
+        assertTrue(viewpointPreferredDependencyViews(document, "request-handling").contains("writePathTypeDependencies"));
+        assertTrue(viewpointPreferredDependencyViews(document, "persistence-model").contains("entityModelTypeDependencies"));
+        assertTrue(viewpointEvidenceSources(document, "api-surface").contains("java-browser-views"));
         assertTrue(document.metadata().containsKey("dependencyViews"));
         assertTrue(document.metadata().containsKey("topologySummary"));
         assertTrue(document.metadata().containsKey("extractionSummary"));
@@ -93,6 +98,22 @@ class ArchitectureIrFactoryJavaBackendSafetyNetTest {
             .findFirst()
             .orElseThrow(() -> new AssertionError("Missing viewpoint=" + viewpointId))
             .confidence();
+    }
+
+    private static List<String> viewpointPreferredDependencyViews(ArchitectureIndexDocument document, String viewpointId) {
+        return document.viewpoints().stream()
+            .filter(viewpoint -> viewpointId.equals(viewpoint.id()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Missing viewpoint=" + viewpointId))
+            .preferredDependencyViews();
+    }
+
+    private static List<String> viewpointEvidenceSources(ArchitectureIndexDocument document, String viewpointId) {
+        return document.viewpoints().stream()
+            .filter(viewpoint -> viewpointId.equals(viewpoint.id()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Missing viewpoint=" + viewpointId))
+            .evidenceSources();
     }
 
     private static ArchitectureIndexDocument buildDocumentFromFixture() {

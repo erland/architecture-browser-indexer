@@ -534,9 +534,12 @@
         "invokes-use-case"
       ],
       "preferredDependencyViews": [
-        "java:type-dependencies"
+        "endpointModuleDependencies",
+        "endpointTypeDependencies"
       ],
       "evidenceSources": [
+        "java-browser-views",
+        "java-dependency-views",
         "java-interpretation",
         "java-normalization"
       ]
@@ -555,11 +558,14 @@
         "accesses-persistence"
       ],
       "preferredDependencyViews": [
-        "java:type-dependencies"
+        "entityModelModuleDependencies",
+        "entityModelTypeDependencies"
       ],
       "evidenceSources": [
-        "jpa",
-        "java-normalization"
+        "java-browser-views",
+        "java-dependency-views",
+        "java-normalization",
+        "jpa"
       ]
     },
     {
@@ -577,11 +583,29 @@
         "invokes-use-case"
       ],
       "preferredDependencyViews": [
-        "java:type-dependencies"
+        "writePathModuleDependencies",
+        "writePathTypeDependencies"
       ],
       "evidenceSources": [
+        "java-browser-views",
+        "java-dependency-views",
         "java-interpretation",
         "java-normalization"
+      ]
+    },
+    {
+      "id": "event-flow",
+      "title": "Event flow",
+      "description": "Highlights Java publisher, event, and observer relationships prepared for asynchronous flow exploration.",
+      "availability": "available",
+      "confidence": 0.77,
+      "preferredDependencyViews": [
+        "observerModuleDependencies",
+        "observerTypeDependencies"
+      ],
+      "evidenceSources": [
+        "java-browser-views",
+        "java-dependency-views"
       ]
     }
   ]

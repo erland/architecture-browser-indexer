@@ -13,6 +13,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ArchitectureIrViewpointDerivationServiceTest {
 
@@ -93,7 +94,57 @@ class ArchitectureIrViewpointDerivationServiceTest {
         List<ArchitectureViewpoint> viewpoints = ArchitectureIrViewpointDerivationService.derive(
             List.of(resource, service, repository, orderEntity),
             relationships,
-            Map.of("moduleDependencies", List.of(Map.of("from", "module:a", "to", "module:b")))
+            Map.of(
+                "moduleDependencies", List.of(Map.of("from", "module:a", "to", "module:b")),
+                "endpointTypeDependencies", List.of(Map.of("from", resource.id(), "to", service.id())),
+                "endpointModuleDependencies", List.of(Map.of("from", "module:api", "to", "module:service")),
+                "entityModelTypeDependencies", List.of(Map.of("from", orderEntity.id(), "to", "entity:line")),
+                "entityModelModuleDependencies", List.of(),
+                "observerTypeDependencies", List.of(Map.of("from", "entity:publisher", "to", "entity:event")),
+                "observerModuleDependencies", List.of(Map.of("from", "module:events", "to", "module:listeners")),
+                "writePathTypeDependencies", List.of(Map.of("from", service.id(), "to", repository.id())),
+                "writePathModuleDependencies", List.of(Map.of("from", "module:service", "to", "module:persistence")),
+                "javaBrowserViews", Map.of(
+                    "views", List.of(
+                        Map.of(
+                            "id", "javaEndpointGraph",
+                            "available", true,
+                            "preferredDependencyView", "endpointTypeDependencies",
+                            "typeDependencyView", "endpointTypeDependencies",
+                            "moduleDependencyView", "endpointModuleDependencies",
+                            "typeDependencyCount", 1,
+                            "moduleDependencyCount", 1
+                        ),
+                        Map.of(
+                            "id", "javaEntityModelGraph",
+                            "available", true,
+                            "preferredDependencyView", "entityModelTypeDependencies",
+                            "typeDependencyView", "entityModelTypeDependencies",
+                            "moduleDependencyView", "entityModelModuleDependencies",
+                            "typeDependencyCount", 1,
+                            "moduleDependencyCount", 0
+                        ),
+                        Map.of(
+                            "id", "javaEventFlowGraph",
+                            "available", true,
+                            "preferredDependencyView", "observerTypeDependencies",
+                            "typeDependencyView", "observerTypeDependencies",
+                            "moduleDependencyView", "observerModuleDependencies",
+                            "typeDependencyCount", 1,
+                            "moduleDependencyCount", 1
+                        ),
+                        Map.of(
+                            "id", "javaWritePathGraph",
+                            "available", true,
+                            "preferredDependencyView", "writePathTypeDependencies",
+                            "typeDependencyView", "writePathTypeDependencies",
+                            "moduleDependencyView", "writePathModuleDependencies",
+                            "typeDependencyCount", 1,
+                            "moduleDependencyCount", 1
+                        )
+                    )
+                )
+            )
         );
 
         ArchitectureViewpoint apiSurface = viewpointById(viewpoints, "api-surface");
@@ -101,18 +152,26 @@ class ArchitectureIrViewpointDerivationServiceTest {
         assertEquals(List.of("entity:resource"), apiSurface.seedEntityIds());
         assertEquals(List.of("api-entrypoint"), apiSurface.seedRoleIds());
         assertEquals(List.of("serves-request"), apiSurface.expandViaSemantics());
+        assertEquals(List.of("endpointModuleDependencies", "endpointTypeDependencies"), apiSurface.preferredDependencyViews());
         assertNotNull(apiSurface.evidenceSources());
+        assertTrue(apiSurface.evidenceSources().contains("java-browser-views"));
 
         ArchitectureViewpoint requestHandling = viewpointById(viewpoints, "request-handling");
         assertEquals("available", requestHandling.availability());
         assertEquals(List.of("accesses-persistence", "invokes-use-case", "serves-request"), requestHandling.expandViaSemantics());
         assertEquals(List.of("api-entrypoint", "application-service"), requestHandling.seedRoleIds());
+        assertEquals(List.of("writePathModuleDependencies", "writePathTypeDependencies"), requestHandling.preferredDependencyViews());
 
         ArchitectureViewpoint persistenceModel = viewpointById(viewpoints, "persistence-model");
         assertEquals("available", persistenceModel.availability());
         assertEquals(List.of("entity:order", "entity:repo"), persistenceModel.seedEntityIds());
         assertEquals(List.of("persistent-entity", "persistence-access"), persistenceModel.seedRoleIds());
         assertEquals(List.of("accesses-persistence"), persistenceModel.expandViaSemantics());
+        assertEquals(List.of("entityModelModuleDependencies", "entityModelTypeDependencies"), persistenceModel.preferredDependencyViews());
+
+        ArchitectureViewpoint eventFlow = viewpointById(viewpoints, "event-flow");
+        assertEquals("available", eventFlow.availability());
+        assertEquals(List.of("observerModuleDependencies", "observerTypeDependencies"), eventFlow.preferredDependencyViews());
 
         ArchitectureViewpoint moduleDependencies = viewpointById(viewpoints, "module-dependencies");
         assertEquals("available", moduleDependencies.availability());

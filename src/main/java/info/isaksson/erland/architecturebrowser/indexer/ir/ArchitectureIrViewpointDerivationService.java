@@ -37,7 +37,7 @@ public final class ArchitectureIrViewpointDerivationService {
         viewpoints.add(persistenceModel(evidence));
         viewpoints.add(integrationMap(evidence));
         viewpoints.add(moduleDependencies(evidence));
-        return List.copyOf(viewpoints);
+        return ArchitectureIrJavaViewpointBridgeSupport.apply(viewpoints, dependencyViews);
     }
 
     private static ArchitectureViewpoint apiSurface(ViewpointEvidence evidence) {

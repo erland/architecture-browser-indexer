@@ -67,11 +67,42 @@ class JavaFrameworkBrowserViewsRegressionTest {
         assertEquals(Boolean.FALSE, entityModelView.get("available"),
             () -> "Baseline fixture should describe the entity model view even before association edges exist. view=" + entityModelView);
 
+        assertTrue(preferredDependencyViews(document, "api-surface").contains("endpointTypeDependencies"));
+        assertTrue(preferredDependencyViews(document, "request-handling").contains("writePathTypeDependencies"));
+        assertTrue(preferredDependencyViews(document, "persistence-model").contains("entityModelTypeDependencies"));
+        assertTrue(evidenceSources(document, "api-surface").contains("java-browser-views"));
+        assertEquals("available", viewpointAvailability(document, "event-flow"));
+
         @SuppressWarnings("unchecked")
         Map<String, Object> browserViewCatalog = (Map<String, Object>) dependencyViews.get("browserViewCatalog");
         assertEquals("java", browserViewCatalog.get("defaultFamily"));
         assertTrue(((List<?>) browserViewCatalog.get("availableFamilies")).contains("java"),
             () -> "Expected Java browser-view family. browserViewCatalog=" + browserViewCatalog);
+    }
+
+
+    private static String viewpointAvailability(ArchitectureIndexDocument document, String viewpointId) {
+        return document.viewpoints().stream()
+            .filter(viewpoint -> viewpointId.equals(viewpoint.id()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Missing viewpoint=" + viewpointId))
+            .availability();
+    }
+
+    private static List<String> preferredDependencyViews(ArchitectureIndexDocument document, String viewpointId) {
+        return document.viewpoints().stream()
+            .filter(viewpoint -> viewpointId.equals(viewpoint.id()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Missing viewpoint=" + viewpointId))
+            .preferredDependencyViews();
+    }
+
+    private static List<String> evidenceSources(ArchitectureIndexDocument document, String viewpointId) {
+        return document.viewpoints().stream()
+            .filter(viewpoint -> viewpointId.equals(viewpoint.id()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Missing viewpoint=" + viewpointId))
+            .evidenceSources();
     }
 
     private static void assertBrowserView(

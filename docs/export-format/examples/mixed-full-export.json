@@ -433,6 +433,22 @@
       "evidenceSources": [
         "mixed-export-example"
       ]
+    },
+    {
+      "id": "event-flow",
+      "title": "Event flow",
+      "description": "Highlights Java publisher, event, and observer relationships prepared for asynchronous flow exploration.",
+      "availability": "available",
+      "confidence": 0.77,
+      "preferredDependencyViews": [
+        "observerModuleDependencies",
+        "observerTypeDependencies"
+      ],
+      "evidenceSources": [
+        "java-browser-views",
+        "java-dependency-views",
+        "mixed-export-example"
+      ]
     }
   ]
 }
