@@ -16,7 +16,9 @@ import java.util.Map;
  */
 public final class ArchitectureEntityNormalizationService {
     private static final ArchitectureEntityNormalizationService DEFAULT = new ArchitectureEntityNormalizationService(List.of(
-        new JavaArchitectureEntityNormalizationRule()
+        new JavaArchitectureEntityNormalizationRule(),
+        new TypeScriptArchitectureEntityNormalizationRule(),
+        new SqlConfigArchitectureEntityNormalizationRule()
     ));
 
     private final List<ArchitectureEntityNormalizationRule> rules;

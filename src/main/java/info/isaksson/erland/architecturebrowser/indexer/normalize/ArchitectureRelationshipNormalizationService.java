@@ -17,7 +17,9 @@ import java.util.Map;
  */
 public final class ArchitectureRelationshipNormalizationService {
     private static final ArchitectureRelationshipNormalizationService DEFAULT = new ArchitectureRelationshipNormalizationService(List.of(
-        new JavaArchitectureRelationshipNormalizationRule()
+        new JavaArchitectureRelationshipNormalizationRule(),
+        new TypeScriptArchitectureRelationshipNormalizationRule(),
+        new SqlConfigArchitectureRelationshipNormalizationRule()
     ));
 
     private final List<ArchitectureRelationshipNormalizationRule> rules;

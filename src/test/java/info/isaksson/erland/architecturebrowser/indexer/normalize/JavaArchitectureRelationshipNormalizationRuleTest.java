@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 class JavaArchitectureRelationshipNormalizationRuleTest {
 
@@ -85,7 +84,7 @@ class JavaArchitectureRelationshipNormalizationRuleTest {
     }
 
     @Test
-    void preservesExistingSemanticsAndStaysConservativeForNonJavaRelationships() {
+    void preservesExistingSemanticsAndAllowsCrossLanguageSemanticsWhenGrounded() {
         ArchitectureEntity frontend = entity(
             "entity:ui:orders",
             EntityKind.UI_MODULE,
@@ -115,7 +114,7 @@ class JavaArchitectureRelationshipNormalizationRuleTest {
             Map.of(nonJava.id(), nonJava)
         );
 
-        assertEquals(List.of("custom-semantic"), normalized.architecturalSemantics());
+        assertEquals(List.of("custom-semantic", "invokes-use-case"), normalized.architecturalSemantics());
 
         ArchitectureRelationship empty = new ArchitectureRelationship(
             "rel:none",
@@ -126,7 +125,7 @@ class JavaArchitectureRelationshipNormalizationRuleTest {
             List.of(),
             Map.of()
         );
-        assertNull(service.normalizeRelationship(empty, Map.of(frontend.id(), frontend, serviceEntity.id(), serviceEntity), Map.of()).architecturalSemantics());
+        assertEquals(List.of("invokes-use-case"), service.normalizeRelationship(empty, Map.of(frontend.id(), frontend, serviceEntity.id(), serviceEntity), Map.of()).architecturalSemantics());
     }
 
     private static ArchitectureEntity entity(String id, EntityKind kind, Map<String, Object> metadata, List<String> roles) {
