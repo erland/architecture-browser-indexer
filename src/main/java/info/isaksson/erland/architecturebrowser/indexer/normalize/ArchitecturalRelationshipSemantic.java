@@ -17,7 +17,11 @@ public enum ArchitecturalRelationshipSemantic {
     DEPENDS_ON_MODULE("depends-on-module"),
     BELONGS_TO_MODULE("belongs-to-module"),
     MAPS_TO_CONTRACT("maps-to-contract"),
-    ENFORCES_SECURITY("enforces-security");
+    ENFORCES_SECURITY("enforces-security"),
+    NAVIGATES_TO("navigates-to"),
+    CONTAINS_ROUTE("contains-route"),
+    REDIRECTS_TO("redirects-to"),
+    GUARDS_ROUTE("guards-route");
 
     private final String id;
 

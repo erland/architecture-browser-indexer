@@ -80,6 +80,7 @@ Good candidates:
 - use-case delegation
 - persistence access
 - external integration
+- grounded UI-navigation between pages, layouts, redirects, and route guards
 
 Avoid inventing a semantic if the structural relationship kind already carries the full architectural meaning.
 
@@ -92,6 +93,8 @@ A good viewpoint:
 - can be derived conservatively from normalized semantics
 - has understandable availability rules
 - can be seeded from entities/roles/semantics in a stable way
+
+For example, `ui-navigation` is a good candidate because it represents an architect-meaningful slice, can be derived from canonical roles such as `ui-page` and semantics such as `navigates-to` / `contains-route`, and does not require the browser to understand router-specific metadata.
 
 ## Compatibility guidance
 
@@ -151,6 +154,8 @@ When adding TypeScript, SQL, config, or other support:
 - map into the same canonical vocabulary where possible
 - prefer adding supporting evidence before inventing new canonical ids
 - let unsupported languages advertise fewer viewpoints rather than weak ones
+
+For UI-navigation specifically, prefer canonical ids like `ui-page`, `ui-layout`, `ui-navigation-node`, `navigates-to`, `contains-route`, `redirects-to`, and `guards-route` over framework labels such as React Router or Angular Router concepts in the stable contract.
 
 ## Review checklist
 

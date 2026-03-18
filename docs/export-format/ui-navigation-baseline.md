@@ -208,13 +208,13 @@ After this step, maintainers should have a shared answer to these questions:
 - which existing frontend extraction seams are most relevant
 - which existing export/viewpoint handoff seams the browser integration should follow
 
-## What Step 1 intentionally does not do
+## What Step 1 intentionally did not do
 
-- does not add new normalized role ids yet
-- does not add new normalized relationship semantic ids yet
-- does not add the `ui-navigation` viewpoint id yet
-- does not change schema or exported DTOs yet
-- does not change runtime derivation logic yet
-- does not implement browser rendering yet
+Step 1 itself was documentation-only. After Step 2, the canonical ids are now reserved in code/docs, but the following still remain future work:
 
-That work starts in later steps once the baseline is explicit and easy to reference.
+- no schema or exported DTO shape change is required yet
+- runtime normalization does not emit the new UI-navigation roles or semantics yet
+- runtime viewpoint derivation does not emit `ui-navigation` yet
+- browser rendering is not implemented yet
+
+That work starts in later steps once the baseline and vocabulary are explicit and easy to reference.

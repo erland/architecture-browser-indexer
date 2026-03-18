@@ -21,7 +21,10 @@ public enum ArchitecturalRole {
     EVENT("event"),
     EVENT_HANDLER("event-handler"),
     CONFIGURATION_PROVIDER("configuration-provider"),
-    MODULE_BOUNDARY("module-boundary");
+    MODULE_BOUNDARY("module-boundary"),
+    UI_PAGE("ui-page"),
+    UI_LAYOUT("ui-layout"),
+    UI_NAVIGATION_NODE("ui-navigation-node");
 
     private final String id;
 

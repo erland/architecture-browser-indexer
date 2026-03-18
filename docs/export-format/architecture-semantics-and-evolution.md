@@ -88,6 +88,9 @@ Current canonical role ids include:
 - `application-service`
 - `persistent-entity`
 - `persistence-access`
+- `ui-page`
+- `ui-layout`
+- `ui-navigation-node`
 
 Interpretation guidance:
 
@@ -95,6 +98,9 @@ Interpretation guidance:
 - `application-service` means the entity coordinates application behavior or use cases.
 - `persistent-entity` means the entity represents persistent data modeled by the system.
 - `persistence-access` means the entity mediates access to persistence technology or persistent storage.
+- `ui-page` means the entity represents a user-navigable page, screen, or route target in the exported UI structure.
+- `ui-layout` means the entity represents a route shell or layout that contains child routes or route regions.
+- `ui-navigation-node` means the entity represents an explicit navigation structure such as a menu, sidebar, or nav group when grounded strongly enough.
 
 ### Trait vocabulary
 Traits describe important cross-cutting characteristics of an entity.
@@ -121,13 +127,17 @@ Current canonical semantic ids include:
 - `accesses-persistence`
 - `stored-in`
 - `calls-external-system`
+- `navigates-to`
+- `contains-route`
+- `redirects-to`
+- `guards-route`
 
 Interpretation guidance:
 
 - relationship `kind` remains the structural graph edge type
 - `architecturalSemantics` expresses the higher-level architectural meaning inferred from that edge
 
-For example, a structural dependency or write edge may still carry normalized semantic meaning such as `accesses-persistence` or `stored-in`.
+For example, a structural dependency or write edge may still carry normalized semantic meaning such as `accesses-persistence` or `stored-in`. Likewise, frontend route containment or redirect edges may carry canonical UI-navigation semantics such as `contains-route` or `redirects-to` without exposing framework-specific router details.
 
 ### Viewpoint catalog vocabulary
 Viewpoints are canonical architectural slices that the platform can offer when evidence is strong enough.
@@ -141,6 +151,7 @@ Current viewpoint ids include:
 - `module-dependencies`
 - `entry-points`
 - `event-flow`
+- `ui-navigation`
 
 Not every snapshot will support every viewpoint.
 
@@ -190,6 +201,10 @@ Good:
 
 - `application-service`
 - `calls-external-system`
+- `navigates-to`
+- `contains-route`
+- `redirects-to`
+- `guards-route`
 - `persistence-model`
 
 Weak unless clearly justified:
@@ -258,6 +273,10 @@ Examples of likely semantics:
 
 - route/controller to service → `invokes-use-case`
 - service/adapter to external API client → `calls-external-system`
+- page/layout hierarchy → `contains-route`
+- page-to-page navigation with a grounded static target → `navigates-to`
+- explicit route redirects → `redirects-to`
+- obvious route guard relationships → `guards-route`
 
 ### SQL guidance
 Candidate mappings when evidence is strong enough:

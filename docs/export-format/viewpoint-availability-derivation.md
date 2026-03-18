@@ -23,6 +23,7 @@ Implemented viewpoints:
 - `persistence-model`
 - `integration-map`
 - `module-dependencies`
+- `ui-navigation` (reserved for later derivation once canonical UI-navigation roles/semantics are emitted)
 
 ## Current evidence strategy
 

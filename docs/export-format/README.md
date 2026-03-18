@@ -184,6 +184,7 @@ The current code does **not** treat `name` as a universally fully qualified cano
 - `architecture-semantics-and-evolution.md` — Step 11 design doc for graph core vs normalized semantics vs framework evidence vs viewpoints
 - `extending-normalized-semantics-safely.md` — Step 11 contributor checklist for extending canonical vocabulary and mappings safely
 - `ui-navigation-baseline.md` — Step 1 baseline for the conservative `ui-navigation` viewpoint, its vocabulary, evidence boundaries, and current seam inventory
+- Step 2 extends the canonical vocabulary in code/docs by reserving `ui-page`, `ui-layout`, `ui-navigation-node`, `navigates-to`, `contains-route`, `redirects-to`, `guards-route`, and `ui-navigation` for later normalization/derivation work
 - `examples-and-contract-hardening.md` — Step 10 scenario examples and hardening guidance
 
 - schema alignment cleanup:
