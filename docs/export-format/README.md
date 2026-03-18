@@ -170,5 +170,6 @@ The current code does **not** treat `name` as a universally fully qualified cano
 - `entity-roles-traits-contract.md`
 - `relationship-semantics-contract.md`
 - `java-first-role-mapping.md` describe the first normalized contract additions.
+- `java-first-relationship-semantics.md` documents the first Java-first relationship semantic mappings.
 
 - `internal-normalization-seam.md` — internal seam for mapping framework evidence into canonical architecture semantics

@@ -46,7 +46,8 @@ final class ArchitectureIrDependencyRelationshipEnricher {
                 relationship.toEntityId(),
                 relationship.label(),
                 relationship.sourceRefs(),
-                ArchitectureIrDependencyMetadataSupport.immutable(metadata)
+                ArchitectureIrDependencyMetadataSupport.immutable(metadata),
+                relationship.architecturalSemantics()
             ));
         }
         return List.copyOf(enriched);

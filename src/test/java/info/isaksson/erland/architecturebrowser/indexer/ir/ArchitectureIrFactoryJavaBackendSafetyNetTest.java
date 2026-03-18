@@ -48,6 +48,9 @@ class ArchitectureIrFactoryJavaBackendSafetyNetTest {
         assertTrue(document.scopes().stream().anyMatch(scope -> scope.kind() == ScopeKind.FILE));
 
         assertEquals("SUCCESS", document.runMetadata().outcome().name());
+        assertTrue(document.relationships().stream().anyMatch(rel -> rel.architecturalSemantics() != null && rel.architecturalSemantics().contains("serves-request")));
+        assertTrue(document.relationships().stream().anyMatch(rel -> rel.architecturalSemantics() != null && rel.architecturalSemantics().contains("invokes-use-case")));
+        assertTrue(document.relationships().stream().anyMatch(rel -> rel.architecturalSemantics() != null && rel.architecturalSemantics().contains("accesses-persistence")));
         assertTrue(document.metadata().containsKey("dependencyViews"));
         assertTrue(document.metadata().containsKey("topologySummary"));
         assertTrue(document.metadata().containsKey("extractionSummary"));

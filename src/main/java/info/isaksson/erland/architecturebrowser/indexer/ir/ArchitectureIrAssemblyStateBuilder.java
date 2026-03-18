@@ -5,6 +5,7 @@ import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedR
 import info.isaksson.erland.architecturebrowser.indexer.interpret.model.InterpretedEntityFact;
 import info.isaksson.erland.architecturebrowser.indexer.interpret.model.InterpretedRelationshipFact;
 import info.isaksson.erland.architecturebrowser.indexer.normalize.ArchitectureEntityNormalizationService;
+import info.isaksson.erland.architecturebrowser.indexer.normalize.ArchitectureRelationshipNormalizationService;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureEntity;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureRelationship;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityKind;
@@ -22,10 +23,22 @@ final class ArchitectureIrAssemblyStateBuilder {
     }
 
     static ArchitectureIrAssemblyState build(ArchitectureIrAssemblyInputs inputs) {
-        return build(inputs, ArchitectureEntityNormalizationService.defaultService());
+        return build(
+            inputs,
+            ArchitectureEntityNormalizationService.defaultService(),
+            ArchitectureRelationshipNormalizationService.defaultService()
+        );
     }
 
     static ArchitectureIrAssemblyState build(ArchitectureIrAssemblyInputs inputs, ArchitectureEntityNormalizationService normalizationService) {
+        return build(inputs, normalizationService, ArchitectureRelationshipNormalizationService.defaultService());
+    }
+
+    static ArchitectureIrAssemblyState build(
+        ArchitectureIrAssemblyInputs inputs,
+        ArchitectureEntityNormalizationService normalizationService,
+        ArchitectureRelationshipNormalizationService relationshipNormalizationService
+    ) {
         LogicalScope repositoryScope = createRepositoryScope(inputs.source());
         ArchitectureEntity inventoryEntity = createInventoryEntity(inputs, repositoryScope);
         List<info.isaksson.erland.architecturebrowser.indexer.ir.model.Diagnostic> diagnostics =
@@ -34,7 +47,10 @@ final class ArchitectureIrAssemblyStateBuilder {
         Map<String, ArchitectureEntity> entitiesById = assembleEntitiesById(inputs, repositoryScope, inventoryEntity);
         Map<String, ArchitectureEntity> normalizedEntitiesById = normalizationService.normalizeEntitiesById(entitiesById);
         Map<String, ArchitectureEntity> observedTypesByQualifiedName = ArchitectureIrAssemblyCompatibilitySupport.observedTypesByQualifiedName(normalizedEntitiesById);
-        List<ArchitectureRelationship> relationships = assembleRelationships(inputs);
+        List<ArchitectureRelationship> relationships = relationshipNormalizationService.normalizeRelationships(
+            assembleRelationships(inputs),
+            normalizedEntitiesById
+        );
         ArchitectureIrAssemblyCompositionResult composition = ArchitectureIrAssemblyCompositionSupport.compose(
             new ArchitectureIrAssemblyCompositionInputs(
                 relationships,

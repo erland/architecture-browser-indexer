@@ -64,6 +64,17 @@
       "metadata": {
         "language": "java"
       }
+    },
+    {
+      "id": "scope:package:com.example.orders.repo",
+      "kind": "PACKAGE",
+      "name": "com.example.orders.repo",
+      "displayName": "repo",
+      "parentScopeId": "scope:repo",
+      "sourceRefs": [],
+      "metadata": {
+        "language": "java"
+      }
     }
   ],
   "entities": [
@@ -151,6 +162,24 @@
         "language": "java",
         "qualifiedName": "com.example.events.OrderCreatedEvent"
       }
+    },
+    {
+      "id": "entity:class:order-repository",
+      "kind": "CLASS",
+      "origin": "OBSERVED",
+      "name": "OrderRepository",
+      "displayName": "OrderRepository",
+      "scopeId": "scope:package:com.example.orders.repo",
+      "sourceRefs": [],
+      "metadata": {
+        "language": "java",
+        "packageName": "com.example.orders.repo",
+        "entityRole": "repository",
+        "backendProfile": "repository"
+      },
+      "architecturalRoles": [
+        "persistence-access"
+      ]
     }
   ],
   "relationships": [
@@ -165,7 +194,40 @@
         "frameworkRelationships": [
           "exposesEndpoint"
         ]
-      }
+      },
+      "architecturalSemantics": [
+        "serves-request"
+      ]
+    },
+    {
+      "id": "rel:resource:uses:service",
+      "kind": "USES",
+      "fromEntityId": "entity:class:order-resource",
+      "toEntityId": "entity:class:order-service",
+      "label": "orderService",
+      "sourceRefs": [],
+      "metadata": {
+        "sourceLanguage": "java",
+        "dependencySource": "field"
+      },
+      "architecturalSemantics": [
+        "invokes-use-case"
+      ]
+    },
+    {
+      "id": "rel:service:uses:repository",
+      "kind": "USES",
+      "fromEntityId": "entity:class:order-service",
+      "toEntityId": "entity:class:order-repository",
+      "label": "orderRepository",
+      "sourceRefs": [],
+      "metadata": {
+        "sourceLanguage": "java",
+        "dependencySource": "field"
+      },
+      "architecturalSemantics": [
+        "accesses-persistence"
+      ]
     },
     {
       "id": "rel:service:publishes:event",
