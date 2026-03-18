@@ -1,4 +1,4 @@
-# Step 8 — Viewpoint availability derivation
+# Step 7 — Viewpoint availability derivation
 
 This step teaches the indexer to populate the document-level `viewpoints` catalog from already exported normalized roles, traits, relationship semantics, and assembled dependency-view evidence.
 
@@ -23,7 +23,7 @@ Implemented viewpoints:
 - `persistence-model`
 - `integration-map`
 - `module-dependencies`
-- `ui-navigation` (reserved for later derivation once canonical UI-navigation roles/semantics are emitted)
+- `ui-navigation`
 
 ## Current evidence strategy
 
@@ -33,6 +33,17 @@ The derivation layer looks at:
 - normalized relationship semantics such as `serves-request`, `invokes-use-case`, `accesses-persistence`, `calls-external-system`
 - assembled dependency-view metadata for module dependency availability
 - lightweight metadata hints only for evidence-source labelling, for example Java/JPA signals
+- frontend route/navigation evidence hints for `ui-navigation` evidence-source labelling
+
+## UI-navigation derivation rule
+
+`ui-navigation` is emitted conservatively:
+
+- `available` when canonical UI roles are present and at least one core navigation semantic (`contains-route` or `navigates-to`) is present
+- `partial` when only canonical UI roles or only navigation semantics are present
+- `unavailable` when neither UI roles nor navigation semantics are present
+
+The viewpoint seeds from `ui-page`, `ui-layout`, and `ui-navigation-node`, and expands via any present canonical navigation semantics.
 
 ## Compatibility note
 

@@ -178,6 +178,105 @@ class ArchitectureIrViewpointDerivationServiceTest {
         assertEquals(List.of("dependency-views"), moduleDependencies.evidenceSources());
     }
 
+
+    @Test
+    void derivesUiNavigationViewpointFromCanonicalUiRolesAndSemantics() {
+        ArchitectureEntity shell = new ArchitectureEntity(
+            "entity:ui:shell",
+            EntityKind.UI_MODULE,
+            EntityOrigin.INFERRED,
+            "src/app/AppShell.tsx",
+            "AppShell",
+            "scope:repo",
+            List.of(),
+            Map.of("framework", "react", "routePath", "/"),
+            List.of("ui-layout"),
+            List.of("route-declared", "user-facing")
+        );
+        ArchitectureEntity home = new ArchitectureEntity(
+            "entity:ui:home",
+            EntityKind.UI_MODULE,
+            EntityOrigin.INFERRED,
+            "src/app/HomePage.tsx",
+            "HomePage",
+            "scope:repo",
+            List.of(),
+            Map.of("framework", "react", "routePath", "/home"),
+            List.of("ui-page"),
+            List.of("route-declared", "user-facing")
+        );
+        ArchitectureEntity reports = new ArchitectureEntity(
+            "entity:ui:reports",
+            EntityKind.UI_MODULE,
+            EntityOrigin.INFERRED,
+            "src/app/ReportsPage.tsx",
+            "ReportsPage",
+            "scope:repo",
+            List.of(),
+            Map.of("framework", "react", "routePath", "/reports"),
+            List.of("ui-page"),
+            List.of("route-declared", "user-facing")
+        );
+        ArchitectureEntity sidebar = new ArchitectureEntity(
+            "entity:ui:sidebar",
+            EntityKind.UI_MODULE,
+            EntityOrigin.INFERRED,
+            "src/app/SidebarNav.tsx",
+            "SidebarNav",
+            "scope:repo",
+            List.of(),
+            Map.of("framework", "react", "navigationTargetLiteral", "/reports"),
+            List.of("ui-navigation-node"),
+            List.of("user-facing")
+        );
+
+        List<ArchitectureRelationship> relationships = List.of(
+            new ArchitectureRelationship(
+                "rel:ui:shell:home",
+                RelationshipKind.CONTAINS,
+                shell.id(),
+                home.id(),
+                "contains",
+                List.of(),
+                Map.of("framework", "react", "parentRoutePath", "/"),
+                List.of("contains-route")
+            ),
+            new ArchitectureRelationship(
+                "rel:ui:sidebar:reports",
+                RelationshipKind.USES,
+                sidebar.id(),
+                reports.id(),
+                "navigates",
+                List.of(),
+                Map.of("framework", "react", "navigationTargetLiteral", "/reports"),
+                List.of("navigates-to")
+            ),
+            new ArchitectureRelationship(
+                "rel:ui:home:reports",
+                RelationshipKind.USES,
+                home.id(),
+                reports.id(),
+                "redirects",
+                List.of(),
+                Map.of("framework", "react", "redirectTargetLiteral", "/reports"),
+                List.of("redirects-to")
+            )
+        );
+
+        List<ArchitectureViewpoint> viewpoints = ArchitectureIrViewpointDerivationService.derive(
+            List.of(shell, home, reports, sidebar),
+            relationships,
+            Map.of()
+        );
+
+        ArchitectureViewpoint uiNavigation = viewpointById(viewpoints, "ui-navigation");
+        assertEquals("available", uiNavigation.availability());
+        assertEquals(List.of("entity:ui:home", "entity:ui:reports", "entity:ui:shell", "entity:ui:sidebar"), uiNavigation.seedEntityIds());
+        assertEquals(List.of("ui-layout", "ui-navigation-node", "ui-page"), uiNavigation.seedRoleIds());
+        assertEquals(List.of("contains-route", "navigates-to", "redirects-to"), uiNavigation.expandViaSemantics());
+        assertEquals(List.of("frontend-routing", "normalized-roles", "normalized-semantics"), uiNavigation.evidenceSources());
+    }
+
     @Test
     void degradesToUnavailableOrPartialWhenEvidenceIsMissing() {
         ArchitectureEntity module = new ArchitectureEntity(
@@ -216,6 +315,7 @@ class ArchitectureIrViewpointDerivationServiceTest {
         assertEquals("unavailable", viewpointById(viewpoints, "persistence-model").availability());
         assertEquals("partial", viewpointById(viewpoints, "integration-map").availability());
         assertEquals("unavailable", viewpointById(viewpoints, "module-dependencies").availability());
+        assertEquals("unavailable", viewpointById(viewpoints, "ui-navigation").availability());
     }
 
     private static ArchitectureViewpoint viewpointById(List<ArchitectureViewpoint> viewpoints, String id) {

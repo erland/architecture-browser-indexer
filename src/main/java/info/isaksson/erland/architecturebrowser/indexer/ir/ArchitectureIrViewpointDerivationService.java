@@ -18,7 +18,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Step 8: derives conservative canonical viewpoint availability from normalized roles,
+ * Step 7: derives conservative canonical viewpoint availability from normalized roles,
  * traits, relationship semantics, and already assembled dependency-view evidence.
  */
 public final class ArchitectureIrViewpointDerivationService {
@@ -37,6 +37,7 @@ public final class ArchitectureIrViewpointDerivationService {
         viewpoints.add(persistenceModel(evidence));
         viewpoints.add(integrationMap(evidence));
         viewpoints.add(moduleDependencies(evidence));
+        viewpoints.add(uiNavigation(evidence));
         return ArchitectureIrJavaViewpointBridgeSupport.apply(viewpoints, dependencyViews);
     }
 
@@ -181,6 +182,57 @@ public final class ArchitectureIrViewpointDerivationService {
         );
     }
 
+
+    private static ArchitectureViewpoint uiNavigation(ViewpointEvidence evidence) {
+        List<String> pages = evidence.entityIdsForRole(ArchitecturalRole.UI_PAGE.id());
+        List<String> layouts = evidence.entityIdsForRole(ArchitecturalRole.UI_LAYOUT.id());
+        List<String> navigationNodes = evidence.entityIdsForRole(ArchitecturalRole.UI_NAVIGATION_NODE.id());
+        boolean hasUiRoles = !pages.isEmpty() || !layouts.isEmpty() || !navigationNodes.isEmpty();
+        boolean hasCoreNavigationSemantics = evidence.hasSemantic(ArchitecturalRelationshipSemantic.NAVIGATES_TO.id())
+            || evidence.hasSemantic(ArchitecturalRelationshipSemantic.CONTAINS_ROUTE.id());
+        boolean hasSecondaryNavigationSemantics = evidence.hasSemantic(ArchitecturalRelationshipSemantic.REDIRECTS_TO.id())
+            || evidence.hasSemantic(ArchitecturalRelationshipSemantic.GUARDS_ROUTE.id());
+        String availability;
+        double confidence;
+        if (hasUiRoles && hasCoreNavigationSemantics) {
+            availability = "available";
+            confidence = clamp(0.76
+                + (!pages.isEmpty() ? 0.08 : 0.0)
+                + (!layouts.isEmpty() ? 0.06 : 0.0)
+                + (!navigationNodes.isEmpty() ? 0.04 : 0.0)
+                + (hasSecondaryNavigationSemantics ? 0.04 : 0.0));
+        } else if (hasUiRoles || hasCoreNavigationSemantics || hasSecondaryNavigationSemantics) {
+            availability = "partial";
+            confidence = clamp(0.44
+                + (hasUiRoles ? 0.16 : 0.0)
+                + (hasCoreNavigationSemantics ? 0.16 : 0.0)
+                + (hasSecondaryNavigationSemantics ? 0.08 : 0.0));
+        } else {
+            availability = "unavailable";
+            confidence = 0.0;
+        }
+        List<String> seedEntityIds = mergeIds(pages, layouts, navigationNodes);
+        return new ArchitectureViewpoint(
+            "ui-navigation",
+            "UI navigation",
+            "Highlights user-facing pages, layouts, and navigation structures together with canonical navigation relationships.",
+            availability,
+            confidence,
+            seedEntityIds.isEmpty() ? null : seedEntityIds,
+            roleIdsPresent(evidence,
+                ArchitecturalRole.UI_LAYOUT.id(),
+                ArchitecturalRole.UI_NAVIGATION_NODE.id(),
+                ArchitecturalRole.UI_PAGE.id()),
+            presentSemantics(evidence,
+                ArchitecturalRelationshipSemantic.CONTAINS_ROUTE.id(),
+                ArchitecturalRelationshipSemantic.GUARDS_ROUTE.id(),
+                ArchitecturalRelationshipSemantic.NAVIGATES_TO.id(),
+                ArchitecturalRelationshipSemantic.REDIRECTS_TO.id()),
+            null,
+            uiNavigationEvidenceSources(evidence, hasUiRoles, hasCoreNavigationSemantics || hasSecondaryNavigationSemantics)
+        );
+    }
+
     private static ArchitectureViewpoint moduleDependencies(ViewpointEvidence evidence) {
         boolean hasModuleDependencyViews = evidence.hasDependencyViewList("moduleDependencies")
             || evidence.hasDependencyViewList("compositionModuleDependencies")
@@ -264,6 +316,25 @@ public final class ArchitectureIrViewpointDerivationService {
         return sources.isEmpty() ? null : List.copyOf(sources);
     }
 
+
+    private static List<String> uiNavigationEvidenceSources(
+        ViewpointEvidence evidence,
+        boolean hasRoleEvidence,
+        boolean hasSemanticEvidence
+    ) {
+        LinkedHashSet<String> sources = new LinkedHashSet<>();
+        if (hasRoleEvidence) {
+            sources.add("normalized-roles");
+        }
+        if (hasSemanticEvidence) {
+            sources.add("normalized-semantics");
+        }
+        if (evidence.hasFrontendEvidence()) {
+            sources.add("frontend-routing");
+        }
+        return sources.isEmpty() ? null : List.copyOf(sources);
+    }
+
     private static List<String> presentSemantics(ViewpointEvidence evidence, String... semantics) {
         return java.util.Arrays.stream(semantics)
             .filter(evidence::hasSemantic)
@@ -309,6 +380,7 @@ public final class ArchitectureIrViewpointDerivationService {
         boolean hasJavaInterpretationEvidence,
         boolean hasJpaEvidence,
         boolean hasExternalSystemEvidence,
+        boolean hasFrontendEvidence,
         Map<EntityKind, Long> entityCountsByKind
     ) {
         static ViewpointEvidence from(
@@ -336,6 +408,8 @@ public final class ArchitectureIrViewpointDerivationService {
             boolean hasJpaEvidence = safeEntities.stream().anyMatch(entity -> hasJpaMetadata(entity.metadata()));
             boolean hasExternalSystemEvidence = safeEntities.stream().anyMatch(entity -> entity.kind() == EntityKind.EXTERNAL_SYSTEM)
                 || safeEntities.stream().anyMatch(entity -> hasExternalMetadata(entity.metadata()));
+            boolean hasFrontendEvidence = safeEntities.stream().anyMatch(entity -> hasFrontendMetadata(entity.metadata()))
+                || safeRelationships.stream().anyMatch(relationship -> hasFrontendMetadata(relationship.metadata()));
             Map<EntityKind, Long> entityCountsByKind = safeEntities.stream()
                 .collect(Collectors.groupingBy(ArchitectureEntity::kind, Collectors.counting()));
             return new ViewpointEvidence(
@@ -347,6 +421,7 @@ public final class ArchitectureIrViewpointDerivationService {
                 hasJavaInterpretationEvidence,
                 hasJpaEvidence,
                 hasExternalSystemEvidence,
+                hasFrontendEvidence,
                 entityCountsByKind
             );
         }
@@ -396,6 +471,21 @@ public final class ArchitectureIrViewpointDerivationService {
                 || containsIgnoreCase(metadata.get("backendProfile"), "jpa")
                 || containsIgnoreCase(metadata.get("backendProfile"), "repository")
                 || containsIgnoreCase(metadata.get("entityRole"), "repository");
+        }
+
+        private static boolean hasFrontendMetadata(Map<String, Object> metadata) {
+            if (metadata == null || metadata.isEmpty()) {
+                return false;
+            }
+            return containsIgnoreCase(metadata.get("framework"), "react")
+                || containsIgnoreCase(metadata.get("framework"), "angular")
+                || containsIgnoreCase(metadata.get("frameworks"), "react")
+                || containsIgnoreCase(metadata.get("frameworks"), "angular")
+                || metadata.containsKey("routePath")
+                || metadata.containsKey("routeDeclarationKind")
+                || metadata.containsKey("routeSourceKind")
+                || metadata.containsKey("navigationTargetLiteral")
+                || metadata.containsKey("redirectTargetLiteral");
         }
 
         private static boolean hasExternalMetadata(Map<String, Object> metadata) {

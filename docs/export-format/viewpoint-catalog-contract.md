@@ -47,4 +47,4 @@ The field remains optional in this step so older fixtures and partial exports ca
 
 Step 2 reserves the canonical viewpoint id `ui-navigation` in the documented catalog so later steps can derive and emit it without introducing a new platform-facing id at the same time as the first normalization rules.
 
-At this stage, documenting the id does **not** require the derivation layer to emit it yet. Emission remains conservative and belongs to the later viewpoint-derivation step once canonical UI roles and semantics are actually produced by normalization.
+The derivation layer now emits `ui-navigation` conservatively when canonical UI roles such as `ui-page` / `ui-layout` / `ui-navigation-node` and canonical navigation semantics such as `contains-route`, `navigates-to`, `redirects-to`, or `guards-route` are present.

@@ -214,7 +214,7 @@ Step 1 itself was documentation-only. After Step 2, the canonical ids are now re
 
 - no schema or exported DTO shape change is required yet
 - runtime normalization does not emit the new UI-navigation roles or semantics yet
-- runtime viewpoint derivation does not emit `ui-navigation` yet
+- runtime viewpoint derivation now emits `ui-navigation` conservatively once canonical UI roles and navigation semantics are present
 - browser rendering is not implemented yet
 
 That work starts in later steps once the baseline and vocabulary are explicit and easy to reference.
