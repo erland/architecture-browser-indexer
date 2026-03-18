@@ -97,9 +97,10 @@ The top-level schema references these files using relative `$ref` links.
 ### If you are planning normalized frontend navigation support
 Start with:
 - `ui-navigation-baseline.md`
+- `ui-navigation-viewpoint.md`
 - `viewpoint-catalog-contract.md`
 - `viewpoint-availability-derivation.md`
-- `examples/frontend-export.json`
+- `examples/ui-navigation-export.json`
 
 ### If you are reading the export for the first time
 Start with:
@@ -201,3 +202,4 @@ The current code does **not** treat `name` as a universally fully qualified cano
 Step 5 adds conservative TypeScript/frontend entity normalization for `ui-page`, `ui-layout`, and `ui-navigation-node`, plus the traits `user-facing` and `route-declared` when the grounding evidence is strong enough.
 Step 7 adds conservative `ui-navigation` viewpoint derivation so the export now advertises the canonical UI-navigation slice when normalized UI roles and navigation semantics are present.
 Step 8 adds a curated `ui-navigation-export.json` example plus focused scenario assertions so canonical UI-navigation roles, semantics, and viewpoint shape are protected by contract tests.
+Step 10 adds architect-facing interpretation guidance in `ui-navigation-viewpoint.md`, including what the view shows, what it does not show, how to read confidence/evidence, and how to distinguish declared routes from inferred navigation.
