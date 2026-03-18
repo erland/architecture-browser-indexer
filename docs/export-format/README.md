@@ -192,3 +192,5 @@ The current code does **not** treat `name` as a universally fully qualified cano
   - shared documentation examples are mirrored from the tested export fixtures and kept in canonical sorted order
 
 - `ui-navigation-evidence-inventory.md` — Step 3 inventory of grounded frontend route/navigation evidence feeding later `ui-navigation` normalization.
+
+- `ui-navigation-normalization-seam.md` — internal normalization seam for consuming frontend route/navigation evidence cleanly
