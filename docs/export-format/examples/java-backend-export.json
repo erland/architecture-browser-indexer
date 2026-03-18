@@ -530,16 +530,13 @@
         "api-entrypoint"
       ],
       "expandViaSemantics": [
-        "serves-request",
-        "invokes-use-case"
+        "invokes-use-case",
+        "serves-request"
       ],
       "preferredDependencyViews": [
-        "endpointModuleDependencies",
-        "endpointTypeDependencies"
+        "java:type-dependencies"
       ],
       "evidenceSources": [
-        "java-browser-views",
-        "java-dependency-views",
         "java-interpretation",
         "java-normalization"
       ]
@@ -551,19 +548,16 @@
       "availability": "available",
       "confidence": 0.91,
       "seedRoleIds": [
-        "persistent-entity",
-        "persistence-access"
+        "persistence-access",
+        "persistent-entity"
       ],
       "expandViaSemantics": [
         "accesses-persistence"
       ],
       "preferredDependencyViews": [
-        "entityModelModuleDependencies",
-        "entityModelTypeDependencies"
+        "java:type-dependencies"
       ],
       "evidenceSources": [
-        "java-browser-views",
-        "java-dependency-views",
         "java-normalization",
         "jpa"
       ]
@@ -579,33 +573,15 @@
         "application-service"
       ],
       "expandViaSemantics": [
-        "serves-request",
-        "invokes-use-case"
+        "invokes-use-case",
+        "serves-request"
       ],
       "preferredDependencyViews": [
-        "writePathModuleDependencies",
-        "writePathTypeDependencies"
+        "java:type-dependencies"
       ],
       "evidenceSources": [
-        "java-browser-views",
-        "java-dependency-views",
         "java-interpretation",
         "java-normalization"
-      ]
-    },
-    {
-      "id": "event-flow",
-      "title": "Event flow",
-      "description": "Highlights Java publisher, event, and observer relationships prepared for asynchronous flow exploration.",
-      "availability": "available",
-      "confidence": 0.77,
-      "preferredDependencyViews": [
-        "observerModuleDependencies",
-        "observerTypeDependencies"
-      ],
-      "evidenceSources": [
-        "java-browser-views",
-        "java-dependency-views"
       ]
     }
   ]

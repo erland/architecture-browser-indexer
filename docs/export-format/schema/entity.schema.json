@@ -20,10 +20,31 @@
       "type": "string"
     },
     "kind": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "CLASS",
+        "INTERFACE",
+        "FUNCTION",
+        "FIELD",
+        "MODULE",
+        "ENDPOINT",
+        "SERVICE",
+        "PERSISTENCE_ADAPTER",
+        "UI_MODULE",
+        "STARTUP_POINT",
+        "DATASTORE",
+        "EXTERNAL_SYSTEM",
+        "CONFIG_ARTIFACT"
+      ],
+      "description": "Entity kind. Values must match the exported EntityKind enum."
     },
     "origin": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "OBSERVED",
+        "INFERRED"
+      ],
+      "description": "Entity origin. Values must match the exported EntityOrigin enum."
     },
     "name": {
       "type": "string"

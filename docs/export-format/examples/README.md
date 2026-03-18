@@ -38,3 +38,10 @@ This sequence shows:
 - the happy-path Java-first architectural slice
 - a deliberate non-overclaim persistence-only case
 - a grounded external integration case
+
+
+## Synchronization note
+
+The documentation copies for the shared examples are kept byte-for-byte aligned with the tested fixtures under `src/test/resources/export-contract/`. When an example is updated, update the tested fixture first and then mirror it here.
+
+The normalized list fields shown in the examples (for example `architecturalRoles`, `architecturalTraits`, `architecturalSemantics`, `seedRoleIds`, `expandViaSemantics`, `preferredDependencyViews`, and `evidenceSources`) are written in canonical sorted order so the docs reflect actual serialized output.

@@ -19,7 +19,19 @@
       "type": "string"
     },
     "kind": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "DEPENDS_ON",
+        "EXTENDS",
+        "IMPLEMENTS",
+        "EXPOSES",
+        "CALLS",
+        "READS",
+        "WRITES",
+        "CONTAINS",
+        "USES"
+      ],
+      "description": "Relationship kind. Values must match the exported RelationshipKind enum."
     },
     "fromEntityId": {
       "type": "string"

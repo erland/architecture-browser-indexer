@@ -23,7 +23,13 @@
       "type": "string"
     },
     "availability": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "available",
+        "partial",
+        "unavailable"
+      ],
+      "description": "Canonical viewpoint availability derived by the exporter."
     },
     "confidence": {
       "type": "number",

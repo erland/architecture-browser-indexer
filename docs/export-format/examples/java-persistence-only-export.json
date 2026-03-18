@@ -523,8 +523,8 @@
         "entity:class:ledger-entry"
       ],
       "seedRoleIds": [
-        "persistent-entity",
-        "persistence-access"
+        "persistence-access",
+        "persistent-entity"
       ],
       "expandViaSemantics": [
         "accesses-persistence",

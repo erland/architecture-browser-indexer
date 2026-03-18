@@ -177,3 +177,7 @@ The current code does **not** treat `name` as a universally fully qualified cano
 - `architecture-semantics-and-evolution.md` — Step 11 design doc for graph core vs normalized semantics vs framework evidence vs viewpoints
 - `extending-normalized-semantics-safely.md` — Step 11 contributor checklist for extending canonical vocabulary and mappings safely
 - `examples-and-contract-hardening.md` — Step 10 scenario examples and hardening guidance
+
+- schema alignment cleanup:
+  - enum-backed schema fields now mirror exported code vocabularies for entity kind, entity origin, relationship kind, diagnostic severity/phase, and viewpoint availability
+  - shared documentation examples are mirrored from the tested export fixtures and kept in canonical sorted order

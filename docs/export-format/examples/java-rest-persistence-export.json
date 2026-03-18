@@ -530,8 +530,8 @@
         "api-entrypoint"
       ],
       "expandViaSemantics": [
-        "serves-request",
-        "invokes-use-case"
+        "invokes-use-case",
+        "serves-request"
       ],
       "preferredDependencyViews": [
         "java:type-dependencies"
@@ -548,8 +548,8 @@
       "availability": "available",
       "confidence": 0.91,
       "seedRoleIds": [
-        "persistent-entity",
-        "persistence-access"
+        "persistence-access",
+        "persistent-entity"
       ],
       "expandViaSemantics": [
         "accesses-persistence"
@@ -558,8 +558,8 @@
         "java:type-dependencies"
       ],
       "evidenceSources": [
-        "jpa",
-        "java-normalization"
+        "java-normalization",
+        "jpa"
       ]
     },
     {
@@ -573,8 +573,8 @@
         "application-service"
       ],
       "expandViaSemantics": [
-        "serves-request",
-        "invokes-use-case"
+        "invokes-use-case",
+        "serves-request"
       ],
       "preferredDependencyViews": [
         "java:type-dependencies"
