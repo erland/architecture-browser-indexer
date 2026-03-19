@@ -25,10 +25,19 @@ public final class IdUtils {
     }
 
     public static String scopeId(String kind, String value) {
+        if (kind == null || kind.isBlank()) {
+            throw new IllegalArgumentException("scopeId kind must not be null/blank");
+        }
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("scopeId value must not be null/blank");
+        }
         return "scope:" + kind + ":" + stableToken(value);
     }
 
     public static String stableToken(String input) {
+        if (input == null || input.isBlank()) {
+            throw new IllegalArgumentException("stableToken input must not be null/blank");
+        }
         CRC32 crc32 = new CRC32();
         crc32.update(input.getBytes(StandardCharsets.UTF_8));
         return Long.toHexString(crc32.getValue()).toLowerCase(Locale.ROOT);

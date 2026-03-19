@@ -235,9 +235,10 @@ final class TopologyScopeInferenceService {
             }
             SourceReference fileRef = new SourceReference(relativePath, null, null, null, Map.of("language", "typescript", "scopeKind", "package"));
             for (String packagePath : packagePaths) {
-                String parentScopeId = moduleRoot.equals(TopologyPaths.parentPath(packagePath))
+                String parentPackagePath = TopologyPaths.parentPath(packagePath);
+                String parentScopeId = parentPackagePath == null || parentPackagePath.isBlank() || moduleRoot.equals(parentPackagePath)
                     ? IdUtils.scopeId("module", moduleRoot)
-                    : IdUtils.scopeId("typescript-package", TopologyPaths.parentPath(packagePath));
+                    : IdUtils.scopeId("typescript-package", parentPackagePath);
                 LogicalScope scope = TopologySupport.packageScope(packagePath, parentScopeId, "typescript", List.of(fileRef));
                 packageScopesById.merge(scope.id(), scope, TopologyScopeInferenceService::mergePackageScopes);
                 inferredScopes.putIfAbsent(scope.id(), scope);
