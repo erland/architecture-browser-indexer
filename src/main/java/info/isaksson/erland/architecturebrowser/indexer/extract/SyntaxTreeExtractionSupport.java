@@ -90,6 +90,36 @@ final class SyntaxTreeExtractionSupport {
             .orElse(null);
     }
 
+    static String javaTypeDeclarationName(SyntaxNode node) {
+        if (node == null) {
+            return null;
+        }
+        for (SyntaxNode child : node.children()) {
+            if (isJavaAnnotationOrModifierNode(child)) {
+                continue;
+            }
+            if (Set.of("identifier", "type_identifier").contains(child.type())) {
+                String snippet = child.textSnippet();
+                if (snippet != null && !snippet.isBlank()) {
+                    return snippet;
+                }
+            }
+        }
+        for (SyntaxNode child : node.children()) {
+            if (isJavaAnnotationOrModifierNode(child)) {
+                continue;
+            }
+            Optional<SyntaxNode> nestedIdentifier = firstDescendantByType(child, Set.of("identifier", "type_identifier"));
+            if (nestedIdentifier.isPresent()) {
+                String snippet = nestedIdentifier.get().textSnippet();
+                if (snippet != null && !snippet.isBlank()) {
+                    return snippet;
+                }
+            }
+        }
+        return null;
+    }
+
     static String parameterSnippet(SyntaxNode node) {
         String extracted = firstDescendantByType(node, Set.of("formal_parameters", "parameters"))
             .map(SyntaxNode::textSnippet)
@@ -171,6 +201,16 @@ final class SyntaxTreeExtractionSupport {
             result.add(matcher.group(1));
         }
         return result.stream().distinct().toList();
+    }
+
+    private static boolean isJavaAnnotationOrModifierNode(SyntaxNode node) {
+        if (node == null) {
+            return false;
+        }
+        return switch (node.type()) {
+            case "marker_annotation", "annotation", "modifiers" -> true;
+            default -> false;
+        };
     }
 
     static String javaMethodLikeName(SyntaxNode node) {

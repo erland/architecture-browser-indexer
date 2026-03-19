@@ -124,7 +124,7 @@ final class JavaDeclarationDiscovery {
     }
 
     private static String fallbackTypeName(SyntaxNode typeNode) {
-        String declarationName = SyntaxTreeExtractionSupport.declarationName(typeNode);
+        String declarationName = SyntaxTreeExtractionSupport.javaTypeDeclarationName(typeNode);
         if (declarationName != null && !declarationName.isBlank()) {
             return declarationName;
         }

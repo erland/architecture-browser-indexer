@@ -71,7 +71,7 @@ final class JavaEntityMapper {
         SyntaxNode typeNode,
         String owningQualifiedName
     ) {
-        String typeName = SyntaxTreeExtractionSupport.declarationName(typeNode);
+        String typeName = SyntaxTreeExtractionSupport.javaTypeDeclarationName(typeNode);
         if (typeName == null || typeName.isBlank()) {
             return null;
         }
