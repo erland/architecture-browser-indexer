@@ -78,6 +78,42 @@ class JavaArchitectureEntityNormalizationRuleTest {
         assertEquals(List.of("persistence-access"), service.normalizeEntity(repository, entitiesById).architecturalRoles());
     }
 
+
+    @Test
+    void mapsJpaEmbeddablesAndMappedSuperclassesToPersistentEntity() {
+        ArchitectureEntity embeddable = entity(
+            "entity:class:address-value",
+            EntityKind.CLASS,
+            "AddressValue",
+            Map.of(
+                "language", "java",
+                "jpaEmbeddable", true,
+                "jpaKind", "embeddable"
+            )
+        );
+        ArchitectureEntity mappedSuperclass = entity(
+            "entity:class:base-persistent-record",
+            EntityKind.CLASS,
+            "BasePersistentRecord",
+            Map.of(
+                "language", "java",
+                "jpaMappedSuperclass", true,
+                "jpaKind", "mapped-superclass"
+            )
+        );
+
+        Map<String, ArchitectureEntity> entitiesById = Map.of(
+            embeddable.id(), embeddable,
+            mappedSuperclass.id(), mappedSuperclass
+        );
+
+        assertEquals(List.of("persistent-entity"), service.normalizeEntity(embeddable, entitiesById).architecturalRoles());
+        assertEquals(List.of("persistent"), service.normalizeEntity(embeddable, entitiesById).architecturalTraits());
+
+        assertEquals(List.of("persistent-entity"), service.normalizeEntity(mappedSuperclass, entitiesById).architecturalRoles());
+        assertEquals(List.of("persistent"), service.normalizeEntity(mappedSuperclass, entitiesById).architecturalTraits());
+    }
+
     @Test
     void mapsInterpretedJavaRoleEntitiesAndEndpointsWithoutDestroyingExistingValues() {
         ArchitectureEntity sourceResource = entity(

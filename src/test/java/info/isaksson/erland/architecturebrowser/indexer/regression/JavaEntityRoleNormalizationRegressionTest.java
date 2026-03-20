@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JavaEntityRoleNormalizationRegressionTest {
 
@@ -42,8 +41,10 @@ class JavaEntityRoleNormalizationRegressionTest {
         Optional<ArchitectureEntity> addressValue = entityByQualifiedNameOrNameOptional(document,
             List.of("com.example.orders.domain.AddressValue", "com.example.domain.AddressValue"),
             "AddressValue");
-        addressValue.ifPresent(entity -> assertTrue(entity.architecturalRoles() == null || entity.architecturalRoles().isEmpty(),
-            () -> "Embeddable value objects should stay conservative in Step 5. Roles=" + entity.architecturalRoles()));
+        addressValue.ifPresent(entity -> {
+            assertEquals(List.of("persistent-entity"), entity.architecturalRoles());
+            assertEquals(List.of("persistent"), entity.architecturalTraits());
+        });
     }
 
     private static ArchitectureEntity entityByQualifiedNameOrName(ArchitectureIndexDocument document, List<String> qualifiedNames, String name) {
