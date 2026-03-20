@@ -93,6 +93,18 @@ final class JavaJpaDomainSemanticsSupport {
             .or(() -> extractAnnotationStringAttribute(snippet, "ManyToMany", "mappedBy"));
     }
 
+
+    static Optional<Boolean> extractJpaAssociationOptional(String snippet) {
+        return extractAnnotationBooleanAttribute(snippet, "ManyToOne", "optional")
+            .or(() -> extractAnnotationBooleanAttribute(snippet, "OneToOne", "optional"))
+            .or(() -> extractAnnotationBooleanAttribute(snippet, "ManyToMany", "optional"))
+            .or(() -> extractAnnotationBooleanAttribute(snippet, "OneToMany", "optional"));
+    }
+
+    static Optional<Boolean> extractJpaJoinColumnNullable(String snippet) {
+        return extractAnnotationBooleanAttribute(snippet, "JoinColumn", "nullable");
+    }
+
     static Optional<String> extractJpaInheritanceStrategy(String snippet) {
         if (snippet == null || snippet.isBlank()) {
             return Optional.empty();
@@ -110,6 +122,22 @@ final class JavaJpaDomainSemanticsSupport {
         if (hasAnnotation(annotations, "OneToMany") || containsAnnotationSnippet(snippet, "OneToMany")) return Optional.of("one-to-many");
         if (hasAnnotation(annotations, "ManyToOne") || containsAnnotationSnippet(snippet, "ManyToOne")) return Optional.of("many-to-one");
         if (hasAnnotation(annotations, "ManyToMany") || containsAnnotationSnippet(snippet, "ManyToMany")) return Optional.of("many-to-many");
+        return Optional.empty();
+    }
+
+    private static Optional<Boolean> extractAnnotationBooleanAttribute(String snippet, String annotationSimpleName, String attributeName) {
+        if (snippet == null || snippet.isBlank()) {
+            return Optional.empty();
+        }
+        String annotationPattern = "@(?:[A-Za-z_][\\w.]*\\.)?" + Pattern.quote(annotationSimpleName) + "\\s*\\((.*?)\\)";
+        Matcher matcher = Pattern.compile(annotationPattern, Pattern.DOTALL).matcher(snippet);
+        while (matcher.find()) {
+            String body = matcher.group(1);
+            Matcher named = Pattern.compile(Pattern.quote(attributeName) + "\\s*=\\s*(true|false)", Pattern.CASE_INSENSITIVE).matcher(body);
+            if (named.find()) {
+                return Optional.of(Boolean.parseBoolean(named.group(1).toLowerCase(Locale.ROOT)));
+            }
+        }
         return Optional.empty();
     }
 

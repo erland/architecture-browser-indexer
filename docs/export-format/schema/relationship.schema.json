@@ -52,7 +52,8 @@
       }
     },
     "metadata": {
-      "$ref": "./common.schema.json#/$defs/stringMap"
+      "$ref": "./common.schema.json#/$defs/stringMap",
+      "description": "Extensible relationship metadata bag. Documented stable normalized keys may include associationKind, associationCardinality, sourceLowerBound, sourceUpperBound, targetLowerBound, and targetUpperBound. Framework-specific keys such as jpaAssociation remain allowed as evidence/provenance metadata."
     },
     "architecturalSemantics": {
       "type": "array",

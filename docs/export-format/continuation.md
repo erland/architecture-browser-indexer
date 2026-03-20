@@ -48,3 +48,7 @@ Revisit it when:
 - downstream consumers start depending on richer metadata families
 - the export contract changes materially
 - the project wants stronger schema validation or more generated examples
+
+## Additional continuity notes
+
+- JPA relationship emission seam: `docs/export-format/jpa-relationship-emission-point.md`

@@ -159,6 +159,27 @@
       "metadata": {
         "technology": "postgresql"
       }
+    },
+    {
+      "id": "entity:class:account",
+      "kind": "CLASS",
+      "origin": "OBSERVED",
+      "name": "Account",
+      "displayName": "Account",
+      "scopeId": "scope:package:com.example.domain",
+      "sourceRefs": [],
+      "metadata": {
+        "language": "java",
+        "framework": "jpa",
+        "qualifiedName": "com.example.domain.Account",
+        "jpaKind": "entity"
+      },
+      "architecturalRoles": [
+        "persistent-entity"
+      ],
+      "architecturalTraits": [
+        "persistent"
+      ]
     }
   ],
   "relationships": [
@@ -204,6 +225,27 @@
       "architecturalSemantics": [
         "stored-in"
       ]
+    },
+    {
+      "id": "rel:ledger-entry:many-to-one:account",
+      "kind": "DEPENDS_ON",
+      "fromEntityId": "entity:class:ledger-entry",
+      "toEntityId": "entity:class:account",
+      "label": "account",
+      "sourceRefs": [],
+      "metadata": {
+        "associationKind": "association",
+        "associationCardinality": "many-to-one",
+        "sourceLowerBound": 0,
+        "sourceUpperBound": "*",
+        "targetLowerBound": 1,
+        "targetUpperBound": "1",
+        "jpaAssociation": "many-to-one",
+        "joinColumn": "account_id",
+        "frameworks": [
+          "jpa"
+        ]
+      }
     }
   ],
   "diagnostics": [],

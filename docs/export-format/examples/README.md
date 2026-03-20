@@ -48,3 +48,17 @@ This sequence shows:
 The documentation copies for the shared examples are kept byte-for-byte aligned with the tested fixtures under `src/test/resources/export-contract/`. When an example is updated, update the tested fixture first and then mirror it here.
 
 The normalized list fields shown in the examples (for example `architecturalRoles`, `architecturalTraits`, `architecturalSemantics`, `seedRoleIds`, `expandViaSemantics`, `preferredDependencyViews`, and `evidenceSources`) are written in canonical sorted order so the docs reflect actual serialized output.
+
+## Association metadata examples
+
+The Java persistence-oriented examples now include JPA-derived association relationships that demonstrate the normalized metadata contract inside `relationship.metadata`, including:
+
+- `associationKind`
+- `associationCardinality`
+- `sourceLowerBound`
+- `sourceUpperBound`
+- `targetLowerBound`
+- `targetUpperBound`
+
+The same sample relationships also retain JPA-specific provenance fields such as `jpaAssociation` and `joinColumn`.
+

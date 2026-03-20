@@ -59,6 +59,10 @@ final class JavaJpaDomainSemanticsSupportsSeamTest {
             .filter(relationship -> orderEntity.id().equals(relationship.fromEntityId()))
             .filter(relationship -> "hasAssociation".equals(relationship.metadata().get("relationshipType")))
             .filter(relationship -> "jpa".equals(relationship.metadata().get("framework")))
+            .filter(relationship -> "0".equals(relationship.metadata().get("sourceLowerBound")))
+            .filter(relationship -> "*".equals(relationship.metadata().get("sourceUpperBound")))
+            .filter(relationship -> "1".equals(relationship.metadata().get("targetLowerBound")))
+            .filter(relationship -> "1".equals(relationship.metadata().get("targetUpperBound")))
             .findFirst()
             .orElse(null));
     }

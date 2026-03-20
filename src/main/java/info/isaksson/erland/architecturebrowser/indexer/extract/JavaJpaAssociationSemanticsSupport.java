@@ -51,6 +51,9 @@ final class JavaJpaAssociationSemanticsSupport {
         LinkedHashMap<String, Object> relationshipMetadata = new LinkedHashMap<>();
         relationshipMetadata.put("framework", "jpa");
         relationshipMetadata.put("relationshipType", "hasAssociation");
+        relationshipMetadata.put("associationKind", "association");
+        relationshipMetadata.put("associationCardinality", associationKind);
+        deriveAssociationBounds(associationKind, snippet).forEach(relationshipMetadata::put);
         relationshipMetadata.put("jpaAssociation", associationKind);
         JavaJpaDomainSemanticsSupport.extractJpaMappedBy(snippet).ifPresent(mappedBy -> relationshipMetadata.put("mappedBy", mappedBy));
         JavaJpaDomainSemanticsSupport.extractJpaJoinColumn(snippet).ifPresent(joinColumn -> relationshipMetadata.put("joinColumn", joinColumn));
@@ -68,6 +71,69 @@ final class JavaJpaAssociationSemanticsSupport {
             Map.copyOf(relationshipMetadata)
         ));
     }
+
+    /**
+     * Derives normalized association-end bounds using the full association-end convention
+     * documented in docs/export-format/normalized-association-metadata-contract.md.
+     *
+     * Convention:
+     * - source* fields describe the multiplicity at the source entity end of the emitted
+     *   source->target relationship
+     * - target* fields describe the multiplicity at the target entity end
+     *
+     * This keeps the representation stable for diagramming and avoids a property-only
+     * interpretation where only the referenced target multiplicity is exported.
+     *
+     * Optionality evidence precedence for single-valued associations:
+     * - prefer explicit association optionality when it is the only signal
+     * - otherwise use explicit join-column nullability when it is the only signal
+     * - if both are present but conflict, choose the conservative optional interpretation
+     *   and emit 0..1 rather than 1..1
+     */
+    static Map<String, Object> deriveAssociationBounds(String associationKind, String snippet) {
+        AssociationBounds bounds = switch (associationKind == null ? "" : associationKind) {
+            case "one-to-one" -> {
+                String lower = isMandatorySingleValuedAssociation(snippet) ? "1" : "0";
+                yield new AssociationBounds(lower, "1", lower, "1");
+            }
+            case "many-to-one" -> new AssociationBounds("0", "*", isMandatorySingleValuedAssociation(snippet) ? "1" : "0", "1");
+            case "one-to-many" -> new AssociationBounds("0", "1", "0", "*");
+            case "many-to-many" -> new AssociationBounds("0", "*", "0", "*");
+            default -> null;
+        };
+        if (bounds == null) {
+            return Map.of();
+        }
+        LinkedHashMap<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("sourceLowerBound", bounds.sourceLowerBound());
+        metadata.put("sourceUpperBound", bounds.sourceUpperBound());
+        metadata.put("targetLowerBound", bounds.targetLowerBound());
+        metadata.put("targetUpperBound", bounds.targetUpperBound());
+        return Map.copyOf(metadata);
+    }
+
+    private static boolean isMandatorySingleValuedAssociation(String snippet) {
+        var associationOptional = JavaJpaDomainSemanticsSupport.extractJpaAssociationOptional(snippet);
+        var joinColumnNullable = JavaJpaDomainSemanticsSupport.extractJpaJoinColumnNullable(snippet);
+
+        if (associationOptional.isPresent() && joinColumnNullable.isPresent()) {
+            boolean associationSaysMandatory = !associationOptional.orElse(true);
+            boolean joinColumnSaysMandatory = !joinColumnNullable.orElse(true);
+            if (associationSaysMandatory != joinColumnSaysMandatory) {
+                return false;
+            }
+            return associationSaysMandatory;
+        }
+        if (associationOptional.isPresent()) {
+            return !associationOptional.orElse(true);
+        }
+        if (joinColumnNullable.isPresent()) {
+            return !joinColumnNullable.orElse(true);
+        }
+        return false;
+    }
+
+    private record AssociationBounds(String sourceLowerBound, String sourceUpperBound, String targetLowerBound, String targetUpperBound) {}
 
     void emitEmbeddedRelationship(
         ExtractionAccumulator accumulator,

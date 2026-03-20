@@ -313,6 +313,16 @@ Examples of meanings:
 - `label` — readable edge description when available
 - `metadata` — extensible relationship enrichment
 
+Documented stable normalized metadata keys may also appear inside `metadata` for framework-agnostic association semantics:
+- `associationKind`
+- `associationCardinality`
+- `sourceLowerBound`
+- `sourceUpperBound`
+- `targetLowerBound`
+- `targetUpperBound`
+
+These keys remain optional and live inside the metadata container rather than as first-class top-level relationship properties in this schema version.
+
 ## `diagnostics`
 
 Type: array

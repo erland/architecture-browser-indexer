@@ -95,6 +95,12 @@ class JavaStageSemanticEnrichmentSafetyNetTest {
             && resource.id().equals(rel.fromEntityId())));
         assertTrue(accumulator.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
             && "jpa".equals(rel.metadata().get("framework"))
-            && "many-to-one".equals(rel.metadata().get("jpaAssociation"))));
+            && "association".equals(rel.metadata().get("associationKind"))
+            && "many-to-one".equals(rel.metadata().get("associationCardinality"))
+            && "many-to-one".equals(rel.metadata().get("jpaAssociation"))
+            && "0".equals(rel.metadata().get("sourceLowerBound"))
+            && "*".equals(rel.metadata().get("sourceUpperBound"))
+            && "1".equals(rel.metadata().get("targetLowerBound"))
+            && "1".equals(rel.metadata().get("targetUpperBound"))));
     }
 }

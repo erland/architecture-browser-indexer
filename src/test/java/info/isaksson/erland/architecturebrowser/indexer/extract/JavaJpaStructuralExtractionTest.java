@@ -165,7 +165,13 @@ class JavaJpaStructuralExtractionTest {
             && rel.fromEntityId().equals(orderEntity.id())
             && rel.toEntityId().equals(customerEntity.id())
             && "hasAssociation".equals(rel.metadata().get("relationshipType"))
-            && "many-to-one".equals(rel.metadata().get("jpaAssociation"))));
+            && "association".equals(rel.metadata().get("associationKind"))
+            && "many-to-one".equals(rel.metadata().get("associationCardinality"))
+            && "many-to-one".equals(rel.metadata().get("jpaAssociation"))
+            && "0".equals(rel.metadata().get("sourceLowerBound"))
+            && "*".equals(rel.metadata().get("sourceUpperBound"))
+            && "1".equals(rel.metadata().get("targetLowerBound"))
+            && "1".equals(rel.metadata().get("targetUpperBound"))));
 
         assertTrue(result.relationships().stream().anyMatch(rel -> rel.kind() == RelationshipKind.DEPENDS_ON
             && rel.fromEntityId().equals(orderEntity.id())

@@ -25,7 +25,11 @@ Read the files in this order:
    - explains how compatibility should be understood
    - use this if you are building tooling that depends on the export format
 
-5. `schema/`
+5. `normalized-association-metadata-contract.md`
+   - documents the stable normalized relationship metadata keys reserved for framework-agnostic association semantics
+   - use this when you are adding or consuming multiplicity/optionality metadata without coupling to JPA-specific keys
+
+6. `schema/`
    - machine-readable JSON Schema files for the stable structural contract
    - use these for validation, editor support, and downstream integration checks
 
@@ -177,6 +181,7 @@ The current code does **not** treat `name` as a universally fully qualified cano
 
 - `entity-roles-traits-contract.md`
 - `relationship-semantics-contract.md`
+- `normalized-association-metadata-contract.md`
 - `java-first-role-mapping.md` describe the first normalized contract additions.
 - `java-first-relationship-semantics.md` documents the first Java-first relationship semantic mappings.
 
@@ -206,3 +211,6 @@ Step 10 adds architect-facing interpretation guidance in `ui-navigation-viewpoin
 
 
 Step 11 keeps optional second-wave UI-navigation work explicit in `ui-navigation-second-wave-backlog.md`, including deep links, dialogs/tabs, route parameters, lazy grouping, cross-app navigation, stronger menu modeling, confidence evolution, and workflow overlays.
+
+- [Normalized association metadata contract](normalized-association-metadata-contract.md) — normalized association keys, endpoint-bound convention, and current first-version limits
+- [Normalized association current limits](normalized-association-current-limits.md) — short summary of the conservative first-version limitations

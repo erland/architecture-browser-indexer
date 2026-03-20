@@ -95,12 +95,7 @@ final class JavaArchitectureEntityNormalizationRule implements ArchitectureEntit
     }
 
     private static boolean isPersistentEntity(ArchitectureEntity entity, Map<String, ArchitectureEntity> entitiesById) {
-        if (Boolean.TRUE.equals(entity.metadata().get("jpaEntity"))
-            || Boolean.TRUE.equals(entity.metadata().get("jpaEmbeddable"))
-            || Boolean.TRUE.equals(entity.metadata().get("jpaMappedSuperclass"))
-            || metadataEquals(entity, "jpaKind", "entity")
-            || metadataEquals(entity, "jpaKind", "embeddable")
-            || metadataEquals(entity, "jpaKind", "mapped-superclass")) {
+        if (Boolean.TRUE.equals(entity.metadata().get("jpaEntity")) || metadataEquals(entity, "jpaKind", "entity")) {
             return true;
         }
         String sourceEntityId = stringMetadata(entity, "sourceEntityId");

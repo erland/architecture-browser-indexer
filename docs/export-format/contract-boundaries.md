@@ -144,6 +144,16 @@ Rule of thumb:
 - rely on `kind`, `fromEntityId`, `toEntityId` first
 - treat metadata keys as enriched unless specifically documented as stable
 
+Current documented stable exceptions inside `relationship.metadata` are the normalized association keys described in `normalized-association-metadata-contract.md`:
+- `associationKind`
+- `associationCardinality`
+- `sourceLowerBound`
+- `sourceUpperBound`
+- `targetLowerBound`
+- `targetUpperBound`
+
+Framework-specific keys such as `jpaAssociation`, `mappedBy`, `joinColumn`, and `joinTable` remain evidence-oriented metadata rather than the preferred long-term cross-framework semantic seam.
+
 ### Dependency views and browser views
 
 These are highly valuable and should absolutely be documented, but they should initially be described as:

@@ -118,7 +118,13 @@ class JavaJpaPropertyAccessStructuralExtractionTest {
             && rel.fromEntityId().equals(orderEntity.id())
             && "com.example.orders.domain.CustomerEntity".equals(rel.label())
             && "hasAssociation".equals(rel.metadata().get("relationshipType"))
+            && "association".equals(rel.metadata().get("associationKind"))
+            && "many-to-one".equals(rel.metadata().get("associationCardinality"))
             && "many-to-one".equals(rel.metadata().get("jpaAssociation"))
+            && "0".equals(rel.metadata().get("sourceLowerBound"))
+            && "*".equals(rel.metadata().get("sourceUpperBound"))
+            && "1".equals(rel.metadata().get("targetLowerBound"))
+            && "1".equals(rel.metadata().get("targetUpperBound"))
             && "method".equals(rel.metadata().get("ownerMemberKind"))
             && "customer".equals(rel.metadata().get("ownerPropertyName"))),
             () -> "Expected method-based association relationship. Relationships=" + result.relationships());

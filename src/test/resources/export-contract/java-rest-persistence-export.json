@@ -180,6 +180,27 @@
       "architecturalRoles": [
         "persistence-access"
       ]
+    },
+    {
+      "id": "entity:class:customer-entity",
+      "kind": "CLASS",
+      "origin": "OBSERVED",
+      "name": "CustomerEntity",
+      "displayName": "CustomerEntity",
+      "scopeId": "scope:package:com.example.domain",
+      "sourceRefs": [],
+      "metadata": {
+        "language": "java",
+        "framework": "jpa",
+        "qualifiedName": "com.example.domain.CustomerEntity",
+        "jpaKind": "entity"
+      },
+      "architecturalRoles": [
+        "persistent-entity"
+      ],
+      "architecturalTraits": [
+        "persistent"
+      ]
     }
   ],
   "relationships": [
@@ -242,6 +263,27 @@
         ],
         "frameworkRelationships": [
           "publishesEvent"
+        ]
+      }
+    },
+    {
+      "id": "rel:order-entity:many-to-one:customer",
+      "kind": "DEPENDS_ON",
+      "fromEntityId": "entity:class:order-entity",
+      "toEntityId": "entity:class:customer-entity",
+      "label": "customer",
+      "sourceRefs": [],
+      "metadata": {
+        "associationKind": "association",
+        "associationCardinality": "many-to-one",
+        "sourceLowerBound": 0,
+        "sourceUpperBound": "*",
+        "targetLowerBound": 1,
+        "targetUpperBound": "1",
+        "jpaAssociation": "many-to-one",
+        "joinColumn": "customer_id",
+        "frameworks": [
+          "jpa"
         ]
       }
     }
