@@ -53,7 +53,7 @@ final class JavaTraversalNodeDispatchFlowTest {
         JavaTraversalNodeDispatchFlow flow = (JavaTraversalNodeDispatchFlow) field.get(stage);
 
         ExtractionAccumulator accumulator = new ExtractionAccumulator();
-        JavaExtractionContext context = new JavaExtractionContext(relativePath, "com.example.orders", source, Map.of(), Map.of());
+        JavaExtractionContext context = new JavaExtractionContext(relativePath, "com.example.orders", source, Map.of(), Map.of(), Map.of());
 
         JavaSyntaxTreeTraversal.JavaTraversalOwnership rootOwnership = new JavaSyntaxTreeTraversal.JavaTraversalOwnership(null, null, null);
         JavaNodeDispatchResult typeDispatch = flow.handleNode(

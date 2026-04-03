@@ -42,7 +42,7 @@ class JavaTypeDeclarationFlowTest {
             Map.of()
         );
         ExtractionAccumulator accumulator = new ExtractionAccumulator();
-        JavaExtractionContext context = new JavaExtractionContext(relativePath, packageName, source, Map.of(), Map.of());
+        JavaExtractionContext context = new JavaExtractionContext(relativePath, packageName, source, Map.of(), Map.of(), Map.of());
 
         JavaSyntaxTreeExtractionStage stage = new JavaSyntaxTreeExtractionStage();
         Field field = JavaSyntaxTreeExtractionStage.class.getDeclaredField("typeDeclarationFlow");

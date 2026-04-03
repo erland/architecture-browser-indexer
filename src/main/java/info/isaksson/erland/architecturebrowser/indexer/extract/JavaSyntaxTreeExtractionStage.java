@@ -1,5 +1,6 @@
 package info.isaksson.erland.architecturebrowser.indexer.extract;
 
+import java.util.Map;
 import info.isaksson.erland.architecturebrowser.indexer.parse.ParseLanguage;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SourceParseResult;
 
@@ -11,7 +12,11 @@ final class JavaSyntaxTreeExtractionStage {
     private final JavaCompilationUnitExtractionFlow compilationUnitExtractionFlow;
 
     JavaSyntaxTreeExtractionStage() {
-        this(new JavaStageCompositionSupport().composeDefault());
+        this(Map.of());
+    }
+
+    JavaSyntaxTreeExtractionStage(Map<String, JavaDeclaredType> workspaceDeclaredTypes) {
+        this(new JavaStageCompositionSupport().composeDefault(workspaceDeclaredTypes));
     }
 
     JavaSyntaxTreeExtractionStage(JavaStageCompositionSupport.JavaStageComposition composition) {

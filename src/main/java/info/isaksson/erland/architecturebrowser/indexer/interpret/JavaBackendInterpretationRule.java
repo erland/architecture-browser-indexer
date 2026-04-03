@@ -112,17 +112,19 @@ final class JavaBackendInterpretationRule implements InterpretationRule {
             if (roleSource == null || roleSource.id().equals(owner.get().id())) {
                 continue;
             }
-            EntityKind interpretedKind = roleClassifier.inferredRoleKind(roleSource);
-            if (interpretedKind == null) {
+            JavaBackendInterpretationClassification classification = roleClassifier.classifyRole(roleSource, context);
+            if (classification == null) {
                 continue;
             }
-            String roleId = InterpretationSupport.roleEntity(ruleId(), roleSource, interpretedKind, interpretedKind == EntityKind.SERVICE ? " service" : " persistence adapter", Map.of()).id();
+            String displaySuffix = classification.roleKind() == EntityKind.SERVICE ? " service" : " persistence adapter";
+            var role = InterpretationSupport.roleEntity(ruleId(), roleSource, classification.roleKind(), displaySuffix, classification.metadata());
+            accumulator.addEntity(role, ruleId());
             accumulator.addRelationship(
                 InterpretationSupport.relationship(
                     ruleId(),
                     RelationshipKind.USES,
                     owner.get().id(),
-                    roleId,
+                    role.id(),
                     fieldEntity.name(),
                     fieldEntity.sourceRefs(),
                     Map.of(

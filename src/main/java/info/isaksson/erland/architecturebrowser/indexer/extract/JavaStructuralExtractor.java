@@ -4,9 +4,15 @@ import info.isaksson.erland.architecturebrowser.indexer.parse.ParseLanguage;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SourceParseResult;
 import info.isaksson.erland.architecturebrowser.indexer.parse.SyntaxNode;
 
+import java.util.Map;
+
 final class JavaStructuralExtractor implements StructuralExtractor {
 
-    private final JavaSyntaxTreeExtractionStage stage = new JavaSyntaxTreeExtractionStage();
+    private JavaSyntaxTreeExtractionStage stage = new JavaSyntaxTreeExtractionStage();
+
+    void setWorkspaceDeclaredTypes(Map<String, JavaDeclaredType> workspaceDeclaredTypes) {
+        this.stage = new JavaSyntaxTreeExtractionStage(workspaceDeclaredTypes);
+    }
 
     @Override
     public ParseLanguage language() {

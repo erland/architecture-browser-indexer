@@ -14,13 +14,16 @@ final class JavaCompilationUnitExtractionFlow {
 
     private final JavaSyntaxTreeTraversal syntaxTreeTraversal;
     private final JavaTraversalNodeDispatchFlow traversalNodeDispatchFlow;
+    private final Map<String, JavaDeclaredType> workspaceDeclaredTypes;
 
     JavaCompilationUnitExtractionFlow(
         JavaSyntaxTreeTraversal syntaxTreeTraversal,
-        JavaTraversalNodeDispatchFlow traversalNodeDispatchFlow
+        JavaTraversalNodeDispatchFlow traversalNodeDispatchFlow,
+        Map<String, JavaDeclaredType> workspaceDeclaredTypes
     ) {
         this.syntaxTreeTraversal = syntaxTreeTraversal;
         this.traversalNodeDispatchFlow = traversalNodeDispatchFlow;
+        this.workspaceDeclaredTypes = workspaceDeclaredTypes == null ? Map.of() : Map.copyOf(workspaceDeclaredTypes);
     }
 
     ExtractionAccumulator extractCompilationUnit(
@@ -69,7 +72,7 @@ final class JavaCompilationUnitExtractionFlow {
             ));
         }
 
-        Map<String, JavaDeclaredType> declaredTypes = JavaDeclarationDiscovery.discoverDeclaredTypes(
+        Map<String, JavaDeclaredType> localDeclaredTypes = JavaDeclarationDiscovery.discoverDeclaredTypes(
             parseResult,
             relativePath,
             packageName,
@@ -77,12 +80,15 @@ final class JavaCompilationUnitExtractionFlow {
             packageScope.id(),
             root
         );
+        LinkedHashMap<String, JavaDeclaredType> declaredTypes = new LinkedHashMap<>(workspaceDeclaredTypes);
+        declaredTypes.putAll(localDeclaredTypes);
 
         JavaExtractionContext extractionContext = new JavaExtractionContext(
             relativePath,
             packageName,
             parseResult.request() == null ? null : parseResult.request().sourceText(),
             Map.copyOf(importsBySimpleName),
+            Map.copyOf(localDeclaredTypes),
             Map.copyOf(declaredTypes)
         );
 
@@ -114,7 +120,7 @@ final class JavaCompilationUnitExtractionFlow {
         );
     }
 
-    private static String derivePackageFromPath(String relativePath) {
+    static String derivePackageFromPath(String relativePath) {
         int marker = relativePath.indexOf("/java/");
         if (marker >= 0) {
             String candidate = relativePath.substring(marker + 6);

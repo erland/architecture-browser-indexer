@@ -1,8 +1,13 @@
 package info.isaksson.erland.architecturebrowser.indexer.extract;
 
+import java.util.Map;
 final class JavaStageCompositionSupport {
 
     JavaStageComposition composeDefault() {
+        return composeDefault(Map.of());
+    }
+
+    JavaStageComposition composeDefault(Map<String, JavaDeclaredType> workspaceDeclaredTypes) {
         JavaRelationshipEvidenceEmitter relationshipEvidenceEmitter = new JavaRelationshipEvidenceEmitter();
         JavaDependencyEmissionFlow dependencyEmissionFlow = new JavaDependencyEmissionFlow(relationshipEvidenceEmitter);
 
@@ -38,7 +43,8 @@ final class JavaStageCompositionSupport {
         );
         JavaCompilationUnitExtractionFlow compilationUnitExtractionFlow = new JavaCompilationUnitExtractionFlow(
             new JavaSyntaxTreeTraversal(),
-            traversalNodeDispatchFlow
+            traversalNodeDispatchFlow,
+            workspaceDeclaredTypes
         );
 
         return new JavaStageComposition(

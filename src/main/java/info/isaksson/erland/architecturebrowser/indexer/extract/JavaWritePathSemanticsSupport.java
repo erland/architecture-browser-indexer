@@ -45,7 +45,7 @@ void addWritePathFacts(
         SourceReference ref = methodContext.sourceRef();
         String snippet = methodContext.snippet();
         Map<String, String> importsBySimpleName = extractionContext.importsBySimpleName();
-        Map<String, JavaDeclaredType> declaredTypes = extractionContext.declaredTypes();
+        Map<String, JavaDeclaredType> declaredTypes = extractionContext.resolutionDeclaredTypes();
         if (methodEntity == null || ownerTypeEntityId == null) {
             return;
         }

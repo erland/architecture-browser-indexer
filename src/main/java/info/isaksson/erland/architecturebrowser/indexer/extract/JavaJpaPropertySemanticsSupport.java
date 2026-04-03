@@ -26,7 +26,7 @@ final class JavaJpaPropertySemanticsSupport {
         String ownerQualifiedName = fieldContext.ownerQualifiedName();
         String ownerTypeSnippet = fieldContext.ownerTypeSnippet();
         Map<String, String> importsBySimpleName = extractionContext.importsBySimpleName();
-        Map<String, JavaDeclaredType> declaredTypes = extractionContext.declaredTypes();
+        Map<String, JavaDeclaredType> declaredTypes = extractionContext.resolutionDeclaredTypes();
         if (fieldEntity == null || ownerTypeEntityId == null || !JavaJpaDomainSemanticsSupport.isJpaPersistentType(ownerTypeSnippet, null)) {
             return;
         }
@@ -83,7 +83,7 @@ final class JavaJpaPropertySemanticsSupport {
         SourceReference ref = methodContext.sourceRef();
         String snippet = methodContext.snippet();
         Map<String, String> importsBySimpleName = extractionContext.importsBySimpleName();
-        Map<String, JavaDeclaredType> declaredTypes = extractionContext.declaredTypes();
+        Map<String, JavaDeclaredType> declaredTypes = extractionContext.resolutionDeclaredTypes();
         if (methodEntity == null || ownerTypeEntityId == null || !JavaJpaDomainSemanticsSupport.isJpaPersistentType(ownerTypeSnippet, null) || JavaGenericSyntaxSupport.isConstructor(methodEntity)) {
             return;
         }

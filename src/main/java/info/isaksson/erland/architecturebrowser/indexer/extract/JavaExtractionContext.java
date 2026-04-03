@@ -7,5 +7,6 @@ record JavaExtractionContext(
     String packageName,
     String sourceText,
     Map<String, String> importsBySimpleName,
-    Map<String, JavaDeclaredType> declaredTypes
+    Map<String, JavaDeclaredType> declaredTypes,
+    Map<String, JavaDeclaredType> resolutionDeclaredTypes
 ) {}
