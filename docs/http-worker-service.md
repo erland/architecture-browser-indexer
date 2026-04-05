@@ -33,3 +33,8 @@ The HTTP worker returns:
 - The HTTP worker is intentionally thin and delegates to the existing `WorkerModeService`.
 - CLI mode and file-based worker mode remain supported.
 - The Docker image now starts in HTTP worker mode by default.
+
+
+## Retained source cleanup
+
+The worker now performs best-effort retained-source pruning on startup, before each run, and before each source-file read. Expired Git-retained source roots and broken handle records are removed automatically when encountered.

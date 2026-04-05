@@ -17,7 +17,15 @@ public final class HttpWorkerJson {
     }
 
     public static WorkerJobRequest readWorkerRequest(InputStream inputStream) throws IOException {
-        return OBJECT_MAPPER.readValue(inputStream, WorkerJobRequest.class);
+        return readValue(inputStream, WorkerJobRequest.class);
+    }
+
+    public static HttpWorkerSourceFileReadRequest readSourceFileReadRequest(InputStream inputStream) throws IOException {
+        return readValue(inputStream, HttpWorkerSourceFileReadRequest.class);
+    }
+
+    public static <T> T readValue(InputStream inputStream, Class<T> type) throws IOException {
+        return OBJECT_MAPPER.readValue(inputStream, type);
     }
 
     public static byte[] writeBytes(Object value) throws IOException {

@@ -6,6 +6,9 @@ import info.isaksson.erland.architecturebrowser.indexer.application.IndexerAppli
 import info.isaksson.erland.architecturebrowser.indexer.cli.IndexerCli;
 import info.isaksson.erland.architecturebrowser.indexer.worker.model.WorkerJobRequest;
 import info.isaksson.erland.architecturebrowser.indexer.worker.model.WorkerJobResult;
+import info.isaksson.erland.architecturebrowser.indexer.worker.source.RetainedSourceCleanupService;
+import info.isaksson.erland.architecturebrowser.indexer.worker.source.RetainedSourceHandleRecord;
+import info.isaksson.erland.architecturebrowser.indexer.worker.source.RetainedSourceHandleRegistryService;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -22,6 +25,15 @@ import java.util.logging.Logger;
 public class WorkerModeService {
     private static final Logger LOG = Logger.getLogger(WorkerModeService.class.getName());
 
+    private final Path workerWorkspaceDirectory;
+
+    public WorkerModeService() {
+        this(null);
+    }
+
+    public WorkerModeService(Path workerWorkspaceDirectory) {
+        this.workerWorkspaceDirectory = normalize(workerWorkspaceDirectory);
+    }
 
     public WorkerJobResult runJob(Path requestPath, Path resultPath) throws Exception {
         WorkerJobRequest request = WorkerJobJson.readRequest(requestPath);
@@ -30,6 +42,7 @@ public class WorkerModeService {
 
     public WorkerJobResult runJob(WorkerJobRequest request, Path resultPath) throws Exception {
         Instant startedAt = Instant.now();
+        pruneRetainedSourcesBestEffort();
 
         List<String> args = new ArrayList<>();
         if (request.repositoryId() != null && !request.repositoryId().isBlank()) {
@@ -81,18 +94,13 @@ public class WorkerModeService {
             + ", sourcePath=" + safe(request.sourcePath())
             + ", outputPath=" + safe(request.outputPath()));
         try {
-            IndexRunResult runResult = new IndexerApplicationService().run(new IndexRunRequest(
-                IndexerCli.APPLICATION_VERSION,
-                request.repositoryId(),
-                request.sourcePath() == null || request.sourcePath().isBlank() ? null : Path.of(request.sourcePath()),
-                request.gitUrl(),
-                request.gitRef(),
-                null,
-                Path.of(request.outputPath()),
-                request.snapshotIn(),
-                request.snapshotOut()
-            ));
-            if (runResult.temporaryWorkspace()) {
+            IndexRunResult runResult = runIndexer(request);
+            RetainedSourceHandleRecord retainedSource = retainSourceRoot(request, runResult);
+            if (retainedSource != null) {
+                summary.put("sourceAccess", retainedSource.toSummaryMap());
+                summary.put("retainedSourceRoot", retainedSource.retainedRoot().toString());
+                summary.put("retainedSourceHandle", retainedSource.sourceHandle());
+            } else if (runResult.temporaryWorkspace()) {
                 deleteRecursively(runResult.acquiredRoot().getParent());
             }
             summary.put("message", "Worker job completed");
@@ -149,6 +157,52 @@ public class WorkerModeService {
         return result;
     }
 
+
+    protected void pruneRetainedSourcesBestEffort() {
+        if (workerWorkspaceDirectory == null) {
+            return;
+        }
+        try {
+            RetainedSourceHandleRegistryService registry = new RetainedSourceHandleRegistryService(workerWorkspaceDirectory);
+            new RetainedSourceCleanupService(registry).pruneExpiredAndInvalid();
+        } catch (RuntimeException exception) {
+            LOG.log(Level.WARNING, "Best-effort retained-source cleanup failed", exception);
+        }
+    }
+
+    protected IndexRunResult runIndexer(WorkerJobRequest request) throws Exception {
+        return new IndexerApplicationService().run(new IndexRunRequest(
+            IndexerCli.APPLICATION_VERSION,
+            request.repositoryId(),
+            request.sourcePath() == null || request.sourcePath().isBlank() ? null : Path.of(request.sourcePath()),
+            request.gitUrl(),
+            request.gitRef(),
+            null,
+            Path.of(request.outputPath()),
+            request.snapshotIn(),
+            request.snapshotOut()
+        ));
+    }
+
+    protected RetainedSourceHandleRecord retainSourceRoot(WorkerJobRequest request, IndexRunResult runResult) {
+        if (workerWorkspaceDirectory == null || runResult == null || runResult.document() == null || runResult.acquiredRoot() == null) {
+            return null;
+        }
+        String repositoryId = runResult.document().source() == null ? request.repositoryId() : runResult.document().source().repositoryId();
+        String sourceRevision = runResult.document().source() == null ? null : runResult.document().source().revision();
+        RetainedSourceHandleRegistryService registry = new RetainedSourceHandleRegistryService(workerWorkspaceDirectory);
+        if (runResult.temporaryWorkspace()) {
+            return registry.save(registry.createRetainedGitCheckout(
+                runResult.acquiredRoot().getParent(),
+                repositoryId,
+                request.gitUrl(),
+                request.gitRef(),
+                sourceRevision
+            ));
+        }
+        return registry.save(registry.createLocalPathRecord(runResult.acquiredRoot(), repositoryId, sourceRevision));
+    }
+
     private static void deleteRecursively(Path path) {
         if (path == null || !Files.exists(path)) {
             return;
@@ -176,5 +230,9 @@ public class WorkerModeService {
 
     private static String safe(String value) {
         return value == null || value.isBlank() ? "<none>" : value;
+    }
+
+    private static Path normalize(Path path) {
+        return path == null ? null : path.toAbsolutePath().normalize();
     }
 }

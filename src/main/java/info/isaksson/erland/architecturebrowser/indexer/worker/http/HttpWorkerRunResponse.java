@@ -15,7 +15,8 @@ public record HttpWorkerRunResponse(
     String snapshotOut,
     ArchitectureIndexDocument document,
     Map<String, Object> manifest,
-    Map<String, Object> summary
+    Map<String, Object> summary,
+    HttpWorkerSourceAccess sourceAccess
 ) {
     public HttpWorkerRunResponse {
         manifest = manifest == null ? Map.of() : sanitize(manifest);
