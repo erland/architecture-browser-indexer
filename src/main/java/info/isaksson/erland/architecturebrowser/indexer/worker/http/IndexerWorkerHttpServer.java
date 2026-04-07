@@ -47,8 +47,6 @@ public final class IndexerWorkerHttpServer {
             ));
         });
         server.createContext("/api/index-jobs/run", this::handleRun);
-        server.createContext("/api/source-files/read", this::handleReadSourceFile);
-        workerService.pruneRetainedSourcesBestEffort();
         server.setExecutor(Executors.newCachedThreadPool());
         server.start();
         LOG.info(() -> "Indexer worker HTTP server listening on http://" + host + ":" + port);
@@ -120,68 +118,6 @@ public final class IndexerWorkerHttpServer {
         }
     }
 
-
-    private void handleReadSourceFile(HttpExchange exchange) throws IOException {
-        Instant startedAt = Instant.now();
-        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
-            LOG.warning(() -> "Rejected request to /api/source-files/read with method=" + exchange.getRequestMethod());
-            sendJson(exchange, 405, new HttpWorkerErrorResponse(
-                "method_not_allowed",
-                "Only POST is supported for /api/source-files/read",
-                Instant.now(),
-                null,
-                Map.of("allowedMethod", "POST")
-            ));
-            return;
-        }
-        HttpWorkerSourceFileReadRequest request = null;
-        try {
-            request = HttpWorkerJson.readSourceFileReadRequest(exchange.getRequestBody());
-            final HttpWorkerSourceFileReadRequest requestForLog = request;
-            LOG.info(() -> "Received source-file read request: sourceHandle=" + safe(requestForLog.sourceHandle())
-                + ", path=" + safe(requestForLog.path())
-                + ", startLine=" + requestForLog.startLine()
-                + ", endLine=" + requestForLog.endLine());
-            HttpWorkerSourceFileReadResponse response = workerService.readSourceFile(request);
-            Duration elapsed = Duration.between(startedAt, Instant.now());
-            LOG.info(() -> "Completed source-file read request: sourceHandle=" + safe(response.sourceHandle())
-                + ", path=" + safe(response.path())
-                + ", fileSizeBytes=" + response.fileSizeBytes()
-                + ", elapsedMs=" + elapsed.toMillis());
-            sendJson(exchange, 200, response);
-        } catch (IllegalArgumentException ex) {
-            LOG.log(Level.WARNING, "Invalid source-file read request", ex);
-            sendJson(exchange, 400, new HttpWorkerErrorResponse(
-                "invalid_request",
-                ex.getMessage(),
-                Instant.now(),
-                null,
-                sourceReadErrorDetails(ex, request, startedAt)
-            ));
-        } catch (Throwable ex) {
-            final HttpWorkerSourceFileReadRequest requestForLog = request;
-            LOG.log(Level.SEVERE,
-                "Source-file read failed for sourceHandle=" + safe(requestForLog == null ? null : requestForLog.sourceHandle())
-                    + ", path=" + safe(requestForLog == null ? null : requestForLog.path()),
-                ex);
-            try {
-                sendJson(exchange, 500, new HttpWorkerErrorResponse(
-                    "source_read_failed",
-                    "Source-file read failed",
-                    Instant.now(),
-                    null,
-                    sourceReadErrorDetails(ex, request, startedAt)
-                ));
-            } catch (Throwable sendFailure) {
-                LOG.log(Level.SEVERE, "Failed to write error response after source-file read failure", sendFailure);
-                if (sendFailure instanceof IOException io) {
-                    throw io;
-                }
-                throw new IOException("Failed to write error response", sendFailure);
-            }
-        }
-    }
-
     private static void sendJson(HttpExchange exchange, int status, Object body) throws IOException {
         byte[] bytes = HttpWorkerJson.writeBytes(body);
         exchange.getResponseHeaders().set("Content-Type", "application/json;charset=UTF-8");
@@ -208,25 +144,6 @@ public final class IndexerWorkerHttpServer {
             details.put("outputPath", request.outputPath());
             details.put("snapshotIn", request.snapshotIn());
             details.put("snapshotOut", request.snapshotOut());
-        }
-        details.put("elapsedMs", Duration.between(startedAt, Instant.now()).toMillis());
-        return details;
-    }
-
-    private static Map<String, Object> sourceReadErrorDetails(Throwable throwable, HttpWorkerSourceFileReadRequest request, Instant startedAt) {
-        Map<String, Object> details = new LinkedHashMap<>();
-        details.put("exceptionType", throwable.getClass().getName());
-        details.put("message", throwable.getMessage());
-        Throwable rootCause = rootCauseOf(throwable);
-        if (rootCause != throwable) {
-            details.put("rootCauseType", rootCause.getClass().getName());
-            details.put("rootCauseMessage", rootCause.getMessage());
-        }
-        if (request != null) {
-            details.put("sourceHandle", request.sourceHandle());
-            details.put("path", request.path());
-            details.put("startLine", request.startLine());
-            details.put("endLine", request.endLine());
         }
         details.put("elapsedMs", Duration.between(startedAt, Instant.now()).toMillis());
         return details;

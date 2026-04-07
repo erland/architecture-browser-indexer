@@ -19,123 +19,45 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class WorkerModeServiceRetentionTest {
 
     @Test
-    void retainsGitWorkspaceUnderWorkerRetentionDirectory() throws Exception {
-        Path workspace = Files.createTempDirectory("ab-worker-retain-git");
-        Path gitTempWorkspace = Files.createTempDirectory("ab-git-temp");
-        Path acquiredRoot = gitTempWorkspace.resolve("repo");
-        Files.createDirectories(acquiredRoot.resolve("src"));
-        Files.writeString(acquiredRoot.resolve("src/App.tsx"), "export const App = () => null;\n");
+    void deletesTemporaryWorkspaceAfterSuccessfulRun() throws Exception {
+        Path workspace = Files.createTempDirectory("ab-worker-cleanup");
+        Path acquiredParent = Files.createDirectories(workspace.resolve("temp-job"));
+        Path acquiredRoot = Files.createDirectories(acquiredParent.resolve("repo"));
+        Files.writeString(acquiredRoot.resolve("App.java"), "class App {}\n");
 
-        StubWorkerModeService service = new StubWorkerModeService(workspace, indexRunResult(acquiredRoot, true, "git", "repo-1", "rev-123"));
-        WorkerJobResult result = service.runJob(new WorkerJobRequest(
-            "job-1",
-            "repo-1",
-            null,
-            "https://github.com/example/repo.git",
-            "main",
-            workspace.resolve("out.json").toString(),
-            null,
-            null
-        ), workspace.resolve("result.json"));
+        WorkerModeService service = new WorkerModeService(workspace) {
+            @Override
+            protected IndexRunResult runIndexer(WorkerJobRequest request) throws Exception {
+                Files.createDirectories(Path.of(request.outputPath()).getParent());
+                Files.writeString(Path.of(request.outputPath()), "{}\n");
+                Path outputPath = Path.of(request.outputPath());
+                return new IndexRunResult(new ArchitectureIndexDocument(
+                    "1.3.0",
+                    "0.1.0-SNAPSHOT",
+                    new RunMetadata(Instant.now(), Instant.now(), RunOutcome.SUCCESS, List.of(), Map.of()),
+                    new RepositorySource("repo-1", "git", acquiredRoot.toString(), "https://example/repo.git", "main", "rev-123", Instant.now(), Map.of()),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    new CompletenessMetadata(CompletenessStatus.COMPLETE, 1, 1, 0, List.of(), List.of()),
+                    Map.of()
+                ), acquiredRoot, outputPath, Map.of(), true);
+            }
+        };
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> sourceAccess = (Map<String, Object>) result.summary().get("sourceAccess");
-        assertNotNull(sourceAccess);
-        assertEquals("SOURCE_HANDLE", sourceAccess.get("lookupKeyKind"));
-        assertEquals("RETAINED_GIT_CHECKOUT", sourceAccess.get("retainedRootKind"));
-        assertEquals("GIT", sourceAccess.get("acquisitionType"));
-        assertEquals("repo-1", sourceAccess.get("repositoryId"));
-        assertEquals("rev-123", sourceAccess.get("sourceRevision"));
-        assertEquals("ttl-7d", sourceAccess.get("retentionPolicy"));
-
-        String sourceHandle = (String) sourceAccess.get("sourceHandle");
-        assertNotNull(sourceHandle);
-        Path retainedRoot = Path.of((String) result.summary().get("retainedSourceRoot"));
-        assertTrue(Files.exists(retainedRoot.resolve("src/App.tsx")));
-        assertFalse(Files.exists(gitTempWorkspace));
-        assertTrue(Files.exists(workspace.resolve("source-retention/handles").resolve(sourceHandle + ".json")));
-    }
-
-    @Test
-    void recordsLocalPathHandleWithoutCopyingSourceTree() throws Exception {
-        Path workspace = Files.createTempDirectory("ab-worker-retain-local");
-        Path localRoot = Files.createTempDirectory("ab-local-root");
-        Files.createDirectories(localRoot.resolve("src/main/java"));
-        Files.writeString(localRoot.resolve("src/main/java/App.java"), "class App {}\n");
-
-        StubWorkerModeService service = new StubWorkerModeService(workspace, indexRunResult(localRoot, false, "local-path", "repo-2", "rev-456"));
-        WorkerJobResult result = service.runJob(new WorkerJobRequest(
-            "job-2",
-            "repo-2",
-            localRoot.toString(),
-            null,
-            null,
-            workspace.resolve("out.json").toString(),
-            null,
-            null
-        ), workspace.resolve("result.json"));
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> sourceAccess = (Map<String, Object>) result.summary().get("sourceAccess");
-        assertNotNull(sourceAccess);
-        assertEquals("LOCAL_PATH_REFERENCE", sourceAccess.get("retainedRootKind"));
-        assertEquals("LOCAL_PATH", sourceAccess.get("acquisitionType"));
-        assertEquals("local-path-reference", sourceAccess.get("retentionPolicy"));
-        assertNull(sourceAccess.get("expiresAt"));
-        assertEquals(localRoot.toAbsolutePath().normalize().toString(), result.summary().get("retainedSourceRoot"));
-        assertTrue(Files.exists(localRoot.resolve("src/main/java/App.java")));
-    }
-
-    private static IndexRunResult indexRunResult(Path acquiredRoot, boolean temporaryWorkspace, String acquisitionType, String repositoryId, String revision) {
-        RepositorySource source = new RepositorySource(
-            repositoryId,
-            acquisitionType,
-            acquiredRoot.toString(),
-            acquisitionType.equals("git") ? "https://github.com/example/repo.git" : null,
-            "main",
-            revision,
-            Instant.parse("2026-04-05T18:00:00Z"),
-            Map.of()
+        WorkerJobResult result = service.runJob(
+            new WorkerJobRequest("job-1", "repo-1", null, "https://example/repo.git", "main", workspace.resolve("out.json").toString(), null, null),
+            workspace.resolve("result.json")
         );
-        ArchitectureIndexDocument document = new ArchitectureIndexDocument(
-            "1.3.0",
-            "0.1.0-SNAPSHOT",
-            new RunMetadata(
-                Instant.parse("2026-04-05T18:00:00Z"),
-                Instant.parse("2026-04-05T18:00:05Z"),
-                RunOutcome.SUCCESS,
-                List.of(),
-                Map.of()
-            ),
-            source,
-            List.of(),
-            List.of(),
-            List.of(),
-            List.of(),
-            new CompletenessMetadata(CompletenessStatus.COMPLETE, 0, 0, 0, List.of(), List.of()),
-            Map.of()
-        );
-        return new IndexRunResult(document, acquiredRoot, acquiredRoot.resolveSibling("out.json"), Map.of(), temporaryWorkspace);
-    }
 
-    private static final class StubWorkerModeService extends WorkerModeService {
-        private final IndexRunResult runResult;
-
-        private StubWorkerModeService(Path workerWorkspaceDirectory, IndexRunResult runResult) {
-            super(workerWorkspaceDirectory);
-            this.runResult = runResult;
-        }
-
-        @Override
-        protected IndexRunResult runIndexer(WorkerJobRequest request) {
-            return runResult;
-        }
+        assertEquals("SUCCESS", result.status());
+        assertFalse(Files.exists(acquiredParent));
+        assertNull(result.summary().get("sourceAccess"));
     }
 }

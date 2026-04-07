@@ -17,7 +17,6 @@ public record HttpWorkerRunResponse(
     ArchitectureIndexDocument document,
     Map<String, Object> manifest,
     Map<String, Object> summary,
-    HttpWorkerSourceAccess sourceAccess,
     ExportSnapshotSourceFiles snapshotSourceFiles
 ) {
     public HttpWorkerRunResponse {

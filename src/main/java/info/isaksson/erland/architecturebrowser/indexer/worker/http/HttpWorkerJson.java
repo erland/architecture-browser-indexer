@@ -20,10 +20,6 @@ public final class HttpWorkerJson {
         return readValue(inputStream, WorkerJobRequest.class);
     }
 
-    public static HttpWorkerSourceFileReadRequest readSourceFileReadRequest(InputStream inputStream) throws IOException {
-        return readValue(inputStream, HttpWorkerSourceFileReadRequest.class);
-    }
-
     public static <T> T readValue(InputStream inputStream, Class<T> type) throws IOException {
         return OBJECT_MAPPER.readValue(inputStream, type);
     }
