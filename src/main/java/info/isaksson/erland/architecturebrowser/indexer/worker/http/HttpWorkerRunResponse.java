@@ -1,6 +1,7 @@
 package info.isaksson.erland.architecturebrowser.indexer.worker.http;
 
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureIndexDocument;
+import info.isaksson.erland.architecturebrowser.indexer.publish.model.ExportSnapshotSourceFiles;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -16,7 +17,8 @@ public record HttpWorkerRunResponse(
     ArchitectureIndexDocument document,
     Map<String, Object> manifest,
     Map<String, Object> summary,
-    HttpWorkerSourceAccess sourceAccess
+    HttpWorkerSourceAccess sourceAccess,
+    ExportSnapshotSourceFiles snapshotSourceFiles
 ) {
     public HttpWorkerRunResponse {
         manifest = manifest == null ? Map.of() : sanitize(manifest);

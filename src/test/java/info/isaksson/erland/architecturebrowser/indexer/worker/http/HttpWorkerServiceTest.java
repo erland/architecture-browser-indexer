@@ -43,6 +43,8 @@ class HttpWorkerServiceTest {
         assertEquals("repo-1", response.document().source().repositoryId());
         assertEquals("SUCCESS", response.manifest().get("status"));
         assertNotNull(response.sourceAccess());
+        assertNotNull(response.snapshotSourceFiles());
+        assertEquals("snapshot-source-files/v1", response.snapshotSourceFiles().contractVersion());
         assertEquals("SOURCE_HANDLE", response.sourceAccess().lookupKeyKind());
         assertEquals("src_HANDLE_1", response.sourceAccess().sourceHandle());
         assertEquals("LOCAL_PATH_REFERENCE", response.sourceAccess().retainedRootKind());
@@ -65,6 +67,7 @@ class HttpWorkerServiceTest {
         ));
 
         assertNull(response.sourceAccess());
+        assertNotNull(response.snapshotSourceFiles());
     }
 
 
@@ -184,6 +187,7 @@ class HttpWorkerServiceTest {
             Files.createDirectories(Path.of(request.outputPath()).getParent());
             Files.writeString(Path.of(request.outputPath()), minimalDocumentJson(request.repositoryId()));
             Files.writeString(Path.of(request.outputPath()).resolveSibling("architecture-index.manifest.json"), "{\n  \"status\" : \"SUCCESS\"\n}");
+            Files.writeString(Path.of(request.outputPath()).resolveSibling("architecture-index.source-files.json"), "{\n  \"contractVersion\" : \"snapshot-source-files/v1\",\n  \"files\" : [ { \"relativePath\" : \"src/App.java\", \"language\" : \"java\", \"sizeBytes\" : 12, \"totalLineCount\" : 1, \"contentType\" : \"text/x-java-source\", \"textContent\" : \"class App {}\\n\" } ],\n  \"metadata\" : { }\n}");
             return new WorkerJobResult(
                 request.jobId(),
                 "SUCCESS",
@@ -213,6 +217,7 @@ class HttpWorkerServiceTest {
             Files.createDirectories(Path.of(request.outputPath()).getParent());
             Files.writeString(Path.of(request.outputPath()), minimalDocumentJson(request.repositoryId()));
             Files.writeString(Path.of(request.outputPath()).resolveSibling("architecture-index.manifest.json"), "{\n  \"status\" : \"SUCCESS\"\n}");
+            Files.writeString(Path.of(request.outputPath()).resolveSibling("architecture-index.source-files.json"), "{\n  \"contractVersion\" : \"snapshot-source-files/v1\",\n  \"files\" : [ { \"relativePath\" : \"src/App.java\", \"language\" : \"java\", \"sizeBytes\" : 12, \"totalLineCount\" : 1, \"contentType\" : \"text/x-java-source\", \"textContent\" : \"class App {}\\n\" } ],\n  \"metadata\" : { }\n}");
             return new WorkerJobResult(
                 request.jobId(),
                 "SUCCESS",

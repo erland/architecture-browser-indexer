@@ -10,6 +10,7 @@ import info.isaksson.erland.architecturebrowser.indexer.worker.source.RetainedSo
 import info.isaksson.erland.architecturebrowser.indexer.worker.source.RetainedSourceResolvedFile;
 import info.isaksson.erland.architecturebrowser.indexer.worker.source.SourceLanguageDetectionService;
 import info.isaksson.erland.architecturebrowser.indexer.worker.model.WorkerJobResult;
+import info.isaksson.erland.architecturebrowser.indexer.publish.model.ExportSnapshotSourceFiles;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -91,7 +92,8 @@ public final class HttpWorkerService {
             document,
             readManifest(outputPath),
             result.summary(),
-            HttpWorkerSourceAccessMapper.fromSummary(result.summary())
+            HttpWorkerSourceAccessMapper.fromSummary(result.summary()),
+            readSnapshotSourceFiles(outputPath)
         );
     }
 
@@ -122,6 +124,23 @@ public final class HttpWorkerService {
             return retainedSourceCleanupService.pruneExpiredAndInvalid();
         } catch (RuntimeException exception) {
             return RetainedSourceCleanupReport.empty(Instant.now());
+        }
+    }
+
+
+    private static ExportSnapshotSourceFiles readSnapshotSourceFiles(Path outputPath) {
+        String fileName = outputPath.getFileName().toString();
+        String artifactName = fileName.endsWith(".json")
+            ? fileName.substring(0, fileName.length() - ".json".length()) + ".source-files.json"
+            : fileName + ".source-files.json";
+        Path artifactPath = outputPath.resolveSibling(artifactName);
+        if (!Files.exists(artifactPath)) {
+            return null;
+        }
+        try (var inputStream = Files.newInputStream(artifactPath)) {
+            return HttpWorkerJson.readValue(inputStream, ExportSnapshotSourceFiles.class);
+        } catch (IOException ex) {
+            return null;
         }
     }
 

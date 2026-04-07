@@ -128,7 +128,7 @@ public class IndexerApplicationService {
         Files.createDirectories(output.getParent() == null ? Path.of(".") : output.getParent());
         ArchitectureIrJson.write(document, output);
 
-        ExportBundle exportBundle = exportBundleWriter.createBundle(document, request.applicationVersion(), output.getFileName().toString());
+        ExportBundle exportBundle = exportBundleWriter.createBundle(document, request.applicationVersion(), output.getFileName().toString(), acquisitionResult.acquiredRoot());
         exportBundleWriter.writeBundle(output, exportBundle);
 
         if (request.snapshotOut() != null && !request.snapshotOut().isBlank()) {
