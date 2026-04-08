@@ -109,15 +109,17 @@ public final class ArchitectureIrViewpointDerivationService {
         List<String> persistentEntities = evidence.entityIdsForRole(ArchitecturalRole.PERSISTENT_ENTITY.id());
         List<String> persistenceAccess = evidence.entityIdsForRole(ArchitecturalRole.PERSISTENCE_ACCESS.id());
         boolean hasCorePersistenceRoles = !persistentEntities.isEmpty() || !persistenceAccess.isEmpty();
+        boolean hasPersistenceRelationshipCatalog = evidence.hasDependencyViewList("entityAssociationRelationships");
         boolean hasPersistenceSemantics = evidence.hasSemantic(ArchitecturalRelationshipSemantic.ACCESSES_PERSISTENCE.id())
             || evidence.hasSemantic(ArchitecturalRelationshipSemantic.STORED_IN.id());
         String availability;
         double confidence;
-        if (hasCorePersistenceRoles) {
+        if (hasCorePersistenceRoles || hasPersistenceRelationshipCatalog) {
             availability = "available";
             confidence = clamp(0.76
                 + (!persistentEntities.isEmpty() ? 0.08 : 0.0)
                 + (!persistenceAccess.isEmpty() ? 0.08 : 0.0)
+                + (hasPersistenceRelationshipCatalog ? 0.10 : 0.0)
                 + (hasPersistenceSemantics ? 0.04 : 0.0));
         } else if (hasPersistenceSemantics || evidence.hasEntityKind(EntityKind.DATASTORE)) {
             availability = "partial";
@@ -141,7 +143,7 @@ public final class ArchitectureIrViewpointDerivationService {
                 ArchitecturalRelationshipSemantic.ACCESSES_PERSISTENCE.id(),
                 ArchitecturalRelationshipSemantic.STORED_IN.id()),
             null,
-            evidenceSources(evidence, hasCorePersistenceRoles, hasPersistenceSemantics, true, false)
+            evidenceSources(evidence, hasCorePersistenceRoles, hasPersistenceSemantics || hasPersistenceRelationshipCatalog, true, false)
         );
     }
 

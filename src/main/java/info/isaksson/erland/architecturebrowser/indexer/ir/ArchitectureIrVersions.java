@@ -10,7 +10,7 @@ public final class ArchitectureIrVersions {
      * first-class architectural semantics, so the schema version now advances again to
      * reflect the new shape.
      */
-    public static final String CURRENT_SCHEMA_VERSION = "1.3.0";
+    public static final String CURRENT_SCHEMA_VERSION = "1.4.0";
 
     private ArchitectureIrVersions() {
     }

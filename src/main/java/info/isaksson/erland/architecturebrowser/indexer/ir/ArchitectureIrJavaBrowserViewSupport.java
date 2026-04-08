@@ -12,6 +12,7 @@ final class ArchitectureIrJavaBrowserViewSupport {
     static Map<String, Object> buildJavaBrowserViews(
         List<Map<String, Object>> endpointTypeDependencies,
         List<Map<String, Object>> endpointModuleDependencies,
+        List<Map<String, Object>> entityAssociationRelationships,
         List<Map<String, Object>> entityModelTypeDependencies,
         List<Map<String, Object>> entityModelModuleDependencies,
         List<Map<String, Object>> observerTypeDependencies,
@@ -28,9 +29,11 @@ final class ArchitectureIrJavaBrowserViewSupport {
                 "endpoint",
                 "endpointTypeDependencies",
                 "endpointModuleDependencies",
+                null,
                 List.of("exposesEndpoint", "endpoint"),
                 endpointTypeDependencies,
-                endpointModuleDependencies
+                endpointModuleDependencies,
+                List.of()
             ),
             new ArchitectureIrBrowserViewMetadataBuilder.JavaBrowserViewDefinition(
                 "javaEntityModelGraph",
@@ -40,9 +43,11 @@ final class ArchitectureIrJavaBrowserViewSupport {
                 "entity-model",
                 "entityModelTypeDependencies",
                 "entityModelModuleDependencies",
+                "entityAssociationRelationships",
                 List.of("hasAssociation", "embeds", "inheritsPersistenceModel"),
                 entityModelTypeDependencies,
-                entityModelModuleDependencies
+                entityModelModuleDependencies,
+                entityAssociationRelationships
             ),
             new ArchitectureIrBrowserViewMetadataBuilder.JavaBrowserViewDefinition(
                 "javaEventFlowGraph",
@@ -52,9 +57,11 @@ final class ArchitectureIrJavaBrowserViewSupport {
                 "observer-event",
                 "observerTypeDependencies",
                 "observerModuleDependencies",
+                null,
                 List.of("publishesEvent", "observesEvent", "eventObservedBy"),
                 observerTypeDependencies,
-                observerModuleDependencies
+                observerModuleDependencies,
+                List.of()
             ),
             new ArchitectureIrBrowserViewMetadataBuilder.JavaBrowserViewDefinition(
                 "javaWritePathGraph",
@@ -64,9 +71,11 @@ final class ArchitectureIrJavaBrowserViewSupport {
                 "write-path",
                 "writePathTypeDependencies",
                 "writePathModuleDependencies",
+                null,
                 List.of("writePath"),
                 writePathTypeDependencies,
-                writePathModuleDependencies
+                writePathModuleDependencies,
+                List.of()
             )
         );
 

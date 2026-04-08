@@ -61,6 +61,53 @@
         "type": "string"
       },
       "uniqueItems": true
+    },
+    "normalizedAssociation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "associationKind": {
+          "type": "string"
+        },
+        "associationCardinality": {
+          "type": "string"
+        },
+        "sourceLowerBound": {
+          "type": "string"
+        },
+        "sourceUpperBound": {
+          "type": "string"
+        },
+        "targetLowerBound": {
+          "type": "string"
+        },
+        "targetUpperBound": {
+          "type": "string"
+        },
+        "bidirectional": {
+          "type": "boolean"
+        },
+        "evidenceRelationshipIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "owningSideEntityId": {
+          "type": "string"
+        },
+        "owningSideMemberId": {
+          "type": "string"
+        },
+        "inverseSideEntityId": {
+          "type": "string"
+        },
+        "inverseSideMemberId": {
+          "type": "string"
+        }
+      },
+      "description": "Optional stable normalized association object. The current indexer emits this object for canonical JPA peer-entity associations when normalization succeeds; older exports may still omit it."
     }
   }
 }

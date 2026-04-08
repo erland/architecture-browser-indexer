@@ -70,6 +70,7 @@ public final class ArchitectureIrValidator {
                 messages.add("relationship references missing toEntityId: " + relationship.id());
             }
             validateNormalizedRelationshipStrings(relationship.id(), "architecturalSemantics", relationship.architecturalSemantics(), messages);
+            validateNormalizedAssociation(relationship, entityIds, messages);
         }
         return new ValidationResult(messages.isEmpty(), List.copyOf(messages));
     }
@@ -198,6 +199,46 @@ public final class ArchitectureIrValidator {
             if (!observed.add(normalized)) {
                 messages.add(fieldName + " must not contain duplicates for " + relationshipId + ": " + normalized);
             }
+        }
+    }
+
+    private static void validateNormalizedAssociation(ArchitectureRelationship relationship, Set<String> entityIds, List<String> messages) {
+        if (relationship.normalizedAssociation() == null) {
+            return;
+        }
+        var association = relationship.normalizedAssociation();
+        validateOptionalNormalizedString(relationship.id(), "normalizedAssociation.associationKind", association.associationKind(), messages);
+        validateOptionalNormalizedString(relationship.id(), "normalizedAssociation.associationCardinality", association.associationCardinality(), messages);
+        validateOptionalNormalizedString(relationship.id(), "normalizedAssociation.sourceLowerBound", association.sourceLowerBound(), messages);
+        validateOptionalNormalizedString(relationship.id(), "normalizedAssociation.sourceUpperBound", association.sourceUpperBound(), messages);
+        validateOptionalNormalizedString(relationship.id(), "normalizedAssociation.targetLowerBound", association.targetLowerBound(), messages);
+        validateOptionalNormalizedString(relationship.id(), "normalizedAssociation.targetUpperBound", association.targetUpperBound(), messages);
+        validateNormalizedRelationshipStrings(relationship.id(), "normalizedAssociation.evidenceRelationshipIds", association.evidenceRelationshipIds(), messages);
+        validateOptionalEntityReference(relationship.id(), "normalizedAssociation.owningSideEntityId", association.owningSideEntityId(), entityIds, messages);
+        validateOptionalEntityReference(relationship.id(), "normalizedAssociation.inverseSideEntityId", association.inverseSideEntityId(), entityIds, messages);
+        validateOptionalNormalizedString(relationship.id(), "normalizedAssociation.owningSideMemberId", association.owningSideMemberId(), messages);
+        validateOptionalNormalizedString(relationship.id(), "normalizedAssociation.inverseSideMemberId", association.inverseSideMemberId(), messages);
+    }
+
+    private static void validateOptionalNormalizedString(String relationshipId, String fieldName, String value, List<String> messages) {
+        if (value == null) {
+            return;
+        }
+        if (isBlank(value)) {
+            messages.add(fieldName + " must not be blank for " + relationshipId);
+        }
+    }
+
+    private static void validateOptionalEntityReference(String relationshipId, String fieldName, String entityId, Set<String> entityIds, List<String> messages) {
+        if (entityId == null) {
+            return;
+        }
+        if (isBlank(entityId)) {
+            messages.add(fieldName + " must not be blank for " + relationshipId);
+            return;
+        }
+        if (!entityIds.contains(entityId)) {
+            messages.add(fieldName + " references missing entity for " + relationshipId + ": " + entityId);
         }
     }
 

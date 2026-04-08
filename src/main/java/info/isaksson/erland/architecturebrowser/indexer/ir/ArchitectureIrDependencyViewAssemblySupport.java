@@ -17,6 +17,7 @@ final class ArchitectureIrDependencyViewAssemblySupport {
         List<Map<String, Object>> evidenceDependencies = ArchitectureIrEvidenceDependencyViewBuilder.build(contexts);
         return ArchitectureIrDependencyViewPostProcessor.finalizeDependencyViews(
             inputs.entitiesById(),
+            inputs.relationships(),
             typeDependencies,
             packageDependencies,
             moduleDependencies,

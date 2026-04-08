@@ -116,6 +116,7 @@ final class ArchitectureIrJavaViewpointBridgeSupport {
         addDependencyViewId(ids, javaView.get("preferredDependencyView"), dependencyViews);
         addDependencyViewId(ids, javaView.get("typeDependencyView"), dependencyViews);
         addDependencyViewId(ids, javaView.get("moduleDependencyView"), dependencyViews);
+        addDependencyViewId(ids, javaView.get("relationshipCatalogView"), dependencyViews);
         return ids.stream().sorted().toList();
     }
 

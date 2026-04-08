@@ -111,7 +111,7 @@ class HttpWorkerServiceTest {
     private static String minimalDocumentJson(String repositoryId) {
         return String.format("""
             {
-              "schemaVersion" : "1.3.0",
+              "schemaVersion" : "1.4.0",
               "indexerVersion" : "0.1.0-SNAPSHOT",
               "source" : {
                 "repositoryId" : "%s",

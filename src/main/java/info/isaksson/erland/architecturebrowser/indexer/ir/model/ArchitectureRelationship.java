@@ -22,7 +22,8 @@ public record ArchitectureRelationship(
     String label,
     List<SourceReference> sourceRefs,
     Map<String, Object> metadata,
-    @JsonInclude(JsonInclude.Include.NON_EMPTY) List<String> architecturalSemantics
+    @JsonInclude(JsonInclude.Include.NON_EMPTY) List<String> architecturalSemantics,
+    @JsonInclude(JsonInclude.Include.NON_NULL) NormalizedAssociation normalizedAssociation
 ) {
     public ArchitectureRelationship(
         String id,
@@ -33,7 +34,20 @@ public record ArchitectureRelationship(
         List<SourceReference> sourceRefs,
         Map<String, Object> metadata
     ) {
-        this(id, kind, fromEntityId, toEntityId, label, sourceRefs, metadata, null);
+        this(id, kind, fromEntityId, toEntityId, label, sourceRefs, metadata, null, null);
+    }
+
+    public ArchitectureRelationship(
+        String id,
+        RelationshipKind kind,
+        String fromEntityId,
+        String toEntityId,
+        String label,
+        List<SourceReference> sourceRefs,
+        Map<String, Object> metadata,
+        List<String> architecturalSemantics
+    ) {
+        this(id, kind, fromEntityId, toEntityId, label, sourceRefs, metadata, architecturalSemantics, null);
     }
 
     public ArchitectureRelationship {

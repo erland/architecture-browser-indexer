@@ -14,6 +14,7 @@ final class ArchitectureIrDependencyViewCatalogSupport {
 
     static DependencyViewCatalog compose(
         Map<String, ArchitectureEntity> entitiesById,
+        List<info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureRelationship> relationships,
         List<Map<String, Object>> typeDependencies,
         List<Map<String, Object>> packageDependencies,
         List<Map<String, Object>> moduleDependencies,
@@ -33,6 +34,11 @@ final class ArchitectureIrDependencyViewCatalogSupport {
         List<Map<String, Object>> endpointModuleDependencies = filterDependenciesByViewKind(moduleDependencies, "endpoint");
         List<Map<String, Object>> entityModelTypeDependencies = filterDependenciesByViewKind(typeDependencies, "entity-model");
         List<Map<String, Object>> entityModelModuleDependencies = filterDependenciesByViewKind(moduleDependencies, "entity-model");
+        Map<String, Object> normalizedAssociationCatalogs = ArchitectureIrNormalizedAssociationCatalogSupport.build(relationships, entitiesById);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> entityAssociationRelationships = normalizedAssociationCatalogs.containsKey("entityAssociationRelationships")
+            ? (List<Map<String, Object>>) normalizedAssociationCatalogs.get("entityAssociationRelationships")
+            : List.of();
         List<Map<String, Object>> observerTypeDependencies = filterDependenciesByViewKind(typeDependencies, "observer-event");
         List<Map<String, Object>> observerModuleDependencies = filterDependenciesByViewKind(moduleDependencies, "observer-event");
         List<Map<String, Object>> writePathTypeDependencies = filterDependenciesByViewKind(typeDependencies, "write-path");
@@ -58,6 +64,12 @@ final class ArchitectureIrDependencyViewCatalogSupport {
         dependencyViews.put("endpointModuleDependencies", List.copyOf(endpointModuleDependencies));
         dependencyViews.put("entityModelTypeDependencies", List.copyOf(entityModelTypeDependencies));
         dependencyViews.put("entityModelModuleDependencies", List.copyOf(entityModelModuleDependencies));
+        if (!entityAssociationRelationships.isEmpty()) {
+            dependencyViews.put("entityAssociationRelationships", List.copyOf(entityAssociationRelationships));
+        }
+        if (normalizedAssociationCatalogs.containsKey("relationshipCatalogs")) {
+            dependencyViews.put("relationshipCatalogs", normalizedAssociationCatalogs.get("relationshipCatalogs"));
+        }
         dependencyViews.put("observerTypeDependencies", List.copyOf(observerTypeDependencies));
         dependencyViews.put("observerModuleDependencies", List.copyOf(observerModuleDependencies));
         dependencyViews.put("writePathTypeDependencies", List.copyOf(writePathTypeDependencies));
@@ -69,6 +81,7 @@ final class ArchitectureIrDependencyViewCatalogSupport {
             frameworkModuleDependencies,
             endpointTypeDependencies,
             entityModelTypeDependencies,
+            entityAssociationRelationships,
             observerTypeDependencies,
             writePathTypeDependencies
         ));
@@ -77,6 +90,7 @@ final class ArchitectureIrDependencyViewCatalogSupport {
             frameworkModuleDependencies,
             endpointTypeDependencies,
             entityModelTypeDependencies,
+            entityAssociationRelationships,
             observerTypeDependencies,
             writePathTypeDependencies
         ));
@@ -89,7 +103,8 @@ final class ArchitectureIrDependencyViewCatalogSupport {
         ));
         dependencyViews.put("javaFrameworkArchitectureViews", Map.of(
             "endpoints", List.of("endpointTypeDependencies", "endpointModuleDependencies"),
-            "entityModel", List.of("entityModelTypeDependencies", "entityModelModuleDependencies"),
+            "entityModel", List.of("entityModelTypeDependencies", "entityModelModuleDependencies", "entityAssociationRelationships"),
+            "entityAssociations", List.of("entityAssociationRelationships"),
             "observerEvents", List.of("observerTypeDependencies", "observerModuleDependencies"),
             "writePaths", List.of("writePathTypeDependencies", "writePathModuleDependencies")
         ));
@@ -107,6 +122,7 @@ final class ArchitectureIrDependencyViewCatalogSupport {
                 hookModuleDependencies,
                 endpointTypeDependencies,
                 endpointModuleDependencies,
+                entityAssociationRelationships,
                 entityModelTypeDependencies,
                 entityModelModuleDependencies,
                 observerTypeDependencies,
@@ -122,6 +138,7 @@ final class ArchitectureIrDependencyViewCatalogSupport {
         List<Map<String, Object>> frameworkModuleDependencies,
         List<Map<String, Object>> endpointTypeDependencies,
         List<Map<String, Object>> entityModelTypeDependencies,
+        List<Map<String, Object>> entityAssociationRelationships,
         List<Map<String, Object>> observerTypeDependencies,
         List<Map<String, Object>> writePathTypeDependencies
     ) {
@@ -138,6 +155,9 @@ final class ArchitectureIrDependencyViewCatalogSupport {
         if (!entityModelTypeDependencies.isEmpty()) {
             recommendedEntryPoints.add("entityModelTypeDependencies");
         }
+        if (!entityAssociationRelationships.isEmpty()) {
+            recommendedEntryPoints.add("entityAssociationRelationships");
+        }
         if (!observerTypeDependencies.isEmpty()) {
             recommendedEntryPoints.add("observerTypeDependencies");
         }
@@ -153,6 +173,7 @@ final class ArchitectureIrDependencyViewCatalogSupport {
         List<Map<String, Object>> frameworkModuleDependencies,
         List<Map<String, Object>> endpointTypeDependencies,
         List<Map<String, Object>> entityModelTypeDependencies,
+        List<Map<String, Object>> entityAssociationRelationships,
         List<Map<String, Object>> observerTypeDependencies,
         List<Map<String, Object>> writePathTypeDependencies
     ) {
@@ -168,6 +189,9 @@ final class ArchitectureIrDependencyViewCatalogSupport {
         }
         if (!entityModelTypeDependencies.isEmpty()) {
             primaryArchitectureViews.add("entityModelTypeDependencies");
+        }
+        if (!entityAssociationRelationships.isEmpty()) {
+            primaryArchitectureViews.add("entityAssociationRelationships");
         }
         if (!observerTypeDependencies.isEmpty()) {
             primaryArchitectureViews.add("observerTypeDependencies");

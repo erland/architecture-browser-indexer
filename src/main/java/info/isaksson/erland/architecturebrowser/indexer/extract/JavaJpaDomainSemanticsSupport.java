@@ -105,6 +105,30 @@ final class JavaJpaDomainSemanticsSupport {
         return extractAnnotationBooleanAttribute(snippet, "JoinColumn", "nullable");
     }
 
+    static Optional<Boolean> extractJpaOrphanRemoval(String snippet) {
+        return extractAnnotationBooleanAttribute(snippet, "OneToMany", "orphanRemoval")
+            .or(() -> extractAnnotationBooleanAttribute(snippet, "OneToOne", "orphanRemoval"));
+    }
+
+    static boolean hasCascadeValue(String snippet, String cascadeValue) {
+        if (snippet == null || snippet.isBlank() || cascadeValue == null || cascadeValue.isBlank()) {
+            return false;
+        }
+        String expected = cascadeValue.toUpperCase(Locale.ROOT);
+        Matcher matcher = Pattern.compile("@(?:[A-Za-z_][\\w.]*\\.)?(OneToOne|OneToMany|ManyToOne|ManyToMany|ElementCollection)\\s*\\((.*?)\\)", Pattern.DOTALL).matcher(snippet);
+        while (matcher.find()) {
+            String body = matcher.group(2);
+            Matcher named = Pattern.compile("cascade\\s*=\\s*\\{?([^}]*)\\}?", Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(body);
+            if (named.find()) {
+                String values = named.group(1).toUpperCase(Locale.ROOT);
+                if (values.contains("CASCADETYPE." + expected) || values.matches(".*\\b" + Pattern.quote(expected) + "\\b.*")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     static Optional<String> extractJpaInheritanceStrategy(String snippet) {
         if (snippet == null || snippet.isBlank()) {
             return Optional.empty();

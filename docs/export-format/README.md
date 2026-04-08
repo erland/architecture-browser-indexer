@@ -29,7 +29,11 @@ Read the files in this order:
    - documents the stable normalized relationship metadata keys reserved for framework-agnostic association semantics
    - use this when you are adding or consuming multiplicity/optionality metadata without coupling to JPA-specific keys
 
-6. `schema/`
+6. `jpa-relationship-normalization-and-merge-rules.md`
+   - documents the current JPA-specific merge, non-merge, multiplicity, containment, and evidence-retention rules
+   - use this when you are changing or consuming canonical entity associations derived from JPA mappings
+
+7. `schema/`
    - machine-readable JSON Schema files for the stable structural contract
    - use these for validation, editor support, and downstream integration checks
 
@@ -214,3 +218,9 @@ Step 11 keeps optional second-wave UI-navigation work explicit in `ui-navigation
 
 - [Normalized association metadata contract](normalized-association-metadata-contract.md) — normalized association keys, endpoint-bound convention, and current first-version limits
 - [Normalized association current limits](normalized-association-current-limits.md) — short summary of the conservative first-version limitations
+- [JPA relationship normalization and merge rules](jpa-relationship-normalization-and-merge-rules.md) — supported merge patterns, non-merge cases, multiplicity rules, containment promotion, and evidence retention
+
+## Additional Reading
+- `jpa-relationship-final-integration-checklist.md` — final verification and platform handoff checklist for JPA normalized associations
+
+- `examples/README.md` — example export payload index

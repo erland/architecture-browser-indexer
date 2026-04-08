@@ -14,6 +14,7 @@ record ArchitectureIrBrowserViewCompositionInputs(
     List<Map<String, Object>> hookModuleDependencies,
     List<Map<String, Object>> endpointTypeDependencies,
     List<Map<String, Object>> endpointModuleDependencies,
+    List<Map<String, Object>> entityAssociationRelationships,
     List<Map<String, Object>> entityModelTypeDependencies,
     List<Map<String, Object>> entityModelModuleDependencies,
     List<Map<String, Object>> observerTypeDependencies,

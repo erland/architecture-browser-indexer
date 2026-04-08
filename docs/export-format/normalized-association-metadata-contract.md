@@ -4,11 +4,14 @@ This note defines the **documented stable normalized metadata keys** that relati
 
 The goal is to let downstream consumers, especially the browser/platform layer, reason about entity associations without coupling directly to framework-specific metadata such as `jpaAssociation`.
 
-## Scope of this step
+## Scope
 
-This step **confirms and documents the contract only**.
+This document defines the exported normalized association contract in two layers:
 
-It does **not** yet require the indexer to emit these fields for real relationships. Emission and derivation work belong to later steps.
+- stable normalized metadata keys on `relationship.metadata`
+- a first-class `relationship.normalizedAssociation` object for canonical association emission
+
+As of the current implementation, the indexer emits `relationship.normalizedAssociation` for canonical JPA peer-entity associations and publishes browser-facing catalogs such as `dependencyViews.entityAssociationRelationships` and `dependencyViews.relationshipCatalogs.entityAssociations`.
 
 ## Stable normalized metadata keys
 
@@ -242,3 +245,54 @@ This step does **not** yet decide:
 - whether future frameworks besides JPA populate the same keys
 
 Those decisions belong to later implementation steps.
+
+
+## First-class normalized association object
+
+As of schema version `1.4.0`, `relationship` may also carry an optional `normalizedAssociation` object.
+
+This object is intended to become the canonical home for merged association semantics once later steps implement derivation. The object is optional so older exports remain readable and existing emitters do not need to populate it immediately.
+
+Supported fields in this step:
+
+- `associationKind`
+- `associationCardinality`
+- `sourceLowerBound`
+- `sourceUpperBound`
+- `targetLowerBound`
+- `targetUpperBound`
+- `bidirectional`
+- `evidenceRelationshipIds`
+- `owningSideEntityId`
+- `owningSideMemberId`
+- `inverseSideEntityId`
+- `inverseSideMemberId`
+
+Recommended interpretation:
+
+- use the top-level `normalizedAssociation` object when present as the canonical merged association view
+- fall back to normalized metadata keys inside `relationship.metadata` for older exports or during the transition period
+- continue to treat framework-specific metadata as provenance/evidence
+
+## Relationship to JPA normalization rules
+
+This file defines the exported normalized association contract.
+
+For the current JPA-specific derivation, merge, non-merge, multiplicity, containment, and evidence-retention rules, see [jpa-relationship-normalization-and-merge-rules](jpa-relationship-normalization-and-merge-rules.md).
+
+
+## Current emitted browser-facing catalogs
+
+When canonical normalized JPA peer associations are present, the export now also emits browser-facing catalog structures for downstream consumers:
+
+- `dependencyViews.entityAssociationRelationships`
+  - a list of canonical normalized peer-entity association entries
+  - excludes topology rollups and non-peer/value-like JPA cases such as `value-collection`, `embedded-value`, and `embedded-identifier`
+- `dependencyViews.relationshipCatalogs.entityAssociations`
+  - catalog metadata describing the exported entity-association relationship set
+- `dependencyViews.javaBrowserViews.views[*].relationshipCatalogView`
+  - set to `entityAssociationRelationships` for the Java entity model graph when canonical association data is available
+- `dependencyViews.javaBrowserViews.views[*].preferredDependencyView`
+  - also set to `entityAssociationRelationships` for the Java entity model graph when canonical association data is available
+
+These browser-facing catalogs are now part of the effective handoff contract for the platform layer.

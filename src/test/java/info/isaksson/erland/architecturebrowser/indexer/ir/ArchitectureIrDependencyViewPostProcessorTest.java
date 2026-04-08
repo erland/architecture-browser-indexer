@@ -1,6 +1,7 @@
 package info.isaksson.erland.architecturebrowser.indexer.ir;
 
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureEntity;
+import info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureRelationship;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityOrigin;
 import org.junit.jupiter.api.Test;
@@ -57,6 +58,7 @@ class ArchitectureIrDependencyViewPostProcessorTest {
 
         Map<String, Object> dependencyViews = ArchitectureIrDependencyViewPostProcessor.finalizeDependencyViews(
             Map.of(packageEntity.id(), packageEntity, orderService.id(), orderService),
+            List.of(),
             List.of(endpointTypeDependency),
             List.of(packageDependency),
             List.of(),

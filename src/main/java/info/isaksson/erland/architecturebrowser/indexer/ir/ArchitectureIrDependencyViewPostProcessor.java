@@ -11,6 +11,7 @@ final class ArchitectureIrDependencyViewPostProcessor {
 
     static Map<String, Object> finalizeDependencyViews(
         Map<String, ArchitectureEntity> entitiesById,
+        List<info.isaksson.erland.architecturebrowser.indexer.ir.model.ArchitectureRelationship> relationships,
         List<Map<String, Object>> typeDependencies,
         List<Map<String, Object>> packageDependencies,
         List<Map<String, Object>> moduleDependencies,
@@ -18,6 +19,7 @@ final class ArchitectureIrDependencyViewPostProcessor {
     ) {
         ArchitectureIrDependencyViewCatalogSupport.DependencyViewCatalog catalog = ArchitectureIrDependencyViewCatalogSupport.compose(
             entitiesById,
+            relationships,
             typeDependencies,
             packageDependencies,
             moduleDependencies,

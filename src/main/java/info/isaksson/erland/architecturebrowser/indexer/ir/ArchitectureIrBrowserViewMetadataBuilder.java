@@ -1,6 +1,7 @@
 package info.isaksson.erland.architecturebrowser.indexer.ir;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -29,6 +30,7 @@ final class ArchitectureIrBrowserViewMetadataBuilder {
         Map<String, Object> javaBrowserViews = ArchitectureIrJavaBrowserViewSupport.buildJavaBrowserViews(
             inputs.endpointTypeDependencies(),
             inputs.endpointModuleDependencies(),
+            inputs.entityAssociationRelationships(),
             inputs.entityModelTypeDependencies(),
             inputs.entityModelModuleDependencies(),
             inputs.observerTypeDependencies(),
@@ -65,6 +67,7 @@ final class ArchitectureIrBrowserViewMetadataBuilder {
     static Map<String, Object> buildJavaBrowserViews(
         List<Map<String, Object>> endpointTypeDependencies,
         List<Map<String, Object>> endpointModuleDependencies,
+        List<Map<String, Object>> entityAssociationRelationships,
         List<Map<String, Object>> entityModelTypeDependencies,
         List<Map<String, Object>> entityModelModuleDependencies,
         List<Map<String, Object>> observerTypeDependencies,
@@ -75,6 +78,7 @@ final class ArchitectureIrBrowserViewMetadataBuilder {
         return ArchitectureIrJavaBrowserViewSupport.buildJavaBrowserViews(
             endpointTypeDependencies,
             endpointModuleDependencies,
+            entityAssociationRelationships,
             entityModelTypeDependencies,
             entityModelModuleDependencies,
             observerTypeDependencies,
@@ -187,7 +191,7 @@ final class ArchitectureIrBrowserViewMetadataBuilder {
             metadata.put("preferredDependencyView", !filteredTypeDependencies.isEmpty() ? typeDependencyView : moduleDependencyView);
             metadata.put("browserViewKind", "graph");
             metadata.put("recommendedForArchitectureViews", true);
-            return Map.copyOf(metadata);
+            return Collections.unmodifiableMap(metadata);
         }
     }
 
@@ -199,11 +203,16 @@ final class ArchitectureIrBrowserViewMetadataBuilder {
         String architectureViewKind,
         String typeDependencyView,
         String moduleDependencyView,
+        String relationshipCatalogView,
         List<String> frameworkRelationships,
         List<Map<String, Object>> typeDependencies,
-        List<Map<String, Object>> moduleDependencies
+        List<Map<String, Object>> moduleDependencies,
+        List<Map<String, Object>> relationshipCatalogEntries
     ) {
         Map<String, Object> toMetadataMap() {
+            boolean available = !typeDependencies.isEmpty()
+                || !moduleDependencies.isEmpty()
+                || (relationshipCatalogEntries != null && !relationshipCatalogEntries.isEmpty());
             Map<String, Object> metadata = new LinkedHashMap<>(new BrowserViewDescriptor(
                 id,
                 title,
@@ -213,7 +222,7 @@ final class ArchitectureIrBrowserViewMetadataBuilder {
                 typeDependencyView,
                 moduleDependencyView,
                 frameworkRelationships,
-                !typeDependencies.isEmpty() || !moduleDependencies.isEmpty(),
+                available,
                 typeDependencies.size(),
                 moduleDependencies.size()
             ).toMetadataMap());
@@ -221,14 +230,31 @@ final class ArchitectureIrBrowserViewMetadataBuilder {
             metadata.put("typeDependencyView", typeDependencyView);
             metadata.put("moduleDependencyView", moduleDependencyView);
             metadata.put("frameworkRelationships", List.copyOf(frameworkRelationships));
-            metadata.put("preferredDependencyView", !typeDependencies.isEmpty() ? typeDependencyView : moduleDependencyView);
-            metadata.put("browserViewKind", "graph");
+            if (relationshipCatalogView != null) {
+                metadata.put("relationshipCatalogView", relationshipCatalogView);
+            }
+            String preferredDependencyView = relationshipCatalogView != null && relationshipCatalogEntries != null && !relationshipCatalogEntries.isEmpty()
+                ? relationshipCatalogView
+                : !typeDependencies.isEmpty()
+                ? typeDependencyView
+                : !moduleDependencies.isEmpty()
+                ? moduleDependencyView
+                : relationshipCatalogView;
+            metadata.put("preferredDependencyView", preferredDependencyView);
+            metadata.put("browserViewKind", relationshipCatalogView != null && relationshipCatalogEntries != null && !relationshipCatalogEntries.isEmpty()
+                ? "graph-with-relationship-catalog"
+                : "graph");
             metadata.put("recommendedForArchitectureViews", true);
             metadata.put("typeRelationshipKinds", distinctStringValues(typeDependencies, "relationshipKind"));
             metadata.put("moduleRelationshipKinds", distinctStringValues(moduleDependencies, "relationshipKind"));
             metadata.put("availableFrameworks", distinctListValues("frameworks", typeDependencies, moduleDependencies));
             metadata.put("availableArchitectureViewKinds", distinctListValues("architectureViewKinds", typeDependencies, moduleDependencies));
-            return Map.copyOf(metadata);
+            if (relationshipCatalogEntries != null) {
+                metadata.put("relationshipCatalogCount", relationshipCatalogEntries.size());
+                metadata.put("relationshipAssociationCardinalities", distinctStringValues(relationshipCatalogEntries, "associationCardinality"));
+                metadata.put("relationshipAssociationKinds", distinctStringValues(relationshipCatalogEntries, "associationKind"));
+            }
+            return Collections.unmodifiableMap(metadata);
         }
     }
 }

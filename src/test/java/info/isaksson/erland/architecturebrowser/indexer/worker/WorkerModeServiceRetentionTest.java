@@ -37,7 +37,7 @@ class WorkerModeServiceRetentionTest {
                 Files.writeString(Path.of(request.outputPath()), "{}\n");
                 Path outputPath = Path.of(request.outputPath());
                 return new IndexRunResult(new ArchitectureIndexDocument(
-                    "1.3.0",
+                    info.isaksson.erland.architecturebrowser.indexer.ir.ArchitectureIrVersions.CURRENT_SCHEMA_VERSION,
                     "0.1.0-SNAPSHOT",
                     new RunMetadata(Instant.now(), Instant.now(), RunOutcome.SUCCESS, List.of(), Map.of()),
                     new RepositorySource("repo-1", "git", acquiredRoot.toString(), "https://example/repo.git", "main", "rev-123", Instant.now(), Map.of()),

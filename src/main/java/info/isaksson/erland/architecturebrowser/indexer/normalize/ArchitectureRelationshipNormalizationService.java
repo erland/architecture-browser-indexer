@@ -48,6 +48,7 @@ public final class ArchitectureRelationshipNormalizationService {
         if (relationship.architecturalSemantics() != null) {
             semantics.addAll(relationship.architecturalSemantics());
         }
+        var normalizedAssociation = relationship.normalizedAssociation();
 
         ArchitectureRelationshipNormalizationContext context = new ArchitectureRelationshipNormalizationContext(
             relationship,
@@ -59,10 +60,15 @@ public final class ArchitectureRelationshipNormalizationService {
                 continue;
             }
             NormalizedArchitectureRelationship normalized = rule.normalize(context);
-            if (normalized == null || normalized.architecturalSemantics() == null) {
+            if (normalized == null) {
                 continue;
             }
-            semantics.addAll(normalized.architecturalSemantics());
+            if (normalized.architecturalSemantics() != null) {
+                semantics.addAll(normalized.architecturalSemantics());
+            }
+            if (normalized.normalizedAssociation() != null) {
+                normalizedAssociation = normalized.normalizedAssociation();
+            }
         }
 
         return new ArchitectureRelationship(
@@ -73,7 +79,8 @@ public final class ArchitectureRelationshipNormalizationService {
             relationship.label(),
             relationship.sourceRefs(),
             relationship.metadata(),
-            semantics.isEmpty() ? null : semantics
+            semantics.isEmpty() ? null : semantics,
+            normalizedAssociation
         );
     }
 
@@ -92,6 +99,6 @@ public final class ArchitectureRelationshipNormalizationService {
         for (ArchitectureRelationship relationship : relationships) {
             normalized.add(normalizeRelationship(relationship, entitiesById, relationshipsById));
         }
-        return List.copyOf(normalized);
+        return JavaJpaInverseAssociationMergeSupport.mergeInverseJpaAssociations(normalized, entitiesById);
     }
 }

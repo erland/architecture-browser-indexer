@@ -35,6 +35,12 @@ final class JavaJpaPropertySemanticsSupport {
         metadata.put("framework", "jpa");
         boolean changed = enrichCommonJpaPropertyMetadata(metadata, JavaDeclaredTypeSupport.metadataStringList(fieldEntity.metadata().get("annotations")), snippet);
         Optional<String> association = JavaJpaDomainSemanticsSupport.detectJpaAssociation(snippet);
+        String declaredType = String.valueOf(fieldEntity.metadata().getOrDefault("declaredType", ""));
+        JavaJpaAssociationEvidenceSupport.extractFieldAssociationEvidence(JavaDeclaredTypeSupport.metadataStringList(fieldEntity.metadata().get("annotations")), declaredType, snippet)
+            .ifPresent(evidence -> {
+                metadata.put("jpaAssociationEvidence", evidence.toMetadata());
+                metadata.put("jpaAssociationRawKind", evidence.associationKind());
+            });
         if (association.isPresent()) {
             String associationKind = association.get();
             metadata.put("jpaAssociation", associationKind);
@@ -42,9 +48,8 @@ final class JavaJpaPropertySemanticsSupport {
             JavaJpaDomainSemanticsSupport.extractJpaJoinColumn(snippet).ifPresent(joinColumn -> metadata.put("joinColumn", joinColumn));
             JavaJpaDomainSemanticsSupport.extractJpaJoinTable(snippet).ifPresent(joinTable -> metadata.put("joinTable", joinTable));
             changed = true;
-            String declaredType = String.valueOf(fieldEntity.metadata().getOrDefault("declaredType", ""));
             associationSemantics.emitAssociationRelationship(
-                accumulator, ownerTypeEntityId, ownerQualifiedName, null, null, null, associationKind, declaredType,
+                accumulator, ownerTypeEntityId, ownerQualifiedName, "field", fieldEntity.name(), fieldEntity.name(), associationKind, declaredType,
                 snippet, relativePath, packageName,
                 JavaGenericSyntaxSupport.lineOf(fieldEntity.sourceRefs().isEmpty() ? null : fieldEntity.sourceRefs().getFirst(), fieldNode),
                 fieldEntity.sourceRefs().isEmpty() ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(fieldNode), snippet, Map.of("language", "java", "kind", "field_declaration")) : fieldEntity.sourceRefs().getFirst(),
@@ -52,13 +57,22 @@ final class JavaJpaPropertySemanticsSupport {
             );
         }
         if (Boolean.TRUE.equals(metadata.get("jpaEmbedded"))) {
-            String declaredType = String.valueOf(fieldEntity.metadata().getOrDefault("declaredType", ""));
             associationSemantics.emitEmbeddedRelationship(
-                accumulator, ownerTypeEntityId, ownerQualifiedName, null, null, null, declaredType,
+                accumulator, ownerTypeEntityId, ownerQualifiedName, "field", fieldEntity.name(), fieldEntity.name(), declaredType,
                 relativePath, packageName,
                 JavaGenericSyntaxSupport.lineOf(fieldEntity.sourceRefs().isEmpty() ? null : fieldEntity.sourceRefs().getFirst(), fieldNode),
                 fieldEntity.sourceRefs().isEmpty() ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(fieldNode), snippet, Map.of("language", "java", "kind", "field_declaration")) : fieldEntity.sourceRefs().getFirst(),
-                importsBySimpleName, declaredTypes, "embeds-jpa-type"
+                importsBySimpleName, declaredTypes, "embeds-jpa-type", snippet
+            );
+        }
+        Object handlingCategory = ((Map<?, ?>) metadata.getOrDefault("jpaAssociationEvidence", Map.of())).get("handlingCategory");
+        if ("value-collection".equals(String.valueOf(handlingCategory))) {
+            associationSemantics.emitValueCollectionRelationship(
+                accumulator, ownerTypeEntityId, ownerQualifiedName, "field", fieldEntity.name(), fieldEntity.name(), declaredType,
+                relativePath, packageName,
+                JavaGenericSyntaxSupport.lineOf(fieldEntity.sourceRefs().isEmpty() ? null : fieldEntity.sourceRefs().getFirst(), fieldNode),
+                fieldEntity.sourceRefs().isEmpty() ? ExtractionSupport.sourceRef(relativePath, SyntaxTreeExtractionSupport.oneBasedLine(fieldNode), snippet, Map.of("language", "java", "kind", "field_declaration")) : fieldEntity.sourceRefs().getFirst(),
+                importsBySimpleName, declaredTypes, snippet
             );
         }
         if (changed) {
@@ -127,6 +141,12 @@ final class JavaJpaPropertySemanticsSupport {
         if (declaredType == null || declaredType.isBlank()) {
             declaredType = JavaGenericSyntaxSupport.inferJavaMethodReturnTypeFromSnippet(snippet, methodName).orElse("");
         }
+        String finalDeclaredType = declaredType;
+        JavaJpaAssociationEvidenceSupport.extractMethodAssociationEvidence(annotations, finalDeclaredType, snippet, propertyName)
+            .ifPresent(evidence -> {
+                metadata.put("jpaAssociationEvidence", evidence.toMetadata());
+                metadata.put("jpaAssociationRawKind", evidence.associationKind());
+            });
         if (association.isPresent()) {
             String associationKind = association.get();
             metadata.put("jpaAssociation", associationKind);
@@ -146,7 +166,16 @@ final class JavaJpaPropertySemanticsSupport {
                 accumulator, ownerTypeEntityId, ownerQualifiedName, "method", methodName, propertyName,
                 declaredType, relativePath, packageName,
                 JavaGenericSyntaxSupport.lineOf(methodEntity.sourceRefs().isEmpty() ? null : methodEntity.sourceRefs().getFirst(), methodNode),
-                ref, importsBySimpleName, declaredTypes, "embeds-jpa-property-type"
+                ref, importsBySimpleName, declaredTypes, "embeds-jpa-property-type", snippet
+            );
+        }
+        Object handlingCategory = ((Map<?, ?>) metadata.getOrDefault("jpaAssociationEvidence", Map.of())).get("handlingCategory");
+        if ("value-collection".equals(String.valueOf(handlingCategory))) {
+            associationSemantics.emitValueCollectionRelationship(
+                accumulator, ownerTypeEntityId, ownerQualifiedName, "method", methodName, propertyName,
+                declaredType, relativePath, packageName,
+                JavaGenericSyntaxSupport.lineOf(methodEntity.sourceRefs().isEmpty() ? null : methodEntity.sourceRefs().getFirst(), methodNode),
+                ref, importsBySimpleName, declaredTypes, snippet
             );
         }
         if (changed) {

@@ -38,7 +38,7 @@ class ArchitectureIrMetadataShapingSupportsTest {
             List.of(), List.of(), List.of(routeDependency), List.of(), List.of(), List.of(), List.of(), List.of()
         );
         Map<String, Object> java = ArchitectureIrJavaBrowserViewSupport.buildJavaBrowserViews(
-            List.of(endpointDependency), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
+            List.of(endpointDependency), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()
         );
         Map<String, Object> catalog = ArchitectureIrBrowserViewFamilyCatalogSupport.buildBrowserViewCatalog(frontend, java);
 

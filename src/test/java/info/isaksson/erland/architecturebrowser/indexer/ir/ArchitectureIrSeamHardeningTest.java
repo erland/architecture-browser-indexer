@@ -60,6 +60,7 @@ class ArchitectureIrSeamHardeningTest {
             List.of(),
             List.of(),
             List.of(),
+            List.of(),
             List.of()
         );
         Map<String, Object> catalog = ArchitectureIrBrowserViewMetadataBuilder.buildBrowserViewCatalog(frontendViews, javaViews);

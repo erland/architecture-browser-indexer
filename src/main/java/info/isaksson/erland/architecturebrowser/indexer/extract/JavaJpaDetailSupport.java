@@ -5,14 +5,15 @@ import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedE
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 final class JavaJpaDetailSupport {
     record JpaTypeDetails(LinkedHashMap<String, Object> metadata) {}
-    record JpaFieldDetails(LinkedHashMap<String, Object> metadata, boolean changed, boolean embedded, String associationKind, String mappedBy, String joinColumn, String joinTable, String declaredType) {}
-    record JpaMethodDetails(LinkedHashMap<String, Object> metadata, boolean changed, String propertyName, boolean embedded, String associationKind, String mappedBy, String joinColumn, String joinTable, String declaredType) {}
+    record JpaFieldDetails(LinkedHashMap<String, Object> metadata, boolean changed, boolean embedded, String associationKind, String mappedBy, String joinColumn, String joinTable, String declaredType, Map<String, Object> associationEvidence) {}
+    record JpaMethodDetails(LinkedHashMap<String, Object> metadata, boolean changed, String propertyName, boolean embedded, String associationKind, String mappedBy, String joinColumn, String joinTable, String declaredType, Map<String, Object> associationEvidence) {}
 
     JpaTypeDetails analyzeType(ExtractedEntityFact typeEntity, String snippet) {
         if (!isJpaPersistentType(snippet, typeEntity)) return null;
@@ -37,6 +38,11 @@ final class JavaJpaDetailSupport {
             changed = true;
         }
         Optional<String> assoc = detectJpaAssociation(annotations, snippet);
+        String declaredType = String.valueOf(fieldEntity.metadata().getOrDefault("declaredType", ""));
+        Map<String, Object> associationEvidence = JavaJpaAssociationEvidenceSupport.extractFieldAssociationEvidence(annotations, declaredType, snippet).map(JavaJpaAssociationEvidenceSupport.JpaAssociationEvidence::toMetadata).orElse(Map.of());
+        if (!associationEvidence.isEmpty()) {
+            metadata.put("jpaAssociationEvidence", associationEvidence);
+        }
         if (assoc.isPresent()) {
             metadata.put("jpaAssociation", assoc.get());
             extractAnnotationStringAttribute(snippet, "OneToMany", "mappedBy").or(() -> extractAnnotationStringAttribute(snippet, "OneToOne", "mappedBy")).or(() -> extractAnnotationStringAttribute(snippet, "ManyToMany", "mappedBy")).ifPresent(v -> metadata.put("mappedBy", v));
@@ -44,7 +50,7 @@ final class JavaJpaDetailSupport {
             extractAnnotationStringAttribute(snippet, "JoinTable", "name").ifPresent(v -> metadata.put("joinTable", v));
             changed = true;
         }
-        return new JpaFieldDetails(metadata, changed, Boolean.TRUE.equals(metadata.get("jpaEmbedded")), assoc.orElse(null), str(metadata.get("mappedBy")), str(metadata.get("joinColumn")), str(metadata.get("joinTable")), String.valueOf(fieldEntity.metadata().getOrDefault("declaredType", "")));
+        return new JpaFieldDetails(metadata, changed, Boolean.TRUE.equals(metadata.get("jpaEmbedded")), assoc.orElse(null), str(metadata.get("mappedBy")), str(metadata.get("joinColumn")), str(metadata.get("joinTable")), declaredType, associationEvidence);
     }
 
     JpaMethodDetails analyzeMethod(ExtractedEntityFact methodEntity, String snippet, List<String> annotations) {
@@ -55,8 +61,13 @@ final class JavaJpaDetailSupport {
         metadata.put("jpaPropertyAccess", true);
         metadata.put("jpaPropertyName", propertyName);
         Optional<String> assoc = detectJpaAssociation(annotations, snippet);
+        String declaredType = String.valueOf(methodEntity.metadata().getOrDefault("returnType", ""));
+        Map<String, Object> associationEvidence = JavaJpaAssociationEvidenceSupport.extractMethodAssociationEvidence(annotations, declaredType, snippet, propertyName).map(JavaJpaAssociationEvidenceSupport.JpaAssociationEvidence::toMetadata).orElse(Map.of());
+        if (!associationEvidence.isEmpty()) {
+            metadata.put("jpaAssociationEvidence", associationEvidence);
+        }
         if (assoc.isPresent()) metadata.put("jpaAssociation", assoc.get());
-        return new JpaMethodDetails(metadata, true, propertyName, Boolean.TRUE.equals(metadata.get("jpaEmbedded")), assoc.orElse(null), str(metadata.get("mappedBy")), str(metadata.get("joinColumn")), str(metadata.get("joinTable")), String.valueOf(methodEntity.metadata().getOrDefault("returnType", "")));
+        return new JpaMethodDetails(metadata, true, propertyName, Boolean.TRUE.equals(metadata.get("jpaEmbedded")), assoc.orElse(null), str(metadata.get("mappedBy")), str(metadata.get("joinColumn")), str(metadata.get("joinTable")), declaredType, associationEvidence);
     }
 
     static List<String> metadataStringList(Object value) { return value instanceof List<?> list ? list.stream().map(String::valueOf).toList() : List.of(); }

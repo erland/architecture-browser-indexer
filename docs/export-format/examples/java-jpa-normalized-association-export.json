@@ -1,0 +1,168 @@
+{
+  "schemaVersion": "1.4.0",
+  "relationships": [
+    {
+      "id": "rel:depends-on:project-tasks",
+      "kind": "DEPENDS_ON",
+      "fromEntityId": "entity:Project",
+      "toEntityId": "entity:Task",
+      "label": "com.example.domain.Task",
+      "sourceRefs": [],
+      "metadata": {
+        "framework": "jpa",
+        "relationshipType": "hasAssociation",
+        "jpaAssociationHandling": "merged-bidirectional-peer-association",
+        "associationKind": "containment",
+        "associationCardinality": "one-to-many",
+        "sourceLowerBound": "1",
+        "sourceUpperBound": "1",
+        "targetLowerBound": "0",
+        "targetUpperBound": "*",
+        "containmentPromoted": true,
+        "inverseJpaAssociationMerged": true,
+        "inverseJpaAssociationRelationshipIds": [
+          "rel:field:Task.project",
+          "rel:field:Project.tasks"
+        ]
+      },
+      "normalizedAssociation": {
+        "associationKind": "containment",
+        "associationCardinality": "one-to-many",
+        "sourceLowerBound": "1",
+        "sourceUpperBound": "1",
+        "targetLowerBound": "0",
+        "targetUpperBound": "*",
+        "bidirectional": true,
+        "evidenceRelationshipIds": [
+          "rel:field:Task.project",
+          "rel:field:Project.tasks"
+        ],
+        "owningSideEntityId": "entity:Task",
+        "owningSideMemberId": "project",
+        "inverseSideEntityId": "entity:Project",
+        "inverseSideMemberId": "tasks"
+      }
+    }
+  ],
+  "dependencyViews": {
+    "entityAssociationRelationships": [
+      {
+        "relationshipId": "rel:depends-on:project-tasks",
+        "canonicalRelationshipId": "rel:depends-on:project-tasks",
+        "relationshipKind": "DEPENDS_ON",
+        "relationshipType": "normalizedAssociation",
+        "framework": "jpa",
+        "browserViewKind": "relationship-catalog",
+        "architectureViewKinds": [
+          "entity-model"
+        ],
+        "sourceEntityId": "entity:Project",
+        "sourceEntityName": "Project",
+        "targetEntityId": "entity:Task",
+        "targetEntityName": "Task",
+        "label": "com.example.domain.Task",
+        "associationKind": "containment",
+        "associationCardinality": "one-to-many",
+        "sourceLowerBound": "1",
+        "sourceUpperBound": "1",
+        "targetLowerBound": "0",
+        "targetUpperBound": "*",
+        "bidirectional": true,
+        "owningSideEntityId": "entity:Task",
+        "owningSideMemberId": "project",
+        "inverseSideEntityId": "entity:Project",
+        "inverseSideMemberId": "tasks",
+        "evidenceRelationshipIds": [
+          "rel:field:Task.project",
+          "rel:field:Project.tasks"
+        ],
+        "evidenceRelationshipCount": 2,
+        "recommendedForArchitectureViews": true,
+        "canonicalForEntityViews": true,
+        "rawRelationshipEvidenceRetained": true,
+        "jpaAssociationHandling": "merged-bidirectional-peer-association"
+      }
+    ],
+    "relationshipCatalogs": {
+      "entityAssociations": {
+        "id": "entityAssociationRelationships",
+        "title": "Entity association relationships",
+        "description": "Canonical normalized entity associations prepared for browser-native persistence and entity-model views.",
+        "relationshipCatalogKind": "entity-associations",
+        "browserViewKind": "relationship-catalog",
+        "framework": "jpa",
+        "frameworks": [
+          "jpa"
+        ],
+        "architectureViewKinds": [
+          "entity-model"
+        ],
+        "available": true,
+        "relationshipCount": 1,
+        "associationCardinalities": [
+          "one-to-many"
+        ],
+        "associationKinds": [
+          "containment"
+        ],
+        "recommendedForArchitectureViews": true,
+        "canonicalForEntityViews": true,
+        "retainsRawRelationshipEvidence": true
+      }
+    },
+    "javaBrowserViews": {
+      "views": [
+        {
+          "id": "javaEntityModelGraph",
+          "title": "Java entity model graph",
+          "description": "JPA entity, embeddable, inheritance, and association relationships prepared for browser-native persistence-model exploration.",
+          "framework": "jpa",
+          "architectureViewKind": "entity-model",
+          "typeDependencyView": "entityModelTypeDependencies",
+          "moduleDependencyView": "entityModelModuleDependencies",
+          "relationshipCatalogView": "entityAssociationRelationships",
+          "frameworkRelationships": [
+            "hasAssociation",
+            "embeds",
+            "inheritsPersistenceModel"
+          ],
+          "available": true,
+          "typeDependencyCount": 0,
+          "moduleDependencyCount": 0,
+          "relationshipCatalogCount": 1,
+          "preferredDependencyView": "entityAssociationRelationships",
+          "browserViewKind": "graph",
+          "recommendedForArchitectureViews": true,
+          "relationshipKinds": [
+            "DEPENDS_ON"
+          ],
+          "availableFrameworks": [
+            "jpa"
+          ],
+          "availableArchitectureViewKinds": [
+            "entity-model"
+          ]
+        }
+      ],
+      "availableViews": [
+        "javaEntityModelGraph"
+      ],
+      "defaultViewId": "javaEntityModelGraph"
+    }
+  },
+  "viewpoints": [
+    {
+      "id": "persistence-model",
+      "title": "Persistence model",
+      "availability": "available",
+      "confidence": 0.95,
+      "preferredDependencyViews": [
+        "entityAssociationRelationships"
+      ],
+      "evidenceSources": [
+        "java-normalization",
+        "jpa"
+      ]
+    }
+  ]
+}

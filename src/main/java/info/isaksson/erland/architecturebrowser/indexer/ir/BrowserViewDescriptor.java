@@ -1,5 +1,6 @@
 package info.isaksson.erland.architecturebrowser.indexer.ir;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,6 @@ record BrowserViewDescriptor(
         metadata.put("available", available);
         metadata.put("typeDependencyCount", typeDependencyCount);
         metadata.put("moduleDependencyCount", moduleDependencyCount);
-        return Map.copyOf(metadata);
+        return Collections.unmodifiableMap(metadata);
     }
 }

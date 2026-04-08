@@ -55,6 +55,8 @@ final class JavaJpaAssociationSemanticsSupport {
         relationshipMetadata.put("associationCardinality", associationKind);
         deriveAssociationBounds(associationKind, snippet).forEach(relationshipMetadata::put);
         relationshipMetadata.put("jpaAssociation", associationKind);
+        JavaJpaAssociationEvidenceSupport.extractFieldAssociationEvidence(List.of(), declaredType, snippet)
+            .ifPresent(evidence -> relationshipMetadata.put("jpaAssociationEvidence", evidence.toMetadata()));
         JavaJpaDomainSemanticsSupport.extractJpaMappedBy(snippet).ifPresent(mappedBy -> relationshipMetadata.put("mappedBy", mappedBy));
         JavaJpaDomainSemanticsSupport.extractJpaJoinColumn(snippet).ifPresent(joinColumn -> relationshipMetadata.put("joinColumn", joinColumn));
         JavaJpaDomainSemanticsSupport.extractJpaJoinTable(snippet).ifPresent(joinTable -> relationshipMetadata.put("joinTable", joinTable));
@@ -149,7 +151,8 @@ final class JavaJpaAssociationSemanticsSupport {
         SourceReference ref,
         Map<String, String> importsBySimpleName,
         Map<String, JavaDeclaredType> declaredTypes,
-        String relationshipTypeName
+        String relationshipTypeName,
+        String snippet
     ) {
         List<String> referencedTypes = JavaRelationshipEvidenceEmitter.extractReferencedTypes(declaredType);
         if (referencedTypes.isEmpty()) {
@@ -171,6 +174,9 @@ final class JavaJpaAssociationSemanticsSupport {
         LinkedHashMap<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("framework", "jpa");
         metadata.put("relationshipType", "embeds");
+        metadata.put("jpaAssociationHandling", isEmbeddedIdentifier(snippet) ? "embedded-identifier" : "embedded-value");
+        metadata.put("jpaAssociationPeerEntity", Boolean.FALSE);
+        metadata.put("jpaNonPeerAssociation", Boolean.TRUE);
         metadata.put("ownerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName);
         if (ownerMemberKind != null) metadata.put("ownerMemberKind", ownerMemberKind);
         if (ownerMemberName != null) metadata.put("ownerMemberName", ownerMemberName);
@@ -186,4 +192,73 @@ final class JavaJpaAssociationSemanticsSupport {
             Map.copyOf(metadata)
         ));
     }
+
+    void emitValueCollectionRelationship(
+        ExtractionAccumulator accumulator,
+        String ownerTypeEntityId,
+        String ownerQualifiedName,
+        String ownerMemberKind,
+        String ownerMemberName,
+        String ownerPropertyName,
+        String declaredType,
+        String relativePath,
+        String packageName,
+        int line,
+        SourceReference ref,
+        Map<String, String> importsBySimpleName,
+        Map<String, JavaDeclaredType> declaredTypes,
+        String snippet
+    ) {
+        List<String> referencedTypes = JavaRelationshipEvidenceEmitter.extractReferencedTypes(declaredType);
+        if (referencedTypes.isEmpty()) {
+            return;
+        }
+        JavaRelationshipEvidenceEmitter.ResolvedJavaType target = relationshipEvidenceEmitter.resolveJavaTypeReference(
+            accumulator,
+            referencedTypes.getLast(),
+            EntityKind.CLASS,
+            relativePath,
+            packageName,
+            line,
+            importsBySimpleName,
+            declaredTypes
+        );
+        if (target == null || ownerTypeEntityId.equals(target.entityId())) {
+            return;
+        }
+        LinkedHashMap<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("framework", "jpa");
+        metadata.put("relationshipType", "hasAssociation");
+        metadata.put("jpaAssociationHandling", "value-collection");
+        metadata.put("jpaAssociationPeerEntity", Boolean.FALSE);
+        metadata.put("jpaNonPeerAssociation", Boolean.TRUE);
+        metadata.put("associationKind", "value-collection");
+        metadata.put("jpaAssociation", "element-collection");
+        metadata.put("ownerQualifiedName", ownerQualifiedName == null ? "" : ownerQualifiedName);
+        if (ownerMemberKind != null) metadata.put("ownerMemberKind", ownerMemberKind);
+        if (ownerMemberName != null) metadata.put("ownerMemberName", ownerMemberName);
+        if (ownerPropertyName != null) metadata.put("ownerPropertyName", ownerPropertyName);
+        JavaJpaAssociationEvidenceSupport.extractFieldAssociationEvidence(List.of(), declaredType, snippet)
+            .ifPresent(evidence -> metadata.put("jpaAssociationEvidence", evidence.toMetadata()));
+        accumulator.addRelationship(ExtractionSupport.typedRelationship(
+            info.isaksson.erland.architecturebrowser.indexer.ir.model.RelationshipKind.DEPENDS_ON,
+            "collects-jpa-value",
+            ownerTypeEntityId,
+            target.entityId(),
+            target.label(),
+            ref,
+            "java",
+            Map.copyOf(metadata)
+        ));
+    }
+
+    private static boolean isEmbeddedIdentifier(String snippet) {
+        if (snippet == null || snippet.isBlank()) {
+            return false;
+        }
+        String lowered = snippet.toLowerCase(java.util.Locale.ROOT);
+        return lowered.contains("@embeddedid") || lowered.contains(" embeddedid");
+    }
 }
+
+

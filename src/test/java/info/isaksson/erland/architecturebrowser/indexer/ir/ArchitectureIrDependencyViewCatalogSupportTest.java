@@ -37,6 +37,7 @@ class ArchitectureIrDependencyViewCatalogSupportTest {
 
         ArchitectureIrDependencyViewCatalogSupport.DependencyViewCatalog catalog = ArchitectureIrDependencyViewCatalogSupport.compose(
             Map.of(sourceType.id(), sourceType, targetType.id(), targetType),
+            List.of(),
             List.of(
                 Map.of("architectureViewKinds", List.of("composition"), "sourceTypeId", sourceType.id(), "targetTypeId", targetType.id()),
                 Map.of("architectureViewKinds", List.of("endpoint"), "sourceTypeId", sourceType.id(), "targetTypeId", targetType.id())

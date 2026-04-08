@@ -210,6 +210,19 @@ final class ExtractionSupport {
         String relationshipLabelKey = (dependencySourceKey == null || dependencySourceKey.isBlank())
             ? label
             : label + ":" + dependencySourceKey;
+        String ownerPropertyKey = metadata == null ? null : java.util.Objects.toString(metadata.get("ownerPropertyName"), null);
+        String ownerMemberKey = metadata == null ? null : java.util.Objects.toString(metadata.get("ownerMemberName"), null);
+        String mappedByKey = metadata == null ? null : java.util.Objects.toString(metadata.get("mappedBy"), null);
+        String memberKey = ownerPropertyKey;
+        if (memberKey == null || memberKey.isBlank()) {
+            memberKey = ownerMemberKey;
+        }
+        if (memberKey != null && !memberKey.isBlank()) {
+            relationshipLabelKey += ":member=" + memberKey;
+        }
+        if (mappedByKey != null && !mappedByKey.isBlank()) {
+            relationshipLabelKey += ":mappedBy=" + mappedByKey;
+        }
         return new ExtractedRelationshipFact(
             IdUtils.relationshipId("depends-on", fromId, toId, relationshipLabelKey),
             RelationshipKind.DEPENDS_ON,

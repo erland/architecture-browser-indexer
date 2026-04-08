@@ -41,6 +41,7 @@ class ArchitectureIrBrowserDependencyViewHandoffSupportTest {
                 List.of(),
                 List.of(),
                 List.of(),
+                List.of(),
                 List.of()
             )
         );
