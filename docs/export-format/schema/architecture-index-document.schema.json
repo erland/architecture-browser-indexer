@@ -83,6 +83,11 @@
           "additionalProperties": true
         }
       }
+    },
+    "dependencyViews": {
+      "type": "object",
+      "description": "Optional dependency-view catalog keyed by view id. Duplicated at top level for platform/browser import compatibility; may also be mirrored under metadata.dependencyViews.",
+      "additionalProperties": true
     }
   }
 }
