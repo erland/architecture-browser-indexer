@@ -23,11 +23,17 @@ final class JavaBackendInterpretationRule implements InterpretationRule {
     public void apply(InterpretationContext context, InterpretationAccumulator accumulator) {
         Map<String, ExtractedEntityFact> roleSourcesByQualifiedName = new LinkedHashMap<>();
         for (ExtractedEntityFact entity : context.entitiesByLanguage("java")) {
+            if (InterpretationContext.isTestEntity(entity)) {
+                continue;
+            }
             if (entity.kind() == EntityKind.CLASS || entity.kind() == EntityKind.INTERFACE) {
                 inferRoleEntities(entity, context, accumulator, roleSourcesByQualifiedName);
             }
         }
         for (ExtractedEntityFact entity : context.entitiesByLanguage("java")) {
+            if (InterpretationContext.isTestEntity(entity)) {
+                continue;
+            }
             if (entity.kind() == EntityKind.FUNCTION) {
                 inferEndpoints(entity, context, accumulator);
             } else if (entity.kind() == EntityKind.FIELD) {
@@ -65,7 +71,8 @@ final class JavaBackendInterpretationRule implements InterpretationRule {
             return;
         }
         String sourceSnippet = InterpretationContext.primaryRef(methodEntity) == null ? "" : String.valueOf(InterpretationContext.primaryRef(methodEntity).snippet());
-        Optional<ExtractedEntityFact> ownerType = context.ownerType(methodEntity);
+        Optional<ExtractedEntityFact> ownerType = context.ownerType(methodEntity)
+            .filter(owner -> !InterpretationContext.isTestEntity(owner));
         String classLevelPath = ownerType.flatMap(endpointSupport::controllerBasePath).orElse("");
         String methodPath = endpointSupport.extractPath(sourceSnippet).orElse("");
         String path = endpointSupport.normalizeEndpointPath(classLevelPath, methodPath);
@@ -87,7 +94,7 @@ final class JavaBackendInterpretationRule implements InterpretationRule {
             String pathRef = InterpretationContext.path(methodEntity);
             owner = context.fileModule(pathRef);
         }
-        owner.ifPresent(sourceOwner -> accumulator.addRelationship(
+        owner.filter(sourceOwner -> !InterpretationContext.isTestEntity(sourceOwner)).ifPresent(sourceOwner -> accumulator.addRelationship(
             InterpretationSupport.relationship(ruleId(), RelationshipKind.EXPOSES, sourceOwner.id(), endpoint.id(), httpMethod + " " + path, methodEntity.sourceRefs(), Map.of("sourceLanguage", "java")),
             ruleId()
         ));
@@ -99,7 +106,8 @@ final class JavaBackendInterpretationRule implements InterpretationRule {
         InterpretationAccumulator accumulator,
         Map<String, ExtractedEntityFact> roleSourcesByQualifiedName
     ) {
-        Optional<ExtractedEntityFact> owner = context.ownerType(fieldEntity);
+        Optional<ExtractedEntityFact> owner = context.ownerType(fieldEntity)
+            .filter(candidate -> !InterpretationContext.isTestEntity(candidate));
         if (owner.isEmpty()) {
             return;
         }

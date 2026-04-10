@@ -19,7 +19,7 @@ final class JavaArchitectureEntityNormalizationRule implements ArchitectureEntit
     @Override
     public NormalizedArchitectureEntity normalize(ArchitectureEntityNormalizationContext context) {
         ArchitectureEntity entity = context.entity();
-        if (entity == null || !isJavaBacked(entity, context.entitiesById())) {
+        if (entity == null || !isJavaBacked(entity, context.entitiesById()) || isTestBacked(entity, context.entitiesById())) {
             return null;
         }
 
@@ -63,6 +63,9 @@ final class JavaArchitectureEntityNormalizationRule implements ArchitectureEntit
     }
 
     private static boolean isApiEntrypoint(ArchitectureEntity entity, Map<String, ArchitectureEntity> entitiesById) {
+        if (isTestBacked(entity, entitiesById)) {
+            return false;
+        }
         if (entity.kind() == EntityKind.ENDPOINT) {
             return metadataEquals(entity, "sourceLanguage", "java") || metadataEquals(entity, "language", "java") || referencesJavaSource(entity, entitiesById);
         }
@@ -76,6 +79,9 @@ final class JavaArchitectureEntityNormalizationRule implements ArchitectureEntit
     }
 
     private static boolean isApplicationService(ArchitectureEntity entity, Map<String, ArchitectureEntity> entitiesById) {
+        if (isTestBacked(entity, entitiesById)) {
+            return false;
+        }
         if (metadataEquals(entity, "entityRole", "service") || containsMetadata(entity, "backendProfile", "application-service")) {
             return true;
         }
@@ -95,6 +101,9 @@ final class JavaArchitectureEntityNormalizationRule implements ArchitectureEntit
     }
 
     private static boolean isPersistentEntity(ArchitectureEntity entity, Map<String, ArchitectureEntity> entitiesById) {
+        if (isTestBacked(entity, entitiesById)) {
+            return false;
+        }
         if (Boolean.TRUE.equals(entity.metadata().get("jpaEntity")) || metadataEquals(entity, "jpaKind", "entity")) {
             return true;
         }
@@ -107,6 +116,9 @@ final class JavaArchitectureEntityNormalizationRule implements ArchitectureEntit
     }
 
     private static boolean isPersistenceAccess(ArchitectureEntity entity, Map<String, ArchitectureEntity> entitiesById) {
+        if (isTestBacked(entity, entitiesById)) {
+            return false;
+        }
         if (entity.kind() == EntityKind.PERSISTENCE_ADAPTER) {
             return true;
         }
@@ -143,6 +155,38 @@ final class JavaArchitectureEntityNormalizationRule implements ArchitectureEntit
         }
         ArchitectureEntity source = entitiesById.get(sourceEntityId);
         return source != null && isJavaBacked(source, Map.of());
+    }
+
+    private static boolean isTestBacked(ArchitectureEntity entity, Map<String, ArchitectureEntity> entitiesById) {
+        if (entity == null) {
+            return false;
+        }
+        if (entity.sourceRefs().stream().anyMatch(ref -> isTestPath(ref.path()))) {
+            return true;
+        }
+        if (isTestPath(stringMetadata(entity, "relativePath"))
+            || isTestPath(stringMetadata(entity, "sourcePath"))
+            || isTestPath(stringMetadata(entity, "filePath"))
+            || isTestPath(stringMetadata(entity, "path"))) {
+            return true;
+        }
+        String sourceEntityId = stringMetadata(entity, "sourceEntityId");
+        if (sourceEntityId == null || sourceEntityId.isBlank()) {
+            return false;
+        }
+        ArchitectureEntity source = entitiesById.get(sourceEntityId);
+        return source != null && isTestBacked(source, entitiesById);
+    }
+
+    private static boolean isTestPath(String path) {
+        if (path == null || path.isBlank()) {
+            return false;
+        }
+        String normalized = path.replace('\\', '/').toLowerCase(Locale.ROOT);
+        return normalized.contains("/src/test/")
+            || normalized.startsWith("src/test/")
+            || normalized.contains("/test/")
+            || normalized.startsWith("test/");
     }
 
     private static boolean hasFramework(ArchitectureEntity entity, String expected) {

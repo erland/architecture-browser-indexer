@@ -134,4 +134,28 @@ final class InterpretationContext {
         SourceReference ref = primaryRef(entity);
         return ref == null ? null : ref.path();
     }
+    static boolean isTestPath(String path) {
+        if (path == null || path.isBlank()) {
+            return false;
+        }
+        String normalized = path.replace('\\', '/').toLowerCase(Locale.ROOT);
+        return normalized.contains("/src/test/")
+            || normalized.startsWith("src/test/")
+            || normalized.contains("/test/")
+            || normalized.startsWith("test/");
+    }
+
+    static boolean isTestEntity(ExtractedEntityFact entity) {
+        if (entity == null) {
+            return false;
+        }
+        if (entity.sourceRefs().stream().anyMatch(ref -> isTestPath(ref.path()))) {
+            return true;
+        }
+        return isTestPath(stringMetadata(entity, "relativePath"))
+            || isTestPath(stringMetadata(entity, "sourcePath"))
+            || isTestPath(stringMetadata(entity, "filePath"))
+            || isTestPath(stringMetadata(entity, "path"));
+    }
+
 }

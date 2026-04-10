@@ -31,6 +31,31 @@ class ArchitectureIrViewpointDerivationServiceTest {
             List.of("api-entrypoint"),
             List.of("externally-exposed")
         );
+        ArchitectureEntity endpoint = new ArchitectureEntity(
+            "entity:endpoint:get-orders",
+            EntityKind.ENDPOINT,
+            EntityOrigin.INFERRED,
+            "GET /orders",
+            "GET /orders",
+            "scope:repo",
+            List.of(),
+            Map.of("sourceLanguage", "java", "relativePath", "src/main/java/com/example/orders/api/OrderResource.java"),
+            List.of("api-entrypoint"),
+            List.of("externally-exposed")
+        );
+        ArchitectureEntity testEndpoint = new ArchitectureEntity(
+            "entity:endpoint:test-orders",
+            EntityKind.ENDPOINT,
+            EntityOrigin.INFERRED,
+            "GET /test/orders",
+            "GET /test/orders",
+            "scope:repo",
+            List.of(),
+            Map.of("sourceLanguage", "java", "relativePath", "src/test/java/com/example/orders/api/OrderResourceTest.java"),
+            List.of("api-entrypoint"),
+            List.of("externally-exposed")
+        );
+
         ArchitectureEntity service = new ArchitectureEntity(
             "entity:service",
             EntityKind.SERVICE,
@@ -92,7 +117,7 @@ class ArchitectureIrViewpointDerivationServiceTest {
         );
 
         List<ArchitectureViewpoint> viewpoints = ArchitectureIrViewpointDerivationService.derive(
-            List.of(resource, service, repository, orderEntity),
+            List.of(resource, endpoint, testEndpoint, service, repository, orderEntity),
             relationships,
             Map.of(
                 "moduleDependencies", List.of(Map.of("from", "module:a", "to", "module:b")),
@@ -149,7 +174,7 @@ class ArchitectureIrViewpointDerivationServiceTest {
 
         ArchitectureViewpoint apiSurface = viewpointById(viewpoints, "api-surface");
         assertEquals("available", apiSurface.availability());
-        assertEquals(List.of("entity:resource"), apiSurface.seedEntityIds());
+        assertEquals(List.of("entity:endpoint:get-orders"), apiSurface.seedEntityIds());
         assertEquals(List.of("api-entrypoint"), apiSurface.seedRoleIds());
         assertEquals(List.of("serves-request"), apiSurface.expandViaSemantics());
         assertEquals(List.of("endpointModuleDependencies", "endpointTypeDependencies"), apiSurface.preferredDependencyViews());

@@ -11,6 +11,9 @@ import java.util.Map;
 
 final class JavaBackendRoleClassifier {
     JavaBackendInterpretationClassification classifyRole(ExtractedEntityFact entity, InterpretationContext context) {
+        if (InterpretationContext.isTestEntity(entity)) {
+            return null;
+        }
         List<String> annotations = InterpretationContext.listMetadata(entity, "annotations");
         String lowerName = entity.name().toLowerCase(Locale.ROOT);
         String packageName = String.valueOf(entity.metadata().getOrDefault("packageName", "")).toLowerCase(Locale.ROOT);
@@ -67,6 +70,9 @@ final class JavaBackendRoleClassifier {
     }
 
     EntityKind inferredRoleKind(ExtractedEntityFact entity) {
+        if (InterpretationContext.isTestEntity(entity)) {
+            return null;
+        }
         List<String> annotations = InterpretationContext.listMetadata(entity, "annotations");
         String lowerName = entity.name().toLowerCase(Locale.ROOT);
         String packageName = String.valueOf(entity.metadata().getOrDefault("packageName", "")).toLowerCase(Locale.ROOT);

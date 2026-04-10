@@ -81,4 +81,42 @@ class InterpretationHelperClassificationTest {
         assertEquals("api-client-or-service", classifier.classifyServiceProfile(service));
         assertTrue(classifier.isStartupPoint(startup));
     }
+
+    @Test
+    void javaBackendRoleClassifierIgnoresTestClasses() {
+        SourceReference testRef = new SourceReference("src/test/java/com/example/orders/api/OrderResourceTest.java", 3, 8, "class OrderResourceTest {}", Map.of());
+        ExtractedEntityFact testResource = new ExtractedEntityFact("entity:java:test-resource", EntityKind.CLASS, EntityOrigin.OBSERVED, "OrderResourceTest", "com.example.orders.api.OrderResourceTest", "scope:test", List.of(testRef), Map.of(
+            "language", "java",
+            "qualifiedName", "com.example.orders.api.OrderResourceTest",
+            "packageName", "com.example.orders.api",
+            "declarationKind", "class",
+            "annotations", List.of("Path")
+        ));
+
+        InterpretationContext context = new InterpretationContext(new StructuralExtractionResult(
+            List.of(),
+            List.of(testResource),
+            List.of(),
+            List.of(),
+            new ExtractionSummary(1, 1, Map.of("java", 1), Map.of("SYNTAX_TREE", 1), 1, 0)
+        ));
+
+        JavaBackendRoleClassifier classifier = new JavaBackendRoleClassifier();
+        assertEquals(null, classifier.classifyRole(testResource, context));
+    }
+
+    @Test
+    void interpretationContextTreatsMetadataOnlyTestPathAsTestEntity() {
+        ExtractedEntityFact testResource = new ExtractedEntityFact("entity:java:test-resource-metadata", EntityKind.CLASS, EntityOrigin.OBSERVED, "OrderResourceTest", "com.example.orders.api.OrderResourceTest", "scope:test", List.of(), Map.of(
+            "language", "java",
+            "qualifiedName", "com.example.orders.api.OrderResourceTest",
+            "packageName", "com.example.orders.api",
+            "relativePath", "src/test/java/com/example/orders/api/OrderResourceTest.java",
+            "declarationKind", "class",
+            "annotations", List.of("Path")
+        ));
+
+        assertTrue(InterpretationContext.isTestEntity(testResource));
+    }
+
 }
