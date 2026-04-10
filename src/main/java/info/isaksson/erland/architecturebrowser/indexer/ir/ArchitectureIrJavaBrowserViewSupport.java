@@ -20,8 +20,8 @@ final class ArchitectureIrJavaBrowserViewSupport {
         List<Map<String, Object>> writePathTypeDependencies,
         List<Map<String, Object>> writePathModuleDependencies
     ) {
-        List<ArchitectureIrBrowserViewMetadataBuilder.JavaBrowserViewDefinition> definitions = List.of(
-            new ArchitectureIrBrowserViewMetadataBuilder.JavaBrowserViewDefinition(
+        List<ArchitectureIrBrowserViewDescriptorFactory.JavaBrowserViewDefinition> definitions = List.of(
+            new ArchitectureIrBrowserViewDescriptorFactory.JavaBrowserViewDefinition(
                 "javaEndpointGraph",
                 "Java endpoint graph",
                 "JAX-RS resource and endpoint relationships prepared for browser-native backend API exploration.",
@@ -35,7 +35,7 @@ final class ArchitectureIrJavaBrowserViewSupport {
                 endpointModuleDependencies,
                 List.of()
             ),
-            new ArchitectureIrBrowserViewMetadataBuilder.JavaBrowserViewDefinition(
+            new ArchitectureIrBrowserViewDescriptorFactory.JavaBrowserViewDefinition(
                 "javaEntityModelGraph",
                 "Java entity model graph",
                 "JPA entity, embeddable, inheritance, and association relationships prepared for browser-native persistence-model exploration.",
@@ -49,7 +49,7 @@ final class ArchitectureIrJavaBrowserViewSupport {
                 entityModelModuleDependencies,
                 entityAssociationRelationships
             ),
-            new ArchitectureIrBrowserViewMetadataBuilder.JavaBrowserViewDefinition(
+            new ArchitectureIrBrowserViewDescriptorFactory.JavaBrowserViewDefinition(
                 "javaEventFlowGraph",
                 "Java CDI event flow graph",
                 "CDI publisher, event, and observer relationships prepared for browser-native asynchronous flow exploration.",
@@ -63,7 +63,7 @@ final class ArchitectureIrJavaBrowserViewSupport {
                 observerModuleDependencies,
                 List.of()
             ),
-            new ArchitectureIrBrowserViewMetadataBuilder.JavaBrowserViewDefinition(
+            new ArchitectureIrBrowserViewDescriptorFactory.JavaBrowserViewDefinition(
                 "javaWritePathGraph",
                 "Java write path graph",
                 "Service and repository write-path relationships prepared for browser-native persistence flow exploration.",
@@ -81,7 +81,7 @@ final class ArchitectureIrJavaBrowserViewSupport {
 
         List<Map<String, Object>> views = new ArrayList<>();
         List<String> availableViews = new ArrayList<>();
-        for (ArchitectureIrBrowserViewMetadataBuilder.JavaBrowserViewDefinition definition : definitions) {
+        for (ArchitectureIrBrowserViewDescriptorFactory.JavaBrowserViewDefinition definition : definitions) {
             Map<String, Object> descriptor = definition.toMetadataMap();
             views.add(descriptor);
             if (Boolean.TRUE.equals(descriptor.get("available"))) {

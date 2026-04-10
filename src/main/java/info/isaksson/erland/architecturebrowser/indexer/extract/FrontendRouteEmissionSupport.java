@@ -4,13 +4,14 @@ import info.isaksson.erland.architecturebrowser.indexer.extract.model.ExtractedE
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.EntityKind;
 import info.isaksson.erland.architecturebrowser.indexer.ir.model.SourceReference;
 
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 final class FrontendRouteEmissionSupport {
+    private final FrontendRouteEntityFactory routeEntityFactory = new FrontendRouteEntityFactory();
+    private final FrontendNavigationSourceResolver navigationSourceResolver = new FrontendNavigationSourceResolver();
 
     void emit(
         ExtractionAccumulator accumulator,
@@ -24,79 +25,116 @@ final class FrontendRouteEmissionSupport {
             return;
         }
         Map<FrontendRouteCandidate, ExtractedEntityFact> routeEntities = new LinkedHashMap<>();
-        if (candidates != null) {
-            for (FrontendRouteCandidate candidate : candidates) {
-                ExtractedEntityFact routeEntity = routeEntity(candidate.framework(), relativePath, candidate.path(), candidate.fullPath(), candidate.startLine(), candidate.snippet(),
-                    candidate.declarationKind(), candidate.redirectTarget());
-                accumulator.addEntity(routeEntity);
-                routeEntities.put(candidate, routeEntity);
-            }
-            for (int i = 0; i < candidates.size(); i++) {
-                FrontendRouteCandidate candidate = candidates.get(i);
-                ExtractedEntityFact routeEntity = routeEntities.get(candidate);
-                FrontendRouteCandidate parent = normalizationSupport.findParent(candidate, candidates, i);
-                if (parent != null) {
-                    ExtractedEntityFact parentEntity = routeEntities.get(parent);
-                    accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
-                        routeEntity.id(),
-                        parentEntity.id(),
-                        candidate.path(),
-                        routeRef(candidate, relativePath),
-                        "typescript",
-                        relationshipMetadata(candidate.framework(), "childOf", candidate.path(), normalizationSupport.fullRoutePath(candidate, parent), true,
-                            Map.of(
-                                "routeSourceKind", "declared-route",
-                                "routeDeclarationKind", candidate.declarationKind(),
-                                "parentRouteEntityId", parentEntity.id(),
-                                "parentRoutePath", parent.path(),
-                                "parentRouteFullPath", parent.fullPath()
-                            ))
-                    ));
-                }
-                for (String targetName : candidate.targets()) {
-                    addRouteTargetRelationship(accumulator, candidate, routeEntity, targetName, namedEntities, relativePath, "targets", "route-target", EntityKind.UI_MODULE,
-                        Map.of("routeSourceKind", "declared-route", "routeDeclarationKind", candidate.declarationKind()));
-                }
-                for (String lazyTarget : candidate.lazyLoads()) {
-                    addRouteTargetRelationship(accumulator, candidate, routeEntity, lazyTarget, namedEntities, relativePath, "lazyLoads", "route-lazy-target", EntityKind.MODULE,
-                        Map.of("routeSourceKind", "declared-route", "routeDeclarationKind", candidate.declarationKind()));
-                }
-                for (String guard : candidate.guards()) {
-                    addRouteTargetRelationship(accumulator, candidate, routeEntity, guard, namedEntities, relativePath, "guards", "route-guard", EntityKind.CLASS,
-                        Map.of("routeSourceKind", "declared-route", "routeDeclarationKind", candidate.declarationKind(), "guardReference", guard));
-                }
-                for (String resolver : candidate.resolvers()) {
-                    addRouteTargetRelationship(accumulator, candidate, routeEntity, resolver, namedEntities, relativePath, "resolves", "route-resolver", EntityKind.CLASS,
-                        Map.of("routeSourceKind", "declared-route", "routeDeclarationKind", candidate.declarationKind()));
-                }
-                if (!candidate.redirectTarget().isBlank()) {
-                    addRouteLiteralRelationship(accumulator, candidate, routeEntity, candidate.redirectTarget(), relativePath, "redirects", "route-redirect-target");
-                }
-            }
+        emitDeclaredRoutes(accumulator, relativePath, candidates, namedEntities, normalizationSupport, routeEntities);
+        emitNavigationCandidates(accumulator, relativePath, navigationCandidates, namedEntities);
+    }
+
+    private void emitDeclaredRoutes(
+        ExtractionAccumulator accumulator,
+        String relativePath,
+        List<FrontendRouteCandidate> candidates,
+        Map<String, ExtractedEntityFact> namedEntities,
+        FrontendRoutePathNormalizationSupport normalizationSupport,
+        Map<FrontendRouteCandidate, ExtractedEntityFact> routeEntities
+    ) {
+        if (candidates == null) {
+            return;
         }
-        if (navigationCandidates != null && !navigationCandidates.isEmpty()) {
-            for (FrontendNavigationCandidate candidate : navigationCandidates) {
-                ExtractedEntityFact sourceEntity = findNavigationSourceEntity(namedEntities, relativePath, candidate.startLine(), candidate.framework());
-                if (sourceEntity == null) {
-                    continue;
-                }
-                ExtractedEntityFact targetRouteEntity = inferredRouteEntity(candidate.framework(), candidate.targetLiteral(), relativePath, candidate.startLine(), candidate.sourceKind());
-                accumulator.addEntity(targetRouteEntity);
-                Map<String, Object> extra = Map.of(
-                    "routeSourceKind", candidate.sourceKind(),
-                    "navigationTargetLiteral", targetRouteEntity.metadata().get("routeFullPath"),
-                    "navigationLiteral", candidate.targetLiteral()
-                );
-                accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
-                    sourceEntity.id(),
-                    targetRouteEntity.id(),
-                    Objects.toString(targetRouteEntity.metadata().get("routeFullPath"), candidate.targetLiteral()),
-                    navigationRef(candidate, relativePath),
-                    "typescript",
-                    relationshipMetadata(candidate.framework(), candidate.sourceKind().equals("link") ? "linksToRoute" : "navigatesToRoute",
-                        candidate.targetLiteral(), Objects.toString(targetRouteEntity.metadata().get("routeFullPath"), candidate.targetLiteral()), true, extra)
-                ));
+        for (FrontendRouteCandidate candidate : candidates) {
+            ExtractedEntityFact routeEntity = routeEntityFactory.routeEntity(candidate.framework(), relativePath, candidate.path(), candidate.fullPath(), candidate.startLine(),
+                candidate.snippet(), candidate.declarationKind(), candidate.redirectTarget());
+            accumulator.addEntity(routeEntity);
+            routeEntities.put(candidate, routeEntity);
+        }
+        for (int i = 0; i < candidates.size(); i++) {
+            FrontendRouteCandidate candidate = candidates.get(i);
+            ExtractedEntityFact routeEntity = routeEntities.get(candidate);
+            emitParentRelationship(accumulator, relativePath, candidates, normalizationSupport, routeEntities, i, candidate, routeEntity);
+            emitTargetRelationships(accumulator, relativePath, candidate, routeEntity, namedEntities);
+            emitRedirectRelationship(accumulator, relativePath, candidate, routeEntity);
+        }
+    }
+
+    private void emitParentRelationship(ExtractionAccumulator accumulator, String relativePath, List<FrontendRouteCandidate> candidates,
+                                        FrontendRoutePathNormalizationSupport normalizationSupport,
+                                        Map<FrontendRouteCandidate, ExtractedEntityFact> routeEntities,
+                                        int index, FrontendRouteCandidate candidate, ExtractedEntityFact routeEntity) {
+        FrontendRouteCandidate parent = normalizationSupport.findParent(candidate, candidates, index);
+        if (parent == null) {
+            return;
+        }
+        ExtractedEntityFact parentEntity = routeEntities.get(parent);
+        accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
+            routeEntity.id(),
+            parentEntity.id(),
+            candidate.path(),
+            routeRef(candidate, relativePath),
+            "typescript",
+            relationshipMetadata(candidate.framework(), "childOf", candidate.path(), normalizationSupport.fullRoutePath(candidate, parent), true,
+                Map.of(
+                    "routeSourceKind", "declared-route",
+                    "routeDeclarationKind", candidate.declarationKind(),
+                    "parentRouteEntityId", parentEntity.id(),
+                    "parentRoutePath", parent.path(),
+                    "parentRouteFullPath", parent.fullPath()
+                ))
+        ));
+    }
+
+    private void emitTargetRelationships(ExtractionAccumulator accumulator, String relativePath, FrontendRouteCandidate candidate,
+                                         ExtractedEntityFact routeEntity, Map<String, ExtractedEntityFact> namedEntities) {
+        for (String targetName : candidate.targets()) {
+            addRouteTargetRelationship(accumulator, candidate, routeEntity, targetName, namedEntities, relativePath, "targets", "route-target", EntityKind.UI_MODULE,
+                Map.of("routeSourceKind", "declared-route", "routeDeclarationKind", candidate.declarationKind()));
+        }
+        for (String lazyTarget : candidate.lazyLoads()) {
+            addRouteTargetRelationship(accumulator, candidate, routeEntity, lazyTarget, namedEntities, relativePath, "lazyLoads", "route-lazy-target", EntityKind.MODULE,
+                Map.of("routeSourceKind", "declared-route", "routeDeclarationKind", candidate.declarationKind()));
+        }
+        for (String guard : candidate.guards()) {
+            addRouteTargetRelationship(accumulator, candidate, routeEntity, guard, namedEntities, relativePath, "guards", "route-guard", EntityKind.CLASS,
+                Map.of("routeSourceKind", "declared-route", "routeDeclarationKind", candidate.declarationKind(), "guardReference", guard));
+        }
+        for (String resolver : candidate.resolvers()) {
+            addRouteTargetRelationship(accumulator, candidate, routeEntity, resolver, namedEntities, relativePath, "resolves", "route-resolver", EntityKind.CLASS,
+                Map.of("routeSourceKind", "declared-route", "routeDeclarationKind", candidate.declarationKind()));
+        }
+    }
+
+    private void emitRedirectRelationship(ExtractionAccumulator accumulator, String relativePath, FrontendRouteCandidate candidate,
+                                          ExtractedEntityFact routeEntity) {
+        if (!candidate.redirectTarget().isBlank()) {
+            addRouteLiteralRelationship(accumulator, candidate, routeEntity, candidate.redirectTarget(), relativePath, "redirects", "route-redirect-target");
+        }
+    }
+
+    private void emitNavigationCandidates(ExtractionAccumulator accumulator, String relativePath, List<FrontendNavigationCandidate> navigationCandidates,
+                                          Map<String, ExtractedEntityFact> namedEntities) {
+        if (navigationCandidates == null || navigationCandidates.isEmpty()) {
+            return;
+        }
+        for (FrontendNavigationCandidate candidate : navigationCandidates) {
+            ExtractedEntityFact sourceEntity = navigationSourceResolver.findNavigationSourceEntity(namedEntities, relativePath, candidate.startLine(), candidate.framework());
+            if (sourceEntity == null) {
+                continue;
             }
+            ExtractedEntityFact targetRouteEntity = routeEntityFactory.inferredRouteEntity(candidate.framework(), candidate.targetLiteral(), relativePath,
+                candidate.startLine(), candidate.sourceKind());
+            accumulator.addEntity(targetRouteEntity);
+            Map<String, Object> extra = Map.of(
+                "routeSourceKind", candidate.sourceKind(),
+                "navigationTargetLiteral", targetRouteEntity.metadata().get("routeFullPath"),
+                "navigationLiteral", candidate.targetLiteral()
+            );
+            accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
+                sourceEntity.id(),
+                targetRouteEntity.id(),
+                Objects.toString(targetRouteEntity.metadata().get("routeFullPath"), candidate.targetLiteral()),
+                navigationRef(candidate, relativePath),
+                "typescript",
+                relationshipMetadata(candidate.framework(), candidate.sourceKind().equals("link") ? "linksToRoute" : "navigatesToRoute",
+                    candidate.targetLiteral(), Objects.toString(targetRouteEntity.metadata().get("routeFullPath"), candidate.targetLiteral()), true, extra)
+            ));
         }
     }
 
@@ -153,7 +191,7 @@ final class FrontendRouteEmissionSupport {
         String frameworkRelationship,
         String targetClassification
     ) {
-        ExtractedEntityFact targetRouteEntity = inferredRouteEntity(candidate.framework(), targetLiteral, relativePath, candidate.startLine(), frameworkRelationship);
+        ExtractedEntityFact targetRouteEntity = routeEntityFactory.inferredRouteEntity(candidate.framework(), targetLiteral, relativePath, candidate.startLine(), frameworkRelationship);
         accumulator.addEntity(targetRouteEntity);
         accumulator.addRelationship(ExtractionSupport.dependencyRelationship(
             routeEntity.id(),
@@ -169,44 +207,6 @@ final class FrontendRouteEmissionSupport {
                     "targetClassification", targetClassification,
                     "navigationTargetLiteral", Objects.toString(targetRouteEntity.metadata().get("routeFullPath"), targetLiteral)
                 ))
-        ));
-    }
-
-    private ExtractedEntityFact routeEntity(String framework, String relativePath, String routePath, String fullPath, int line, String snippet,
-                                            String declarationKind, String redirectTarget) {
-        String qualifiedName = framework + "-route:" + fullPath;
-        Map<String, Object> metadata = new LinkedHashMap<>();
-        metadata.put("framework", framework);
-        metadata.put("route", true);
-        metadata.put("routePath", routePath);
-        metadata.put("routeFullPath", fullPath);
-        metadata.put("entityRole", "route");
-        metadata.put("targetClassification", "route-node");
-        metadata.put("external", false);
-        metadata.put("inferredInternal", true);
-        metadata.put("routeSnippet", snippet == null ? "" : snippet);
-        metadata.put("routeDeclarationKind", declarationKind == null || declarationKind.isBlank() ? "route-object" : declarationKind);
-        metadata.put("routeSourceKind", "declared-route");
-        if (redirectTarget != null && !redirectTarget.isBlank()) {
-            metadata.put("redirectTargetLiteral", redirectTarget);
-        }
-        return ExtractionSupport.inferredTypeEntity(framework, EntityKind.UI_MODULE, qualifiedName, relativePath, line, Map.copyOf(metadata));
-    }
-
-    private ExtractedEntityFact inferredRouteEntity(String framework, String targetLiteral, String relativePath, int line, String sourceKind) {
-        String fullPath = normalizeLiteralPath(targetLiteral);
-        String qualifiedName = framework + "-route:" + fullPath;
-        return ExtractionSupport.inferredTypeEntity(framework, EntityKind.UI_MODULE, qualifiedName, relativePath, line, Map.of(
-            "framework", framework,
-            "route", true,
-            "routePath", targetLiteral,
-            "routeFullPath", fullPath,
-            "entityRole", "route",
-            "targetClassification", "route-node",
-            "external", false,
-            "inferredInternal", true,
-            "routeSourceKind", sourceKind,
-            "routeLiteralOnly", true
         ));
     }
 
@@ -243,80 +243,7 @@ final class FrontendRouteEmissionSupport {
             "language", "typescript",
             "framework", candidate.framework(),
             "routeSourceKind", candidate.sourceKind(),
-            "navigationTargetLiteral", normalizeLiteralPath(candidate.targetLiteral())
+            "navigationTargetLiteral", routeEntityFactory.normalizeLiteralPath(candidate.targetLiteral())
         ));
-    }
-
-    private ExtractedEntityFact findNavigationSourceEntity(Map<String, ExtractedEntityFact> namedEntities, String relativePath, int line, String framework) {
-        if (namedEntities == null || namedEntities.isEmpty()) {
-            return null;
-        }
-        List<ExtractedEntityFact> sameFileEntities = namedEntities.values().stream()
-            .filter(entity -> entity.sourceRefs().stream().anyMatch(ref -> relativePath.equals(ref.path())))
-            .toList();
-        if (sameFileEntities.isEmpty()) {
-            return null;
-        }
-        Comparator<ExtractedEntityFact> comparator = Comparator
-            .comparingInt((ExtractedEntityFact entity) -> frameworkScore(entity, framework))
-            .thenComparingInt(entity -> lineContainmentScore(entity, line))
-            .thenComparingInt(entity -> distanceToLine(entity, line));
-        return sameFileEntities.stream()
-            .max(comparator)
-            .orElse(null);
-    }
-
-    private int frameworkScore(ExtractedEntityFact entity, String framework) {
-        int score = 0;
-        if (framework.equals(entity.metadata().get("framework"))) {
-            score += 10;
-        }
-        if ("page-or-router".equals(entity.metadata().get("uiProfile"))) {
-            score += 5;
-        }
-        return score;
-    }
-
-    private int lineContainmentScore(ExtractedEntityFact entity, int line) {
-        int best = Integer.MIN_VALUE;
-        for (SourceReference ref : entity.sourceRefs()) {
-            Integer startLine = ref.startLine();
-            Integer endLine = ref.endLine();
-            if (startLine == null) {
-                continue;
-            }
-            int score;
-            if (endLine != null && startLine <= line && line <= endLine) {
-                score = 100;
-            } else if (startLine <= line) {
-                score = 50;
-            } else {
-                score = -Math.abs(startLine - line);
-            }
-            if (score > best) {
-                best = score;
-            }
-        }
-        return best == Integer.MIN_VALUE ? 0 : best;
-    }
-
-    private int distanceToLine(ExtractedEntityFact entity, int line) {
-        return entity.sourceRefs().stream()
-            .map(SourceReference::startLine)
-            .filter(Objects::nonNull)
-            .mapToInt(startLine -> -Math.abs(line - startLine))
-            .max()
-            .orElse(Integer.MIN_VALUE);
-    }
-
-    private String normalizeLiteralPath(String targetLiteral) {
-        if (targetLiteral == null || targetLiteral.isBlank()) {
-            return "/";
-        }
-        String normalized = targetLiteral.trim();
-        if (!normalized.startsWith("/")) {
-            normalized = "/" + normalized;
-        }
-        return normalized.replaceAll("/+", "/");
     }
 }

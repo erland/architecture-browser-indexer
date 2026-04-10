@@ -19,8 +19,8 @@ final class ArchitectureIrFrontendBrowserViewSupport {
         List<Map<String, Object>> hookTypeDependencies,
         List<Map<String, Object>> hookModuleDependencies
     ) {
-        List<ArchitectureIrBrowserViewMetadataBuilder.FrontendBrowserViewDefinition> definitions = List.of(
-            new ArchitectureIrBrowserViewMetadataBuilder.FrontendBrowserViewDefinition(
+        List<ArchitectureIrBrowserViewDescriptorFactory.FrontendBrowserViewDefinition> definitions = List.of(
+            new ArchitectureIrBrowserViewDescriptorFactory.FrontendBrowserViewDefinition(
                 "angularModuleGraph",
                 "Angular module graph",
                 "Angular module, standalone component, and template composition relationships for browser-native graph exploration.",
@@ -32,7 +32,7 @@ final class ArchitectureIrFrontendBrowserViewSupport {
                 compositionTypeDependencies,
                 compositionModuleDependencies
             ),
-            new ArchitectureIrBrowserViewMetadataBuilder.FrontendBrowserViewDefinition(
+            new ArchitectureIrBrowserViewDescriptorFactory.FrontendBrowserViewDefinition(
                 "angularProviderGraph",
                 "Angular provider graph",
                 "Angular provider, injection-token, and dependency-injection relationships for browser-native graph exploration.",
@@ -44,7 +44,7 @@ final class ArchitectureIrFrontendBrowserViewSupport {
                 providerTypeDependencies,
                 providerModuleDependencies
             ),
-            new ArchitectureIrBrowserViewMetadataBuilder.FrontendBrowserViewDefinition(
+            new ArchitectureIrBrowserViewDescriptorFactory.FrontendBrowserViewDefinition(
                 "routeGraph",
                 "Frontend route graph",
                 "Angular and React routing relationships for browser-native navigation and path analysis.",
@@ -56,7 +56,7 @@ final class ArchitectureIrFrontendBrowserViewSupport {
                 routeTypeDependencies,
                 routeModuleDependencies
             ),
-            new ArchitectureIrBrowserViewMetadataBuilder.FrontendBrowserViewDefinition(
+            new ArchitectureIrBrowserViewDescriptorFactory.FrontendBrowserViewDefinition(
                 "reactComponentCompositionGraph",
                 "React component composition graph",
                 "React render/composition relationships for browser-native component graph exploration.",
@@ -68,7 +68,7 @@ final class ArchitectureIrFrontendBrowserViewSupport {
                 compositionTypeDependencies,
                 compositionModuleDependencies
             ),
-            new ArchitectureIrBrowserViewMetadataBuilder.FrontendBrowserViewDefinition(
+            new ArchitectureIrBrowserViewDescriptorFactory.FrontendBrowserViewDefinition(
                 "reactContextGraph",
                 "React context graph",
                 "React provider/consumer context relationships for browser-native context exploration.",
@@ -80,7 +80,7 @@ final class ArchitectureIrFrontendBrowserViewSupport {
                 providerTypeDependencies,
                 providerModuleDependencies
             ),
-            new ArchitectureIrBrowserViewMetadataBuilder.FrontendBrowserViewDefinition(
+            new ArchitectureIrBrowserViewDescriptorFactory.FrontendBrowserViewDefinition(
                 "reactHookGraph",
                 "React hook graph",
                 "React custom-hook usage relationships for browser-native hook exploration.",
@@ -96,7 +96,7 @@ final class ArchitectureIrFrontendBrowserViewSupport {
 
         List<Map<String, Object>> views = new ArrayList<>();
         List<String> availableViews = new ArrayList<>();
-        for (ArchitectureIrBrowserViewMetadataBuilder.FrontendBrowserViewDefinition definition : definitions) {
+        for (ArchitectureIrBrowserViewDescriptorFactory.FrontendBrowserViewDefinition definition : definitions) {
             Map<String, Object> descriptor = definition.toMetadataMap();
             views.add(descriptor);
             if (Boolean.TRUE.equals(descriptor.get("available"))) {
