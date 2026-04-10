@@ -11,7 +11,7 @@ final class JavaJpaExplicitAssociationHandlingSupport {
 
     static ArchitectureRelationship explicitlyHandledRelationship(
         ArchitectureRelationship relationship,
-        List<ArchitectureRelationship> relationships
+        JavaJpaInverseAssociationIndex index
     ) {
         if (relationship == null) {
             return null;
@@ -59,7 +59,7 @@ final class JavaJpaExplicitAssociationHandlingSupport {
             boolean explicitUnidirectional = !Boolean.TRUE.equals(metadata.get("inverseJpaAssociationMerged"))
                 && !metadata.containsKey("mappedBy")
                 && JavaJpaAssociationMetadataSupport.valueAtPath(metadata, "jpaAssociationEvidence", "mappedBy") == null
-                && !JavaJpaInverseAssociationPairingSupport.hasAmbiguousSwappedJpaAssociation(relationship, relationships);
+                && !JavaJpaInverseAssociationPairingSupport.hasAmbiguousSwappedJpaAssociation(relationship, index);
             if (explicitUnidirectional) {
                 normalizedAssociation = new NormalizedAssociation(
                     existingAssociationKind(relationship, relationship),

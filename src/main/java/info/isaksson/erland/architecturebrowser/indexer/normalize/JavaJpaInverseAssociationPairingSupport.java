@@ -11,17 +11,24 @@ final class JavaJpaInverseAssociationPairingSupport {
 
     static ArchitectureRelationship findInversePair(
         ArchitectureRelationship relationship,
-        List<ArchitectureRelationship> relationships,
+        JavaJpaInverseAssociationIndex index,
         Set<String> consumed
     ) {
-        InverseRelationshipMergeInput relationshipInput = JavaJpaInverseRelationshipMergeInputFactory.fromRelationship(relationship);
-        for (ArchitectureRelationship candidate : relationships) {
-            if (candidate == null || Objects.equals(candidate.id(), relationship.id()) || consumed.contains(candidate.id())) {
+        InverseRelationshipMergeInput relationshipInput = index == null
+            ? JavaJpaInverseRelationshipMergeInputFactory.fromRelationship(relationship)
+            : index.inputFor(relationship);
+        if (relationshipInput == null) {
+            return null;
+        }
+        List<InverseRelationshipMergeInput> candidates = index == null
+            ? List.of()
+            : index.inverseCandidatesFor(relationshipInput);
+        for (InverseRelationshipMergeInput candidateInput : candidates) {
+            if (candidateInput == null || Objects.equals(candidateInput.id(), relationshipInput.id()) || consumed.contains(candidateInput.id())) {
                 continue;
             }
-            InverseRelationshipMergeInput candidateInput = JavaJpaInverseRelationshipMergeInputFactory.fromRelationship(candidate);
             if (isInversePair(relationshipInput, candidateInput)) {
-                return candidate;
+                return candidateInput.relationship();
             }
         }
         return null;
@@ -84,23 +91,11 @@ final class JavaJpaInverseAssociationPairingSupport {
 
     static boolean hasAmbiguousSwappedJpaAssociation(
         ArchitectureRelationship relationship,
-        List<ArchitectureRelationship> relationships
+        JavaJpaInverseAssociationIndex index
     ) {
-        if (relationship == null || relationships == null) {
+        if (relationship == null || index == null) {
             return false;
         }
-        for (ArchitectureRelationship candidate : relationships) {
-            if (candidate == null || Objects.equals(candidate.id(), relationship.id())) {
-                continue;
-            }
-            if (!isJpaAssociation(JavaJpaInverseRelationshipMergeInputFactory.fromRelationship(candidate))) {
-                continue;
-            }
-            if (Objects.equals(candidate.fromEntityId(), relationship.toEntityId())
-                && Objects.equals(candidate.toEntityId(), relationship.fromEntityId())) {
-                return true;
-            }
-        }
-        return false;
+        return index.hasSwappedJpaAssociation(relationship);
     }
 }

@@ -24,17 +24,18 @@ final class JavaJpaInverseAssociationMergeSupport {
         }
         List<ArchitectureRelationship> merged = new ArrayList<>();
         Set<String> consumed = new LinkedHashSet<>();
+        JavaJpaInverseAssociationIndex index = JavaJpaInverseAssociationIndex.build(relationships);
         for (ArchitectureRelationship relationship : relationships) {
             if (relationship == null || consumed.contains(relationship.id())) {
                 continue;
             }
             ArchitectureRelationship inverse = JavaJpaInverseAssociationPairingSupport.findInversePair(
                 relationship,
-                relationships,
+                index,
                 consumed
             );
             if (inverse == null) {
-                merged.add(JavaJpaExplicitAssociationHandlingSupport.explicitlyHandledRelationship(relationship, relationships));
+                merged.add(JavaJpaExplicitAssociationHandlingSupport.explicitlyHandledRelationship(relationship, index));
                 consumed.add(relationship.id());
                 continue;
             }
